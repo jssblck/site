@@ -1,13 +1,12 @@
-
 export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-black text-zinc-100 relative overflow-hidden">
       <header className="fixed top-0 w-full z-50 backdrop-blur-md bg-black/70 border-b border-zinc-800">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="font-semibold tracking-tight">Jessica Black</span>
+            <span className="font-medium text-zinc-400 tracking-tight">JB</span>
           </div>
-          <nav className="hidden md:flex items-center gap-6">
+          <nav className="flex items-center gap-4 md:gap-6">
             <a href="https://github.com/jssblck" className="text-sm text-zinc-400 hover:text-white transition-colors">
               GitHub
             </a>
