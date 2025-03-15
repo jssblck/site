@@ -4,10 +4,9 @@ import { ThemeProvider } from "@/components/theme-provider"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Jane Doe | Staff Software Engineer",
-  description:
-    "Personal profile of Jane Doe, a Staff Software Engineer specializing in Rust, Go, Haskell, and TypeScript",
-  generator: 'v0.dev'
+  title: "Jessica Black | Staff Software Engineer",
+  description: "Personal profile of Jessica Black, a Staff Software Engineer specializing in Rust, Go, Haskell, and TypeScript",
+  generator: 'Next.js'
 }
 
 export default function RootLayout({
