@@ -1,6 +1,5 @@
 import type React from "react"
-import "@/app/globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
+import "@/styles/globals.css"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
@@ -15,22 +14,10 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="dark">
       <body>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem={false}
-          disableTransitionOnChange
-          forcedTheme="dark"
-        >
-          {children}
-        </ThemeProvider>
+        {children}
       </body>
     </html>
   )
 }
-
-
-
-import './globals.css'
