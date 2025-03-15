@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 267 75% 60%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 240 67% 85%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 270 80% 60%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 267 75% 60%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 0 0% 0%;
+    --foreground: 210 40% 98%;
+    --card: 0 0% 5%;
+    --card-foreground: 210 40% 98%;
+    --popover: 0 0% 5%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 267 75% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 67% 85%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 270 80% 60%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 267 75% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom colors for the pastel theme */
+:root {
+  --lavender-300: #d1c4e9;
+  --lavender-400: #b39ddb;
+  --lavender-500: #9575cd;
+  --lavender-600: #7e57c2;
+  --lavender-900: #4527a0;
+
+  --periwinkle-300: #c5cae9;
+  --periwinkle-400: #9fa8da;
+  --periwinkle-500: #7986cb;
+
+  --lilac-200: #e6ceff;
+  --lilac-300: #d8b5ff;
+  --lilac-400: #c9a0ff;
+  --lilac-500: #b388ff;
+
+  --mauve-300: #d1c4e9;
+  --mauve-400: #b39ddb;
+
+  --sky-200: #b3e5fc;
+  --sky-300: #81d4fa;
+  --sky-400: #4fc3f7;
+  --sky-500: #29b6f6;
+
+  --teal-200: #b2dfdb;
+  --teal-300: #80cbc4;
+  --teal-400: #4db6ac;
+  --teal-500: #26a69a;
+
+  --mint-200: #b2dfdb;
+  --mint-300: #80cbc4;
+  --mint-400: #4db6ac;
+  --mint-500: #26a69a;
+}
+
