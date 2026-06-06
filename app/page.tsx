@@ -179,8 +179,8 @@ const LINKS: Link[] = [
 const linkUrl = (k: string) => LINKS.find((l) => l.key === k)?.url ?? "#"
 
 // A visitor is a guest on jess's machine. Rather than an IP (creepy + useless),
-// they get a stable, Docker-style handle: an adjective + a computer-science name,
-// generated once and remembered per browser.
+// they get a Docker-style handle: an adjective + a computer-science name, in
+// kebab-case. Rolled fresh on every load — you're a different guest each visit.
 const GUEST_ADJ = [
   "curious", "nostalgic", "eager", "brave", "clever", "gentle", "quiet",
   "bold", "keen", "witty", "stoic", "lucid", "nimble", "wry", "candid",
@@ -194,7 +194,7 @@ const GUEST_NAME = [
 function makeGuest(): string {
   const a = GUEST_ADJ[Math.floor(Math.random() * GUEST_ADJ.length)]
   const n = GUEST_NAME[Math.floor(Math.random() * GUEST_NAME.length)]
-  return `${a}_${n}`
+  return `${a}-${n}`
 }
 
 // Skills, modeled as SKILL.md files — the kind you hand an agent. Each is a real
@@ -283,11 +283,35 @@ const MOTD_CYCLE: string[] = [
   "founding engineer @ attune — agent systems in rust & ts", // settle
 ]
 
-// The boot reel. Hundreds of lines that print FAST (dozens per tick) and settle
-// into the prompt in ~1s — you only ever see it again by scrolling up. Most of
-// it is mundane, real-looking systemd/kernel chatter (procedurally generated);
-// references and multi-stage micro-stories are woven through it. The jokes live
-// in the sequencing, not in one-liners. Deterministic so it is stable.
+/* ------------------------------------------------------------------ *
+ *  BOOT REEL
+ *  The page boots like a machine: a few hundred lines of deterministic
+ *  kernel + systemd chatter that print fast and settle into the prompt
+ *  in ~1s. You only meet it again by scrolling up. No jokes — it reads
+ *  like a real Arch boot. Two quiet exceptions reward anyone who keeps
+ *  reading: the hidden commands appear as package installs
+ *  ("installing breakout (1.0-1)..."), and BOOT_EXTRA (just below) lets
+ *  the owner drop in their own lines, shuffled in at random.
+ * ------------------------------------------------------------------ */
+
+type BootKind = "ok" | "kmsg" | "info"
+//  ok   → systemd status line   "[  OK  ] Started …"
+//  kmsg → kernel ring buffer    "[   12.345678] …"  (timestamp added below)
+//  info → bare line             pacman output, login banner, blank spacing
+type BootLine = { kind: BootKind; text: string; ts?: string }
+
+/* ---- config: your own boot lines --------------------------------- *
+ *  Anything here is shuffled into the reel at a stable-random position.
+ *  A plain string prints as a kernel message; pass an object for more
+ *  control, e.g. { kind: "ok", text: "Started Foo." } or
+ *  { kind: "info", text: "installing thing (1.0-1)..." }.
+ * ------------------------------------------------------------------- */
+const BOOT_EXTRA: Array<string | { kind: BootKind; text: string }> = [
+  // "calibrating the coffee delay loop",
+  // { kind: "ok", text: "Started Personal Assistant Daemon." },
+  // { kind: "info", text: "installing dotfiles (13.0-1)..." },
+]
+
 function mulberry32(seed: number): () => number {
   let s = seed >>> 0
   return () => {
@@ -298,7 +322,7 @@ function mulberry32(seed: number): () => number {
   }
 }
 
-function buildBoot(): string[] {
+function buildBoot(): BootLine[] {
   const rand = mulberry32(0x5eed)
   const pick = <T,>(a: readonly T[]): T => a[Math.floor(rand() * a.length)]
   const hex = (n: number) => {
@@ -307,169 +331,250 @@ function buildBoot(): string[] {
     return s
   }
   const num = (lo: number, hi: number) => lo + Math.floor(rand() * (hi - lo))
+  const pad2 = (n: number) => String(n).padStart(2, "0")
+  const uuid = () => `${hex(8)}-${hex(4)}-${hex(4)}-${hex(4)}-${hex(12)}`
+  const ok = (text: string): BootLine => ({ kind: "ok", text })
+  const km = (text: string): BootLine => ({ kind: "kmsg", text })
+  const info = (text: string): BootLine => ({ kind: "info", text })
 
-  const services = [
-    "systemd-journald", "systemd-udevd", "systemd-logind", "dbus", "NetworkManager",
-    "sshd", "cron", "polkit", "rsyslog", "chronyd", "avahi-daemon", "cups",
-    "bluetooth", "docker", "containerd", "ufw", "thermald", "upower",
-    "accounts-daemon", "gdm", "pipewire", "wireplumber", "tlp", "fstrim",
-    "logrotate", "systemd-resolved", "systemd-timesyncd", "ModemManager",
-    "irqbalance", "smartd", "lvm2-monitor", "apparmor", "auditd", "haveged",
-    "nscd", "snapd", "fail2ban", "rngd",
+  const kver = `6.${num(6, 12)}.${num(1, 12)}-arch1-1`
+
+  /* -------------------- early kernel ring buffer ------------------- */
+  const header: BootLine[] = [
+    km(`Linux version ${kver} (linux@archlinux) (gcc (GCC) ${num(13, 15)}.${num(1, 3)}.1, GNU ld (GNU Binutils) 2.4${num(0, 3)}.0) #1 SMP PREEMPT_DYNAMIC`),
+    km(`Command line: BOOT_IMAGE=/vmlinuz-linux root=UUID=${uuid()} rw loglevel=3 quiet`),
+    km(`KERNEL supported cpus: Intel GenuineIntel, AMD AuthenticAMD, Hygon HygonGenuine`),
+    km(`x86/fpu: Supporting XSAVE feature 0x001: 'x87 floating point registers'`),
+    km(`x86/fpu: Supporting XSAVE feature 0x002: 'SSE registers'`),
+    km(`x86/fpu: Supporting XSAVE feature 0x004: 'AVX registers'`),
+    km(`signal: max sigframe size: 3632`),
+    km(`BIOS-provided physical RAM map:`),
+    km(`NX (Execute Disable) protection: active`),
+    km(`SMBIOS ${num(2, 4)}.${num(0, 4)}.0 present.`),
+    km(`DMI: LENOVO 21CB; BIOS N3${hex(1)}ET${num(40, 99)}W (1.${num(10, 40)}) ${num(2021, 2024)}`),
+    km(`tsc: Detected ${num(2400, 3800)}.${num(100, 999)} MHz processor`),
+    km(`last_pfn = 0x${hex(6)} max_arch_pfn = 0x${hex(9)}`),
+    km(`x86/PAT: Configuration [0-7]: WB  WC  UC- UC  WB  WP  UC- WT`),
+    km(`Using GB pages for direct mapping`),
+    km(`ACPI: Early table checksum verification disabled`),
+    km(`ACPI: RSDP 0x00000000${hex(6).toUpperCase()} 000024 (v02 LENOVO)`),
+    km(`smpboot: Allowing ${num(8, 32)} CPUs, 0 hotplug CPUs`),
+    km(`Memory: ${num(16, 31)}${num(100000, 999999)}K/${num(33, 66)}${num(100000, 999999)}K available`),
+    km(`SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=${num(8, 32)}, Nodes=1`),
+    km(`rcu: Hierarchical RCU implementation.`),
+    km(`rcu:     RCU restricting CPUs from NR_CPUS=512 to nr_cpu_ids=${num(8, 32)}.`),
+    km(`NR_IRQS: 524544, nr_irqs: ${num(900, 2048)}, preallocated irqs: 16`),
+    km(`Console: colour dummy device 80x25`),
+    km(`printk: console [tty0] enabled`),
+    km(`ACPI: Core revision 20230628`),
+    km(`clocksource: hpet: mask: 0xffffffff max_cycles: 0x${hex(8)}, max_idle_ns: 133484882848 ns`),
+    km(`APIC: Switch to symmetric I/O mode setup`),
+    km(`smpboot: CPU0: Intel(R) Core(TM) i7-13${num(60, 99)}0H CPU @ ${num(2, 3)}.${num(0, 9)}0GHz`),
+    km(`Performance Events: PEBS fmt4+, Alderlake events, 32-deep LBR, full-width counters`),
+    km(`smp: Bringing up secondary CPUs ...`),
+    km(`smp: Brought up 1 node, ${num(8, 32)} CPUs`),
+    km(`devtmpfs: initialized`),
+    km(`clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 7645519600211568 ns`),
+    km(`NET: Registered PF_NETLINK/PF_ROUTE protocol family`),
+    km(`PCI: Using configuration type 1 for base access`),
+    km(`cryptd: max_cpu_qlen set to 1000`),
+    km(`raid6: avx2x4   gen() ${num(20000, 42000)} MB/s`),
+    km(`xor: automatically using best checksumming function   avx`),
+    km(`Freeing SMP alternatives memory: ${num(20, 48)}K`),
+    km(`random: crng init done`),
   ]
-  const targets = [
+
+  /* ----------------------- procgen pools -------------------------- */
+  const inputs = [
+    "AT Translated Set 2 keyboard", "Power Button", "Lid Switch", "Sleep Button",
+    "PC Speaker", "Video Bus", "ELAN Touchpad", "Logitech USB Receiver Mouse",
+    "Intel HID events", "HDA Intel PCH Mic", "HDA Intel PCH Headphone",
+  ]
+  const devpaths = [
+    "platform/i8042/serio0", "LNXSYSTM:00", "pci0000:00/0000:00:14.0/usb1",
+    "platform/thinkpad_acpi", "pci0000:00/0000:00:1f.3",
+  ]
+  const aaProfiles = [
+    "/usr/bin/man", "man_filter", "man_groff", "nvidia_modprobe", "lsb_release",
+    "/usr/bin/chromium", "tcpdump", "ping",
+  ]
+
+  // kernel ring-buffer chatter (gets a timestamp)
+  const kfiller = (): string =>
+    pick([
+      () => `pci 0000:00:${pad2(num(0, 31))}.0: [${hex(4)}:${hex(4)}] type 00 class 0x${hex(6)}`,
+      () => `pci 0000:00:${pad2(num(0, 31))}.0: reg 0x${num(10, 30)}: [mem 0x${hex(8)}-0x${hex(8)} 64bit pref]`,
+      () => `usb ${num(1, 4)}-${num(1, 6)}: new high-speed USB device number ${num(2, 14)} using xhci_hcd`,
+      () => `usb ${num(1, 4)}-${num(1, 6)}: New USB device found, idVendor=${hex(4)}, idProduct=${hex(4)}`,
+      () => `hub ${num(1, 4)}-0:1.0: USB hub found`,
+      () => `input: ${pick(inputs)} as /devices/${pick(devpaths)}/input/input${num(1, 30)}`,
+      () => `ata${num(1, 6)}: SATA link up 6.0 Gbps (SStatus 133 SControl 300)`,
+      () => `nvme nvme0: ${num(4, 16)}/0/0 default/read/poll queues`,
+      () => `EXT4-fs (nvme0n1p${num(1, 3)}): mounted filesystem ${uuid()} r/w with ordered data mode`,
+      () => `i915 0000:00:02.0: [drm] Finished loading DMC firmware i915/adlp_dmc.bin (v2.${num(10, 20)})`,
+      () => `iwlwifi 0000:00:14.3: loaded firmware version ${num(70, 89)}.${hex(8)} op_mode iwlmvm`,
+      () => `Bluetooth: hci0: Firmware revision ${num(0, 9)}.${num(0, 9)} build ${num(20, 99)}`,
+      () => `e1000e 0000:00:1f.6 eth0: NIC Link is Up 1000 Mbps Full Duplex, Flow Control: Rx/Tx`,
+      () => `audit: type=1400 audit(${num(100, 200)}.${num(100, 999)}:${num(2, 99)}): apparmor="STATUS" operation="profile_load" name="${pick(aaProfiles)}"`,
+      () => `loop${num(0, 12)}: detected capacity change from 0 to ${num(100000, 900000)}`,
+      () => `thermal thermal_zone${num(0, 9)}: registered as thermal_zone${num(0, 9)}`,
+      () => `RAPL PMU: API unit is 2^-32 Joules, ${num(3, 5)} fixed counters, 655360 ms ovfl timer`,
+      () => `Adding ${num(8000000, 16000000)}k swap on /dev/nvme0n1p3. Priority:-2 extents:1`,
+      () => `r8169 0000:02:00.0 enp2s0: Link is Down`,
+      () => `usbcore: registered new interface driver usbhid`,
+    ])()
+
+  // systemd descriptions (rendered with a [  OK  ] tag)
+  const svcDesc = [
+    "D-Bus System Message Bus", "Network Manager", "OpenSSH Daemon",
+    "Network Time Synchronization", "Permit User Sessions", "Login Service",
+    "User Login Management", "Authorization Manager", "Disk Manager",
+    "Modem Manager", "Avahi mDNS/DNS-SD Stack", "CUPS Scheduler",
+    "Bluetooth service", "Hostname Service", "Locale Service",
+    "Time & Date Service", "Network Name Resolution", "Journal Service",
+    "Rule-based Manager for Device Events and Files", "Load/Save Random Seed",
+    "Apply Kernel Variables", "Create Static Device Nodes in /dev",
+    "Remount Root and Kernel File Systems", "Setup Virtual Console",
+    "Record System Boot/Shutdown in UTMP", "Flush Journal to Persistent Storage",
+    "Save/Restore Sound Card State", "WPA supplicant", "Accounts Service",
+    "Thermal Daemon Service", "Firmware update daemon", "Power Profiles daemon",
+    "RealtimeKit Scheduling Policy Service", "User Manager for UID 1000",
+    "Self Monitoring and Reporting Technology (SMART) Daemon",
+    "Virtual Machine and Container Registration Service",
+    "Simple Desktop Display Manager",
+  ]
+  const targetDesc = [
     "Basic System", "Sockets", "Timers", "Paths", "Local File Systems", "Swap",
-    "Network", "Network is Online", "Remote File Systems",
-    "User and Group Name Lookups", "Host and Network Name Lookups",
-    "Login Prompts", "Multi-User System", "System Initialization", "Sound Card",
-    "Bluetooth Support", "Smartcard", "Slices", "System Time Synchronized",
+    "Network", "Network is Online", "Remote File Systems", "System Initialization",
+    "User and Group Name Lookups", "Host and Network Name Lookups", "Login Prompts",
+    "Sound Card", "Bluetooth Support", "Smartcard", "Slices",
+    "System Time Synchronized", "System Time Set", "Local Encrypted Volumes",
+    "Preparation for Network", "First Boot Complete", "Containers",
   ]
-  const mounts = [
-    "/", "/boot", "/boot/efi", "/home", "/home/jess", "/var", "/var/log", "/tmp",
-    "/srv", "/mnt/coffee", "/dev/hugepages", "/sys/kernel/debug", "/run/user/1000",
+  const mountDesc = [
+    "/boot", "/boot/efi", "/home", "/home/jess", "Temporary Directory (/tmp)",
+    "Kernel Debug File System", "Kernel Trace File System", "Huge Pages File System",
+    "POSIX Message Queue File System", "Kernel Configuration File System",
+    "FUSE Control File System", "RPC Pipe File System",
+    "Arbitrary Executable File Formats File System",
   ]
-  const devices = [
-    "sda", "sda1", "sda2", "nvme0n1", "nvme0n1p1", "nvme0n1p2", "eth0", "wlan0",
-    "usb1", "usb2", "tty1", "tty2", "fb0", "dri/card0", "input/event3", "rfkill",
+  const socketDesc = [
+    "D-Bus System Message Bus Socket", "Journal Socket", "Journal Socket (/dev/log)",
+    "udev Control Socket", "udev Kernel Socket", "Network Service Netlink Socket",
+    "Process Core Dump Socket", "PipeWire Multimedia System Socket",
+    "Sound System Socket", "GnuPG cryptographic agent and passphrase cache",
+    "Docker Socket for the API", "Open-iSCSI iscsid Socket",
+  ]
+  const oneshots = [
+    "Load Kernel Modules", "Apply Kernel Variables", "Create System Users",
+    "Create Static Device Nodes in /dev", "Coldplug All udev Devices",
+    "Remount Root and Kernel File Systems", "Load/Save Random Seed",
+    "Rebuild Journal Catalog", "Update UTMP about System Boot/Shutdown",
+    "Create Volatile Files and Directories", "Set Up Additional Binary Formats",
+    "Rebuild Dynamic Linker Cache", "Generate network units from Kernel command line",
+    "Wait for udev To Complete Device Initialization",
+  ]
+  const founddev = [
+    "Samsung SSD 980 1TB", "WDC WDS500G2B0C", "ST1000LM035-1RK172",
+    "Crucial CT525MX300SSD1", "NVMe disk", "/dev/ttyS0", "VGA controller",
+  ]
+  const slices = [
+    "User and Session Slice", "Slice /system/getty", "Slice /system/modprobe",
+    "User Slice of UID 1000", "Slice /system/systemd-fsck", "Background tasks",
   ]
 
-  const filler = (): string => {
-    const forms = [
-      () => `Started ${pick(services)}.service`,
-      () => `Reached target ${pick(targets)}`,
-      () => `Mounted ${pick(mounts)}`,
-      () => `Listening on ${pick(services)}.socket`,
-      () => `Starting ${pick(services)}...`,
-      () => `Created slice ${pick(services)}.slice`,
-      () => `Finished ${pick(services)} setup`,
-      () => `udevd[${num(100, 9999)}]: ${pick(devices)}: link is up`,
-      () => `EXT4-fs (${pick(devices)}): mounted filesystem, ordered data mode`,
-      () => `loaded module ${pick(services).replace(/-/g, "_")}_mod @ 0x${hex(8)}`,
-      () => `registered handler for ${pick(devices)} (irq ${num(8, 255)})`,
-      () => `${pick(services)}: configuration loaded`,
-    ]
-    return pick(forms)()
+  const sfiller = (): string =>
+    pick([
+      () => `Started ${pick(svcDesc)}.`,
+      () => `Reached target ${pick(targetDesc)}.`,
+      () => `Mounted ${pick(mountDesc)}.`,
+      () => `Listening on ${pick(socketDesc)}.`,
+      () => `Finished ${pick(oneshots)}.`,
+      () => `Found device ${pick(founddev)}.`,
+      () => `Created slice ${pick(slices)}.`,
+      () => `Starting ${pick(svcDesc)}...`,
+    ])()
+
+  /* ----- breadcrumbs: the hidden commands, disguised as installs ---- *
+   *  fortune-mod / cowsay / sl / neofetch are real Arch packages, so
+   *  these read as ordinary upgrade output. hurry / nudge are Jess's
+   *  own tools; the konami line poses as a kernel input device.       */
+  const breadcrumbs: BootLine[] = [
+    info("installing snake (1.0-1)..."),
+    info("installing 2048 (0.2.0-1)..."),
+    info("installing tetris (1.3-2)..."),
+    info("installing breakout (1.0-1)..."),
+    info("installing fortune-mod (3.20.1-1)..."),
+    info("installing cowsay (3.7.0-1)..."),
+    info("installing sl (5.05-1)..."),
+    info("installing neofetch (7.1.0-2)..."),
+    info("installing coffee (1.1-0)..."),
+    info("installing hurry (0.3.1-1)..."),
+    info("installing nudge (0.2.0-1)..."),
+    km(`input: Konami Code Detector as /devices/virtual/input/input${num(16, 29)}`),
+  ]
+
+  /* --------------------------- finale ----------------------------- */
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+  const finale: BootLine[] = [
+    ok("Reached target Sound Card."),
+    ok("Started Getty on tty1."),
+    ok("Reached target Login Prompts."),
+    ok("Reached target Multi-User System."),
+    ok("Started GNOME Display Manager."),
+    ok("Reached target Graphical Interface."),
+    ok("Created slice User Slice of UID 1000."),
+    ok("Started Session 1 of User jess."),
+    info(""),
+    info(`Arch Linux ${kver} (tty1)`),
+    info(""),
+    info("jessica-black login: jess (automatic login)"),
+    info(`Last login: ${pick(days)} ${pick(months)} ${pad2(num(1, 28))} ${pad2(num(0, 23))}:${pad2(num(0, 59))}:${pad2(num(0, 59))} on tty1`),
+  ]
+
+  /* --------------------- assemble the middle ---------------------- */
+  const KCOUNT = 52 // remaining kernel chatter after the header
+  const SCOUNT = 372 // systemd unit output
+  const middle: BootLine[] = []
+  for (let i = 0; i < KCOUNT; i++) middle.push(km(kfiller()))
+  for (let i = 0; i < SCOUNT; i++) {
+    // a few late driver messages surface in the kernel log mid-init
+    if (i > 0 && i % 21 === 0) middle.push(km(kfiller()))
+    else middle.push(ok(sfiller()))
   }
 
-  // References — plain phrases, no punchlines. Programming, gaming, AI, her work.
-  const refs = [
-    "git blame: inconclusive", "rebasing onto reality", "force-push to main aborted",
-    "tabs applied; spaces evicted", "monomorphizing generics",
-    "deduplicating the dependency tree", "rolling back the rollback",
-    "yak fully shaved", "bikeshed painted blue", "linking libcurious.so",
-    "loading ~/.config/personality.toml", "npm: nice people matter",
-    "npm: note paper machine", "summoning the garbage collector",
-    "borrow checker appeased", "lifetimes elided", "phantom types: spectral",
-    "located the monad (it is an endofunctor)", "Cargo.lock: reproducible",
-    "semver respected, mostly", "rm -rf /tmp/regret", "off-by-one accounted for",
-    "the rubber duck has notes", "the duck said rewrite it in rust",
-    "unwrapping Option<Hope>", "compiling with -O3 and prayer",
-    "reticulating splines", "the cake is in the oven", "war never changes",
-    "it is dangerous to go alone", "press F (respects paid)", "wololo",
-    "all your base accounted for", "GLaDOS: still alive", "no lifeforms detected",
-    "rolling for initiative", "natural 20", "Half-Life 3: building",
-    "downloading more RAM", "loading shaders 9999/9999",
-    "fast travel locked: enemies nearby", "respawning", "a winner is you",
-    "would you kindly continue booting", "do a barrel roll",
-    "the princess is in another castle", "saving... do not power off",
-    "warming the GPUs", "loading model weights", "context window: 200k tokens",
-    "tool call: bash('whoami')", "agent handoff complete", "MCP servers connected",
-    "tree-sitter grammars loaded", "Claude Code hooks registered",
-    "the agents are arguing again", "taking the median of three agents",
-    "RAG retrieved 0 relevant docs", "embedding the embeddings",
-    "hallucination check: pending", "temperature set to 0.7",
-    "system prompt: redacted", "alignment: locally optimal",
-    "prompt injected (by me, on purpose)", "hurry: cache primed",
-    "nudge: guardrails armed", "circe: peeling container layers",
-    "fossa-cli: scanning 20+ ecosystems", "broker: tunnel to on-prem open",
-    "dependency graph warmed", "analysis pipeline online", "P vs NP: still pending",
-    "halting problem did not halt", "proving termination",
-    "Cthulhu: not summoned (deprecated)", "dividing by zero (carefully)",
-    "counting to infinity (37%)", "Collatz conjecture: still going",
-    "crng init done", "entropy pool refilled", "swap: politely declined",
-    "thermal throttle: not today", "clock skew corrected",
-    "NTP: time is a construct, synced anyway", "keyboard: mechanical, loud, correct",
-    "fortune favors the curious", "easter eggs: hidden, not absent",
-    "the arcade opens after boot",
-  ]
+  const body: BootLine[] = [...header, ...middle]
 
-  // Multi-stage micro-stories — woven in order across the reel. Clever observers
-  // connect the stages over time; it is fine if they do not.
-  const threads = [
-    ["verifying signatures...", "checking the web of trust", "signatures trusted", "signatures verified"],
-    ["spawning agents...", "agent[1] online", "agent[2] online", "agent[3] online", "agents: 3 of 3 responding", "reaching consensus...", "consensus: 2 of 3", "quorum achieved"],
-    ["warming build cache...", "cache: scanning objects", "cache: 4.2M objects indexed", "cache hit rate: 99.9%"],
-    ["resolving dependencies...", "building the dependency graph", "graph: 213,847 nodes", "graph: acyclic (mostly)", "dependencies resolved"],
-    ["fsck /home/jess...", "/home/jess: recovering journal", "/home/jess: 1337 files checked", "/home/jess: clean"],
-    ["compiling Haskell...", "GHC: typechecking", "GHC: still typechecking", "Haskell: compiling (this is fine)"],
-    ["modprobe borrow_checker...", "borrow_checker: registering lifetimes", "borrow_checker: 0 leaks", "borrow_checker: loaded"],
-    ["starting orchestrator...", "orchestrator: registering tools", "orchestrator: 14 tools online", "orchestrator: topology converged"],
-    ["reticulating splines...", "splines: 3,217 reticulated", "splines: smooth"],
-    ["mounting /dev/ambition...", "/dev/ambition: integer overflow", "/dev/ambition: wrapping around", "/dev/ambition: mounted rw"],
-    ["aligning the agents...", "RLHF: collecting preferences", "RLHF: 2 of 3 raters agree", "RLHF: locally aligned"],
-    ["scrubbing the data lake...", "data lake: 4.1B rows", "data lake: sparkling"],
-  ]
-
-  const header = [
-    "jsh bootloader v13.0", "decompressing reality... ok", "loading kernel: rust 1.x",
-    "CPU0: one core of pure stubbornness", "RAM: enough (downloading more anyway)",
-    "POST: 1 self, several doubts", "initializing /dev/null (it is full)",
-    "EDD: searching for a bootable curiosity", "probing hardware...",
-    "calibrating the coffee delay loop",
-  ]
-  const finale = [
-    "loading ~/skills/*.skill.md",
-    "mounting ~/work: attune, fossa, reynolds & reynolds",
-    "mounting /usr/games: snake, 2048, tetris, breakout",
-    "fortuned: cookies warm · cowsayd: 1 cow ready · sl: rails greased",
-    "registering achievements: 11 · konami listener: armed",
-    "Reached target Multi-User System",
-    "Reached target Graphical Interface",
-    "starting login on tty1",
-    "uptime: 13 years, plenty of bugs",
-    "the shell is yours (try `help`, or `games`)",
-  ]
-
-  const MIDDLE = 520
-  // schedule each thread stage at an increasing position so the stories unfold
-  const scheduled = new Map<number, string>()
-  threads.forEach((th, ti) => {
-    th.forEach((line, si) => {
-      const base = Math.floor((MIDDLE * (si + 1)) / (th.length + 1))
-      let pos = (base + ti * 7) % MIDDLE
-      while (scheduled.has(pos)) pos = (pos + 1) % MIDDLE
-      scheduled.set(pos, line)
-    })
-  })
-
-  // deterministic shuffle of the reference pool
-  const refPool = [...refs]
-  for (let k = refPool.length - 1; k > 0; k--) {
-    const j = Math.floor(rand() * (k + 1))
-    const tmp = refPool[k]
-    refPool[k] = refPool[j]
-    refPool[j] = tmp
+  // sprinkle breadcrumbs through the reel (after the first few header lines)
+  const sprinkle = (line: BootLine) => {
+    const lo = 6
+    const at = lo + Math.floor(rand() * (body.length - lo))
+    body.splice(at, 0, line)
   }
-  let refIdx = 0
+  breadcrumbs.forEach(sprinkle)
 
-  const out: string[] = [...header]
-  for (let i = 0; i < MIDDLE; i++) {
-    const staged = scheduled.get(i)
-    if (staged) {
-      out.push(staged)
-      continue
-    }
-    if (i % 7 === 3 && refIdx < refPool.length) {
-      out.push(refPool[refIdx++])
-      continue
-    }
-    out.push(filler())
+  // sprinkle the owner's own lines (BOOT_EXTRA), anywhere in the reel
+  BOOT_EXTRA.forEach((e) =>
+    sprinkle(typeof e === "string" ? km(e) : { kind: e.kind, text: e.text }),
+  )
+
+  const out: BootLine[] = [...body, ...finale]
+
+  // monotonic kernel timestamps: "[   12.345678]". Mostly tiny steps with the
+  // occasional longer pause, so it accelerates and stalls like a real boot.
+  let t = rand() * 0.05
+  for (const line of out) {
+    if (line.kind !== "kmsg") continue
+    t += rand() * rand() * 0.85 + 0.0006
+    const s = Math.floor(t)
+    const us = Math.floor((t - s) * 1e6)
+    line.ts = `[${String(s).padStart(5)}.${String(us).padStart(6, "0")}]`
   }
-  out.push(...finale)
   return out
 }
 
-const BOOT: string[] = buildBoot()
+const BOOT: BootLine[] = buildBoot()
 
 /* --------------------------- achievements ------------------------ */
 type Achievement = { id: string; name: string; desc: string }
@@ -506,7 +611,7 @@ const THEME_NOTE: Record<Theme, string> = {
 type Block =
   | { kind: "text"; node: JSX.Element }
   | { kind: "echo"; cmd: string } // the command the user "ran"
-  | { kind: "boot"; label: string } // a boot status line (gets a check)
+  | { kind: "boot"; line: BootLine } // a boot reel line (kernel / systemd / bare)
 
 type Line = { id: number; block: Block }
 
@@ -807,76 +912,173 @@ function RotatingGag() {
   )
 }
 
-// A count that revises itself in real time: types a huge number, deletes it
-// down toward 0, pauses to reconsider, and lands on an honest 3. Temporal
-// storytelling instead of claiming zero. Settles instantly under reduced-motion.
-const COUNT_SEQUENCE = ["2,147,483,647", "9,001", "42", "0", "3"]
-function AnimatedCount() {
-  const final = COUNT_SEQUENCE[COUNT_SEQUENCE.length - 1]
-  const [text, setText] = useState(COUNT_SEQUENCE[0])
+/* ------------------------------------------------------------------ *
+ *  RETYPE — self-revising text
+ *  A small primitive for "text that rewrites itself over time". It walks
+ *  a list of frames, erasing the current one and typing the next — a
+ *  terminal correcting itself in real time. Frames are strings or
+ *  () => string thunks (resolved when reached, so randomness re-rolls
+ *  each pass). Drop it anywhere a value should feel alive:
+ *
+ *    <Retype frames={["connecting…", "connected"]} />
+ *    <Retype frames={[() => roll(), "0", "3"]} hold={[700, 400, 0]} />
+ *    <Retype mode="swap" loop frames={MOTD} />   // hard cycle, no typing
+ *
+ *  Timing is per-frame: hold[i] is the pause after frame i finishes,
+ *  think[i] the beat before erasing into frame i. Honors
+ *  prefers-reduced-motion by jumping straight to the final frame.
+ * ------------------------------------------------------------------ */
+type Frame = string | (() => string)
+const asText = (f: Frame): string => (typeof f === "function" ? f() : f)
+
+function Retype({
+  frames,
+  typeMs = 52,
+  eraseMs = 34,
+  hold = 480,
+  startDelay = 0,
+  think = 0,
+  mode = "retype",
+  loop = false,
+  cursor = true,
+  className = "jsh-retype",
+  srText,
+}: {
+  frames: Frame[]
+  typeMs?: number
+  eraseMs?: number
+  hold?: number | number[]
+  startDelay?: number
+  think?: number | number[]
+  mode?: "retype" | "swap"
+  loop?: boolean
+  cursor?: boolean
+  className?: string
+  srText?: string
+}) {
+  // Render a literal first frame immediately, but never call a random thunk
+  // during render — keep SSR/first paint stable; the effect fills those in.
+  const [text, setText] = useState(() =>
+    typeof frames[0] === "string" ? frames[0] : "",
+  )
   const [done, setDone] = useState(false)
+
+  // Capture the latest props so the animation reads current config without
+  // restarting on every re-render (inline array props change identity).
+  const cfg = useRef({ frames, typeMs, eraseMs, hold, startDelay, think, mode, loop })
+  cfg.current = { frames, typeMs, eraseMs, hold, startDelay, think, mode, loop }
+
   useEffect(() => {
+    const c = cfg.current
+    if (!c.frames.length) return
+    const at = (v: number | number[], i: number, dflt: number) =>
+      Array.isArray(v) ? v[i] ?? v[v.length - 1] ?? dflt : v
+
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setText(final)
+      setText(asText(c.frames[c.frames.length - 1]))
       setDone(true)
       return
     }
+
     let cancelled = false
     const timers: number[] = []
     const wait = (ms: number, fn: () => void) => {
-      timers.push(
-        window.setTimeout(() => {
-          if (!cancelled) fn()
-        }, ms),
-      )
+      timers.push(window.setTimeout(() => !cancelled && fn(), Math.max(0, ms)))
     }
-    let cur = COUNT_SEQUENCE[0]
+
     let idx = 0
-    const advance = () => {
-      idx += 1
-      if (idx >= COUNT_SEQUENCE.length) {
-        setDone(true)
+    let cur = asText(c.frames[0])
+    setText(cur)
+    setDone(false)
+
+    const toNext = () => {
+      const fr = cfg.current.frames
+      if (idx >= fr.length - 1) {
+        if (cfg.current.loop) {
+          idx = -1
+          advance()
+        } else setDone(true)
         return
       }
-      const target = COUNT_SEQUENCE[idx]
-      const isLast = idx === COUNT_SEQUENCE.length - 1
-      const erase = () => {
-        if (cur.length > 0) {
-          cur = cur.slice(0, -1)
-          setText(cur)
-          wait(38, erase)
-        } else {
-          type()
-        }
+      advance()
+    }
+    const advance = () => {
+      const k = cfg.current
+      idx += 1
+      const target = asText(k.frames[idx])
+      if (k.mode === "swap") {
+        cur = target
+        setText(cur)
+        wait(at(k.hold, idx, 480), toNext)
+        return
       }
       const type = () => {
         if (cur.length < target.length) {
           cur = target.slice(0, cur.length + 1)
           setText(cur)
-          wait(52, type)
+          wait(k.typeMs, type)
         } else {
-          wait(isLast ? 1300 : 480, advance)
+          wait(at(k.hold, idx, 480), toNext)
         }
       }
-      // "think" for a beat before the honest final revision (0 → 3)
-      wait(isLast ? 650 : 0, erase)
+      const erase = () => {
+        if (cur.length > 0) {
+          cur = cur.slice(0, -1)
+          setText(cur)
+          wait(k.eraseMs, erase)
+        } else type()
+      }
+      wait(at(k.think, idx, 0), erase)
     }
-    wait(900, advance)
+
+    wait(c.startDelay + at(c.hold, 0, 480), toNext)
     return () => {
       cancelled = true
       timers.forEach((t) => window.clearTimeout(t))
     }
-  }, [final])
+    // Mount once: the animation plays from the start and reads cfg.current live.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   return (
-    <span className="jsh-count">
-      <span aria-hidden="true">{text}</span>
-      {!done && (
+    <span className={className}>
+      <span aria-hidden={srText !== undefined ? "true" : undefined}>{text}</span>
+      {cursor && !done && (
         <span className="jsh-cursor jsh-cursor-sm" aria-hidden="true">
           ▋
         </span>
       )}
-      <span className="jsh-sr-only">{final}</span>
+      {srText !== undefined && <span className="jsh-sr-only">{srText}</span>}
     </span>
+  )
+}
+
+// A count that revises itself in real time: a giant number that backspaces
+// down toward 0, hesitates, and settles on a small honest figure. Every value
+// is re-rolled per load (see the ranges), so it tells a slightly different
+// story each visit. Built on Retype; settles instantly under reduced-motion.
+const randInt = (lo: number, hi: number) =>
+  lo + Math.floor(Math.random() * (hi - lo + 1))
+const withCommas = (n: number) => n.toLocaleString("en-US")
+
+function AnimatedCount() {
+  const [final] = useState(() => String(randInt(2, 5)))
+  return (
+    <Retype
+      className="jsh-count"
+      frames={[
+        () => withCommas(randInt(1_073_741_824, 2_147_483_647)),
+        () => withCommas(randInt(10_000, 99_999)),
+        () => String(randInt(120, 999)),
+        "0",
+        final,
+      ]}
+      typeMs={52}
+      eraseMs={36}
+      hold={[900, 460, 460, 360, 0]}
+      think={[0, 0, 0, 0, 650]}
+      srText={final}
+    />
   )
 }
 
@@ -993,16 +1195,8 @@ export default function Shell() {
 
   /* ------------------ guest handle + saved progress --------------- */
   useEffect(() => {
-    try {
-      let g = window.localStorage.getItem("jsh-guest")
-      if (!g) {
-        g = makeGuest()
-        window.localStorage.setItem("jsh-guest", g)
-      }
-      setGuest(g)
-    } catch {
-      setGuest(makeGuest())
-    }
+    // A fresh handle every load — set client-side so SSR stays "guest".
+    setGuest(makeGuest())
     try {
       const raw = window.localStorage.getItem("jsh-achievements")
       if (raw) {
@@ -1052,7 +1246,7 @@ export default function Shell() {
     const next: Line[] = []
     let n = 0
     for (let k = 0; k < count && k < BOOT.length; k++) {
-      next.push({ id: ++n, block: { kind: "boot", label: BOOT[k] } })
+      next.push({ id: ++n, block: { kind: "boot", line: BOOT[k] } })
     }
     if (done) {
       next.push({ id: ++n, block: { kind: "text", node: <WelcomeCard /> } })
@@ -1892,11 +2086,18 @@ function TranscriptRow({
   }
   if (b.kind === "boot") {
     // No per-row entrance animation — the reel prints fast, so a stagger would
-    // just look chaotic. The check + fast append carries it.
+    // just look chaotic. Three line shapes: a systemd status tag, a kernel
+    // timestamp, or a bare line (pacman output / the login banner).
+    const ln = b.line
     return (
-      <div className="jsh-bootline">
-        <span className="jsh-ok">[ ok ]</span>
-        <span className="jsh-boot-label">{b.label}</span>
+      <div className={`jsh-bootline jsh-boot-${ln.kind}`}>
+        {ln.kind === "ok" && (
+          <span className="jsh-boot-tag jsh-boot-ok">[&nbsp;&nbsp;OK&nbsp;&nbsp;]</span>
+        )}
+        {ln.kind === "kmsg" && (
+          <span className="jsh-boot-tag jsh-boot-ts">{ln.ts}</span>
+        )}
+        <span className="jsh-boot-label">{ln.text || " "}</span>
       </div>
     )
   }
@@ -2825,13 +3026,27 @@ const CSS = String.raw`
 /* boot + echo + blocks */
 .jsh-bootline {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   align-items: baseline;
   color: var(--jsh-muted);
-  font-size: 13px;
+  font-size: 12.5px;
+  line-height: 1.5;
 }
+.jsh-boot-tag {
+  flex: none;
+  white-space: pre;
+  font-variant-numeric: tabular-nums;
+}
+.jsh-boot-ok { color: var(--jsh-amber); }
+.jsh-boot-ts { color: var(--jsh-faint); }
+.jsh-boot-label {
+  flex: 1;
+  min-width: 0;
+  color: var(--jsh-muted);
+  word-break: break-word;
+}
+.jsh-boot-info .jsh-boot-label { color: var(--jsh-faint); }
 .jsh-ok { color: var(--jsh-amber); }
-.jsh-boot-label { color: var(--jsh-muted); }
 .jsh-bootcursor { margin: 2px 0 0; }
 
 .jsh-echo {
@@ -3002,6 +3217,7 @@ const CSS = String.raw`
   gap: 2px;
   font-variant-numeric: tabular-nums;
 }
+.jsh-retype { display: inline-flex; align-items: baseline; gap: 2px; }
 
 .jsh-w-line { margin: 6px 0; }
 .jsh-palette {
