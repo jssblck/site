@@ -504,6 +504,7 @@ function buildBoot(): BootLine[] {
     ok("paru -Syu minesweeper"),
     ok("paru -Syu conway-life"),
     ok("paru -Syu pong"),
+    ok("pacman -S cmatrix"),
     ok("pacman -S fortune-mod"),
     ok("pacman -S cowsay"),
     ok("pacman -S sl"),
@@ -620,6 +621,7 @@ type Line = { id: number; block: Block; home?: boolean }
 // Verb table — used for Tab completion and the not-found hint.
 const COMMANDS = [
   "help",
+  "man",
   "ls",
   "whoami",
   "cat",
@@ -643,6 +645,7 @@ const COMMANDS = [
   "minesweeper",
   "life",
   "pong",
+  "cmatrix",
   "neofetch",
   "clear",
 ] as const
@@ -660,6 +663,95 @@ const CAT_TARGETS = [
   "contact",
   "readme",
 ] as const
+
+// Manual pages — `man <cmd>` prints one, classic-formatted. Concise but real;
+// SEE ALSO entries chain to other pages. (Unknown command → "No manual entry".)
+type ManEntry = { name: string; synopsis: string; desc: string; see?: string[] }
+const MANPAGES: Record<string, ManEntry> = {
+  ls: {
+    name: "ls — list directory contents",
+    synopsis: "ls [path]",
+    desc: "Lists the home directory: about, experience/, skills/, resume.txt, writing/, games/, contact, readme.md. Click a name or cat it. `ls ~/skills` lists the skill files.",
+    see: ["cat", "tree", "skills"],
+  },
+  cat: {
+    name: "cat — concatenate and print files",
+    synopsis: "cat <file>",
+    desc: "Prints a file. Knows about, experience, attune/fossa/reynolds, skills, resume, writing, contact, readme — plus any ~/skills/*.skill.md.",
+    see: ["ls", "resume", "skills"],
+  },
+  whoami: {
+    name: "whoami — print the current user",
+    synopsis: "whoami",
+    desc: "You're a guest, handed a fresh handle each visit. The machine — and the résumé — belong to Jessica Black.",
+    see: ["neofetch", "cat"],
+  },
+  skills: {
+    name: "skills — list skill files",
+    synopsis: "skills",
+    desc: "Lists ~/skills/*.skill.md — the kind of capability files you'd hand an agent. cat one to read it.",
+    see: ["cat", "resume"],
+  },
+  resume: {
+    name: "resume — print the full résumé",
+    synopsis: "resume",
+    desc: "The whole thing: experience, skills, writing, contact. Switch to the paper theme first if you're printing.",
+    see: ["theme", "cat", "contact"],
+  },
+  theme: {
+    name: "theme — set the colour theme",
+    synopsis: "theme [amber|green|paper|pride|next]",
+    desc: "Switches the phosphor. amber (default), green, paper (light), pride. `theme next` cycles. Persists across visits.",
+    see: ["resume"],
+  },
+  games: {
+    name: "games — the arcade",
+    synopsis: "games | <name>",
+    desc: "Lists the arcade and your bests. Run a name (snake, tetris, asteroids, wordle, …) to play fullscreen; Esc exits. Not everything is listed.",
+    see: ["help"],
+  },
+  neofetch: {
+    name: "neofetch — system + identity card",
+    synopsis: "neofetch",
+    desc: "The wordmark and the vitals: role, uptime (13 years), stack, focus, links.",
+    see: ["whoami"],
+  },
+  contact: {
+    name: "contact — how to reach Jessica",
+    synopsis: "contact",
+    desc: "Email and the usual links. Fastest path: me@jessica.black.",
+    see: ["resume"],
+  },
+  history: {
+    name: "history — command history",
+    synopsis: "history",
+    desc: "What you've typed this session; the up arrow walks it. Clicks don't count — those are website navigation, not shell history.",
+    see: ["help"],
+  },
+  achievements: {
+    name: "achievements — what you've unlocked",
+    synopsis: "achievements",
+    desc: "Eleven of them — some by doing, some by trying. No points; just the satisfaction.",
+    see: ["help"],
+  },
+  clear: {
+    name: "clear — clear the screen",
+    synopsis: "clear",
+    desc: "Wipes the transcript (Ctrl-L too). The boot log won't come back — scrolling up was your one chance.",
+  },
+  man: {
+    name: "man — read the manual",
+    synopsis: "man <command>",
+    desc: "You're doing it right now. Meta, isn't it.",
+    see: ["help"],
+  },
+  help: {
+    name: "help — list commands",
+    synopsis: "help",
+    desc: "The overview. Not everything is listed — a good terminal rewards curiosity.",
+    see: ["man", "games"],
+  },
+}
 
 /* ------------------------------------------------------------------ *
  *  PRESENTATIONAL HELPERS  (pure, return JSX for the transcript)
@@ -773,6 +865,11 @@ const GAMES: Record<string, React.ComponentType> = {
   pong: dynamic(() => import("@/app/games/pong"), {
     ssr: false,
     loading: () => <p className="jsh-out jsh-muted">loading pong…</p>,
+  }),
+  // not in GAME_LIST — a hidden fullscreen toy, found via `cmatrix` or the boot log
+  cmatrix: dynamic(() => import("@/app/games/cmatrix"), {
+    ssr: false,
+    loading: () => <p className="jsh-out jsh-muted">loading cmatrix…</p>,
   }),
 }
 const GAME_LIST: Array<[string, string]> = [
@@ -1526,6 +1623,27 @@ export default function Shell() {
     )
   }, [pushText])
 
+  const runMan = useCallback(
+    (arg: string) => {
+      const t = arg.trim().toLowerCase().split(/\s+/)[0]
+      if (!t) {
+        pushText(
+          <Errline>
+            What manual page do you want? e.g. <Cmd run={clickRef.current}>man ls</Cmd>.
+          </Errline>,
+        )
+        return
+      }
+      const page = MANPAGES[t]
+      if (!page) {
+        pushText(<p className="jsh-out jsh-muted">No manual entry for {t}.</p>)
+        return
+      }
+      pushText(<ManBlock cmd={t} page={page} />)
+    },
+    [pushText],
+  )
+
   const runTheme = useCallback(
     (arg: string) => {
       const t = arg.trim().toLowerCase()
@@ -1730,13 +1848,24 @@ export default function Shell() {
       if (/^fortune\s*\|\s*cowsay$/i.test(cmd)) {
         return pushText(<CowsayBlock text={pickFortune()} />)
       }
+      // the vim escape reflex
+      if (/^:(w?q!?|x)$/i.test(cmd) || cmd === "ZZ") {
+        return pushText(
+          <p className="jsh-out jsh-muted">
+            not in an editor — but the reflex is respected. you&apos;re already free.
+          </p>,
+        )
+      }
 
       switch (h) {
         case "help":
         case "?":
-        case "man":
           unlockRef.current("rtfm")
           return runHelp()
+        case "man":
+        case "info":
+          unlockRef.current("rtfm")
+          return runMan(arg)
         case "ls":
         case "ll":
         case "dir":
@@ -1819,6 +1948,36 @@ export default function Shell() {
           return pushText(<p className="jsh-out">/home/{USER}</p>)
         case "echo":
           return pushText(<p className="jsh-out">{arg || " "}</p>)
+        case "vim":
+        case "vi":
+        case "nvim":
+          return pushText(
+            <p className="jsh-out jsh-muted">
+              nice reflex — but nothing&apos;s open. to leave, type{" "}
+              <Cmd run={clickRef.current}>:q</Cmd> like the rest of us.
+            </p>,
+          )
+        case "nano":
+          return pushText(
+            <p className="jsh-out jsh-muted">
+              nano? a gentle choice. this house runs vim, but you do you.
+            </p>,
+          )
+        case "emacs":
+          return pushText(
+            <p className="jsh-out jsh-muted">
+              emacs: a fine operating system, lacking only a decent editor. (kidding.
+              mostly.)
+            </p>,
+          )
+        case "ping":
+          return pushText(
+            <pre className="jsh-toy">{`PING jessica.black (127.0.0.1): 56 data bytes
+64 bytes from 127.0.0.1: icmp_seq=0 time=0.013 ms
+64 bytes from 127.0.0.1: icmp_seq=1 time=0.011 ms
+--- jessica.black ping statistics ---
+2 packets transmitted, 2 received, 0% loss. she's right here.`}</pre>,
+          )
         case "sudo":
           unlockRef.current("permission-denied")
           return pushText(
@@ -1875,6 +2034,7 @@ export default function Shell() {
       runTree,
       runTheme,
       runNeofetch,
+      runMan,
     ],
   )
 
@@ -2355,9 +2515,46 @@ function PaletteRow() {
   )
 }
 
+// A `man` page, classic-formatted: a justified header, sectioned body, and
+// SEE ALSO links that chain to other pages.
+function ManBlock({ cmd, page }: { cmd: string; page: ManEntry }) {
+  const tag = `${cmd.toUpperCase()}(1)`
+  return (
+    <div className="jsh-man">
+      <div className="jsh-man-head">
+        <span>{tag}</span>
+        <span>jsh manual</span>
+        <span>{tag}</span>
+      </div>
+      <p className="jsh-man-sec">NAME</p>
+      <p className="jsh-man-body">{page.name}</p>
+      <p className="jsh-man-sec">SYNOPSIS</p>
+      <p className="jsh-man-body">
+        <span className="jsh-em">{page.synopsis}</span>
+      </p>
+      <p className="jsh-man-sec">DESCRIPTION</p>
+      <p className="jsh-man-body jsh-measure">{page.desc}</p>
+      {page.see && page.see.length > 0 && (
+        <>
+          <p className="jsh-man-sec">SEE ALSO</p>
+          <p className="jsh-man-body">
+            {page.see.map((s, i) => (
+              <span key={s}>
+                {i > 0 ? ", " : ""}
+                <Cmd>{`man ${s}`}</Cmd>
+              </span>
+            ))}
+          </p>
+        </>
+      )}
+    </div>
+  )
+}
+
 function HelpBlock({ run }: { run: (c: string) => void }) {
   const rows: Array<[string, string]> = [
     ["help", "this list"],
+    ["man <cmd>", "read the manual — e.g. man ls"],
     ["ls", "list ~/ — the files"],
     ["whoami", "the short version"],
     ["cat <name>", "read a file — e.g. cat attune, cat readme"],
@@ -3483,6 +3680,23 @@ const CSS = String.raw`
 .jsh-sk-file:focus-visible { outline: none; background: var(--jsh-accent-weak); }
 .jsh-sk-desc { color: var(--jsh-muted); font-size: 12.5px; }
 .jsh-game-best { color: var(--jsh-amber-soft); font-variant-numeric: tabular-nums; }
+
+/* man pages */
+.jsh-man { margin: 4px 0; font-size: 13px; }
+.jsh-man-head {
+  display: flex;
+  justify-content: space-between;
+  color: var(--jsh-faint);
+  font-size: 11.5px;
+  margin-bottom: 8px;
+}
+.jsh-man-sec {
+  color: var(--jsh-amber);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin: 10px 0 2px;
+}
+.jsh-man-body { margin: 0 0 2px; padding-left: 22px; color: var(--jsh-muted); }
 
 .jsh-skillfile { margin-top: 2px; }
 .jsh-fm {
