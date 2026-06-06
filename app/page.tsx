@@ -52,8 +52,6 @@ type Job = {
   start: string
   end: string
   years: string // left-gutter label, tabular
-  perm: string // ls -la style mode column, in-character
-  size: string // fake byte size, for flavor + column rhythm
   blurb: string
   bullets: string[]
   stack?: string
@@ -67,8 +65,6 @@ const JOBS: Job[] = [
     start: "Jul 2025",
     end: "present",
     years: "2025—",
-    perm: "drwxr-xr-x",
-    size: "founding",
     blurb:
       "Applied-AI startup building developer tools for agentic software engineering.",
     bullets: [
@@ -85,8 +81,6 @@ const JOBS: Job[] = [
     start: "Sep 2019",
     end: "Jul 2025",
     years: "2019—25",
-    perm: "drwxr-xr-x",
-    size: "$4M+",
     blurb:
       "Tech lead for the Analysis Platform — a distributed system analyzing ~30k user projects and ~200k open-source projects every day.",
     bullets: [
@@ -104,8 +98,6 @@ const JOBS: Job[] = [
     start: "Jun 2013",
     end: "Sep 2019",
     years: "2013—19",
-    perm: "drwxr-xr-x",
-    size: "6 yrs",
     blurb: "Internal tooling and embedded systems.",
     bullets: [
       "Built internal developer tooling and embedded systems across Go, Node, React, Swift, .NET, and C.",
@@ -495,22 +487,23 @@ function buildBoot(): BootLine[] {
       () => `Starting ${pick(svcDesc)}...`,
     ])()
 
-  /* ----- breadcrumbs: the hidden commands, disguised as installs ---- *
-   *  fortune-mod / cowsay / sl / neofetch are real Arch packages, so
-   *  these read as ordinary upgrade output. hurry / nudge are Jess's
-   *  own tools; the konami line poses as a kernel input device.       */
+  /* ----- breadcrumbs: the hidden commands, posing as package installs -- *
+   *  Phrased as real Arch invocations: pacman -S for the official-repo
+   *  toys (fortune-mod / cowsay / sl / neofetch), paru -Syu for the
+   *  AUR-flavored rest (the games, Jess's own hurry / nudge, coffee).
+   *  The konami line poses as a kernel input device.                    */
   const breadcrumbs: BootLine[] = [
-    info("installing snake (1.0-1)..."),
-    info("installing 2048 (0.2.0-1)..."),
-    info("installing tetris (1.3-2)..."),
-    info("installing breakout (1.0-1)..."),
-    info("installing fortune-mod (3.20.1-1)..."),
-    info("installing cowsay (3.7.0-1)..."),
-    info("installing sl (5.05-1)..."),
-    info("installing neofetch (7.1.0-2)..."),
-    info("installing coffee (1.1-0)..."),
-    info("installing hurry (0.3.1-1)..."),
-    info("installing nudge (0.2.0-1)..."),
+    ok("paru -Syu snake"),
+    ok("paru -Syu 2048"),
+    ok("paru -Syu tetris"),
+    ok("paru -Syu breakout"),
+    ok("pacman -S fortune-mod"),
+    ok("pacman -S cowsay"),
+    ok("pacman -S sl"),
+    ok("pacman -S neofetch"),
+    ok("paru -Syu coffee"),
+    ok("paru -Syu hurry"),
+    ok("paru -Syu nudge"),
     km(`input: Konami Code Detector as /devices/virtual/input/input${num(16, 29)}`),
   ]
 
@@ -1489,7 +1482,7 @@ export default function Shell() {
       }
       if (t === "about") return pushText(<WhoamiBlock run={clickRef.current} />)
       if (t === "experience" || t === "work" || t === "work/" || t === "~/work") {
-        pushText(<LsBlock run={clickRef.current} />)
+        // the expandable cards are the whole story now — no ls preamble
         for (const j of JOBS) pushText(<JobBlock job={j} />)
         return
       }
@@ -1642,6 +1635,7 @@ export default function Shell() {
         case "ll":
         case "dir":
           if (/skill/.test(arg)) return runSkills()
+          if (/work|experience/.test(arg)) return runCat("experience")
           return runLs()
         case "whoami":
         case "about":
@@ -2213,7 +2207,7 @@ function PaletteRow() {
   const preview = usePreview()
   const items: Array<[string, string]> = [
     ["whoami", "who is this"],
-    ["ls", "list work/"],
+    ["ls", "browse files"],
     ["cat experience", "full history"],
     ["skills", "skill files"],
     ["resume", "the whole thing"],
@@ -2245,7 +2239,7 @@ function PaletteRow() {
 function HelpBlock({ run }: { run: (c: string) => void }) {
   const rows: Array<[string, string]> = [
     ["help", "this list"],
-    ["ls", "list work/ (ls -la style)"],
+    ["ls", "list ~/ — the files"],
     ["whoami", "the short version"],
     ["cat <name>", "read a file — e.g. cat attune, cat readme"],
     ["skills", "skill files — like the ones you give an agent"],
@@ -2288,38 +2282,53 @@ function HelpBlock({ run }: { run: (c: string) => void }) {
   )
 }
 
+// `ls ~` — the home directory as a clickable site map. Names route to the
+// command that opens them; directories get a trailing slash, like real `ls`.
+const HOME_ENTRIES: Array<{ name: string; cmd: string; note: string }> = [
+  { name: "about", cmd: "whoami", note: "who I am" },
+  { name: "experience/", cmd: "cat experience", note: "where I've worked" },
+  { name: "skills/", cmd: "skills", note: "what I'm fluent in" },
+  { name: "resume.txt", cmd: "resume", note: "the whole thing" },
+  { name: "writing/", cmd: "writing", note: "things I've written" },
+  { name: "games/", cmd: "games", note: "the arcade" },
+  { name: "contact", cmd: "contact", note: "how to reach me" },
+  { name: "readme.md", cmd: "cat readme", note: "about this shell" },
+]
+
 function LsBlock({ run }: { run: (c: string) => void }) {
   const preview = usePreview()
   return (
     <div className="jsh-ls">
       <p className="jsh-out jsh-muted">
-        <span className="jsh-ok">$</span> ls -la ~/work
+        <span className="jsh-ok">$</span> ls -la ~
       </p>
-      <p className="jsh-ls-total jsh-muted">total {JOBS.length} · drwxr-xr-x</p>
+      <p className="jsh-ls-total jsh-muted">
+        total {HOME_ENTRIES.length} · {USER} {USER}
+      </p>
       <ul className="jsh-lslist">
-        {JOBS.map((j) => (
-          <li key={j.id} className="jsh-lsrow">
-            <span className="jsh-ls-perm jsh-muted">{j.perm}</span>
-            <span className="jsh-ls-size jsh-muted jsh-tnum">{j.size}</span>
-            <span className="jsh-ls-year jsh-tnum">{j.years}</span>
+        {HOME_ENTRIES.map((e) => (
+          <li key={e.name} className="jsh-lsrow">
+            <span className="jsh-ls-perm jsh-muted">
+              {e.name.endsWith("/") ? "drwxr-xr-x" : "-rw-r--r--"}
+            </span>
             <button
               type="button"
               className="jsh-ls-name"
-              onClick={() => run(`cat ${j.id}`)}
-              onMouseEnter={() => preview(`cat ${j.id}`)}
+              onClick={() => run(e.cmd)}
+              onMouseEnter={() => preview(e.cmd)}
               onMouseLeave={() => preview(null)}
-              onFocus={() => preview(`cat ${j.id}`)}
+              onFocus={() => preview(e.cmd)}
               onBlur={() => preview(null)}
-              title={`cat ${j.id}`}
+              title={e.cmd}
             >
-              {j.id}/
+              {e.name}
             </button>
-            <span className="jsh-ls-role jsh-muted">{j.role}</span>
+            <span className="jsh-ls-role jsh-muted">{e.note}</span>
           </li>
         ))}
       </ul>
       <p className="jsh-out jsh-muted jsh-ls-hint">
-        → click a name (or <Cmd run={run}>cat experience</Cmd>) to expand.
+        → click a name to open it, or type e.g. <Cmd run={run}>cat experience</Cmd>.
       </p>
     </div>
   )
@@ -3312,14 +3321,12 @@ const CSS = String.raw`
 .jsh-lslist { list-style: none; margin: 0; padding: 0; }
 .jsh-lsrow {
   display: grid;
-  grid-template-columns: 92px 64px 60px auto;
+  grid-template-columns: 108px 132px auto;
   align-items: baseline;
   column-gap: 12px;
   padding: 1px 0;
 }
 .jsh-ls-perm { font-size: 12px; letter-spacing: 0.3px; }
-.jsh-ls-size { font-size: 12px; text-align: right; }
-.jsh-ls-year { color: var(--jsh-amber-soft); }
 .jsh-ls-name {
   font: inherit;
   color: var(--jsh-amber);
@@ -3676,12 +3683,11 @@ const CSS = String.raw`
 /* ---------------- responsive ---------------- */
 @media (max-width: 560px) {
   .jsh-lsrow {
-    grid-template-columns: 58px auto;
-    grid-template-areas: "year name" "year role";
+    grid-template-columns: auto;
+    grid-template-areas: "name" "role";
     row-gap: 0;
   }
-  .jsh-ls-perm, .jsh-ls-size { display: none; }
-  .jsh-ls-year { grid-area: year; }
+  .jsh-ls-perm { display: none; }
   .jsh-ls-name { grid-area: name; }
   .jsh-ls-role { grid-area: role; }
   .jsh-helpgrid li { grid-template-columns: 84px auto; }
