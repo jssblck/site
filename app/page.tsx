@@ -503,6 +503,7 @@ function buildBoot(): BootLine[] {
     ok("paru -Syu wordle"),
     ok("paru -Syu minesweeper"),
     ok("paru -Syu conway-life"),
+    ok("paru -Syu pong"),
     ok("pacman -S fortune-mod"),
     ok("pacman -S cowsay"),
     ok("pacman -S sl"),
@@ -641,6 +642,7 @@ const COMMANDS = [
   "wordle",
   "minesweeper",
   "life",
+  "pong",
   "neofetch",
   "clear",
 ] as const
@@ -768,6 +770,10 @@ const GAMES: Record<string, React.ComponentType> = {
     ssr: false,
     loading: () => <p className="jsh-out jsh-muted">loading life…</p>,
   }),
+  pong: dynamic(() => import("@/app/games/pong"), {
+    ssr: false,
+    loading: () => <p className="jsh-out jsh-muted">loading pong…</p>,
+  }),
 }
 const GAME_LIST: Array<[string, string]> = [
   ["snake", "eat, grow, do not bite yourself"],
@@ -779,6 +785,7 @@ const GAME_LIST: Array<[string, string]> = [
   ["wordle", "six guesses, five letters"],
   ["minesweeper", "flag the mines, sweep the rest"],
   ["life", "conway's game of life — draw + watch"],
+  ["pong", "you vs the machine, first to 11"],
 ]
 
 // Games take over the whole screen: a focused overlay above the shell. Esc, the
