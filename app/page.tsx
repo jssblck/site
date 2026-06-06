@@ -22,6 +22,7 @@ import {
 } from "react"
 import type { JSX, KeyboardEvent as ReactKeyboardEvent } from "react"
 import { IBM_Plex_Mono, Martian_Mono } from "next/font/google"
+import dynamic from "next/dynamic"
 
 // Industrial mono for the REPL body. Static weights — predictable rhythm.
 const plex = IBM_Plex_Mono({
@@ -517,6 +518,8 @@ const COMMANDS = [
   "theme",
   "history",
   "achievements",
+  "games",
+  "snake",
   "neofetch",
   "clear",
 ] as const
@@ -588,6 +591,67 @@ function Cmd({
     >
       {children}
     </button>
+  )
+}
+
+/* ------------------------------ games ---------------------------- */
+// Lazy-loaded so they never weigh down the initial page. Each renders into the
+// transcript and captures the keyboard via GameFrame. Add an entry here and it
+// becomes a runnable command automatically.
+const GAMES: Record<string, React.ComponentType> = {
+  snake: dynamic(() => import("@/app/games/snake"), {
+    ssr: false,
+    loading: () => <p className="jsh-out jsh-muted">loading snake…</p>,
+  }),
+}
+const GAME_LIST: Array<[string, string]> = [
+  ["snake", "eat, grow, do not bite yourself"],
+]
+
+function GameBlock({ name }: { name: string }) {
+  const Game = GAMES[name]
+  if (!Game) {
+    return (
+      <p className="jsh-out jsh-err">
+        <span className="jsh-err-mark" aria-hidden="true">
+          ✗
+        </span>
+        no such game: {name}
+      </p>
+    )
+  }
+  return (
+    <div className="jsh-block-pad">
+      <Game />
+    </div>
+  )
+}
+
+function GamesBlock({ run }: { run: (c: string) => void }) {
+  return (
+    <div className="jsh-games">
+      <p className="jsh-out jsh-muted">
+        <span className="jsh-ok">$</span> ls ~/games/
+      </p>
+      <ul className="jsh-sk-list">
+        {GAME_LIST.map(([id, note]) => (
+          <li key={id} className="jsh-sk-row">
+            <button
+              type="button"
+              className="jsh-sk-file"
+              onClick={() => run(id)}
+              title={`play ${id}`}
+            >
+              {id}
+            </button>
+            <span className="jsh-sk-desc">{note}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="jsh-out jsh-muted jsh-ls-hint">
+        → click one, or type its name to play. arrows move; esc quits.
+      </p>
+    </div>
   )
 }
 
@@ -1264,6 +1328,9 @@ export default function Shell() {
         case "achievement":
         case "trophies":
           return pushText(<AchievementsBlock unlocked={achievementsRef.current} />)
+        case "games":
+        case "play":
+          return pushText(<GamesBlock run={runRef.current} />)
         case "history":
           return pushText(
             <HistoryBlock items={historyRef.current} run={runRef.current} />,
@@ -1305,6 +1372,7 @@ export default function Shell() {
             </p>,
           )
         default:
+          if (GAMES[h]) return pushText(<GameBlock name={h} />)
           return pushText(
             <Errline>
               {head}: command not found. try <Cmd run={runRef.current}>help</Cmd> — or
@@ -1778,6 +1846,7 @@ function HelpBlock({ run }: { run: (c: string) => void }) {
     ["theme <name>", "amber · green · paper"],
     ["history", "what you have run"],
     ["achievements", "what you've unlocked"],
+    ["games", "yes, there are games"],
     ["clear", "wipe the screen (⌃L)"],
   ]
   return (
@@ -2950,6 +3019,56 @@ const CSS = String.raw`
 .jsh-ach-locked .jsh-ach-name,
 .jsh-ach-locked .jsh-ach-box { color: var(--jsh-faint); }
 .jsh-ach-done .jsh-ach-name { color: var(--jsh-amber); }
+
+/* games */
+.jsh-game {
+  border: 1px solid var(--jsh-rule);
+  border-radius: 4px;
+  background: var(--jsh-bg-2);
+  margin: 6px 0;
+  outline: none;
+  max-width: 540px;
+}
+.jsh-game:focus-visible { border-color: var(--jsh-amber-soft); }
+.jsh-game-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--jsh-rule);
+  background: var(--jsh-chrome);
+  font-size: 12px;
+}
+.jsh-game-title { color: var(--jsh-amber); }
+.jsh-game-status { color: var(--jsh-muted); }
+.jsh-game-status b { color: var(--jsh-fg); font-weight: 600; }
+.jsh-game-quit {
+  margin-left: auto;
+  font: inherit;
+  font-size: 11px;
+  color: var(--jsh-faint);
+  background: none;
+  border: 1px solid var(--jsh-rule);
+  border-radius: 3px;
+  padding: 1px 8px;
+  cursor: pointer;
+}
+.jsh-game-quit:hover { color: var(--jsh-fg); border-color: var(--jsh-amber-soft); }
+.jsh-game-body { padding: 10px; display: flex; justify-content: center; }
+.jsh-game-canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+  border: 1px solid var(--jsh-rule-2);
+}
+.jsh-game-hint {
+  padding: 6px 10px;
+  border-top: 1px solid var(--jsh-rule);
+  font-size: 11.5px;
+  color: var(--jsh-muted);
+}
+.jsh-game-hint b { color: var(--jsh-amber-soft); font-weight: 600; }
 
 .jsh-coffee-art {
   color: var(--jsh-amber-soft);
