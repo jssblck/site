@@ -522,6 +522,7 @@ const COMMANDS = [
   "snake",
   "2048",
   "tetris",
+  "breakout",
   "neofetch",
   "clear",
 ] as const
@@ -613,11 +614,16 @@ const GAMES: Record<string, React.ComponentType> = {
     ssr: false,
     loading: () => <p className="jsh-out jsh-muted">loading tetris…</p>,
   }),
+  breakout: dynamic(() => import("@/app/games/breakout"), {
+    ssr: false,
+    loading: () => <p className="jsh-out jsh-muted">loading breakout…</p>,
+  }),
 }
 const GAME_LIST: Array<[string, string]> = [
   ["snake", "eat, grow, do not bite yourself"],
   ["2048", "slide tiles, make 2048"],
   ["tetris", "the blocks, the lines, the dread"],
+  ["breakout", "paddle, ball, a wall to demolish"],
 ]
 
 function GameBlock({ name }: { name: string }) {
