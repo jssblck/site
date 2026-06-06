@@ -24,6 +24,7 @@ import type { JSX, KeyboardEvent as ReactKeyboardEvent } from "react"
 import { IBM_Plex_Mono, Martian_Mono } from "next/font/google"
 import dynamic from "next/dynamic"
 import { GameExitContext } from "@/app/games/_frame"
+import MatrixRain from "@/app/MatrixRain"
 
 // Industrial mono for the REPL body. Static weights — predictable rhythm.
 const plex = IBM_Plex_Mono({
@@ -866,11 +867,6 @@ const GAMES: Record<string, React.ComponentType> = {
     ssr: false,
     loading: () => <p className="jsh-out jsh-muted">loading pong…</p>,
   }),
-  // not in GAME_LIST — a hidden fullscreen toy, found via `cmatrix` or the boot log
-  cmatrix: dynamic(() => import("@/app/games/cmatrix"), {
-    ssr: false,
-    loading: () => <p className="jsh-out jsh-muted">loading cmatrix…</p>,
-  }),
 }
 const GAME_LIST: Array<[string, string]> = [
   ["snake", "eat, grow, do not bite yourself"],
@@ -1293,6 +1289,7 @@ export default function Shell() {
   const [achievements, setAchievements] = useState<string[]>([])
   const [preview, setPreview] = useState<string | null>(null)
   const [activeGame, setActiveGame] = useState<string | null>(null)
+  const [matrixMode, setMatrixMode] = useState(false)
 
   const idRef = useRef(0)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -1317,6 +1314,8 @@ export default function Shell() {
   // handlers so they don't steal focus or advance behind the overlay.
   const activeGameRef = useRef<string | null>(null)
   activeGameRef.current = activeGame
+  const matrixModeRef = useRef(false)
+  matrixModeRef.current = matrixMode
   // Tab-completion cycle state (multiple candidates → cycle through them).
   const tabCycle = useRef<{ base: string; matches: string[]; idx: number } | null>(
     null,
@@ -1382,6 +1381,7 @@ export default function Shell() {
     try {
       const saved = window.localStorage.getItem("jsh-theme") as Theme | null
       if (saved && (THEMES as string[]).includes(saved)) setTheme(saved)
+      if (window.localStorage.getItem("jsh-matrix") === "1") setMatrixMode(true)
     } catch {
       /* localStorage may be unavailable; default theme is fine */
     }
@@ -1978,6 +1978,28 @@ export default function Shell() {
 --- jessica.black ping statistics ---
 2 packets transmitted, 2 received, 0% loss. she's right here.`}</pre>,
           )
+        case "cmatrix":
+        case "matrix": {
+          const next = !matrixModeRef.current
+          setMatrixMode(next)
+          try {
+            window.localStorage.setItem("jsh-matrix", next ? "1" : "0")
+          } catch {
+            /* ignore */
+          }
+          return pushText(
+            next ? (
+              <p className="jsh-out jsh-muted">
+                wake up… matrix mode <span className="jsh-em">engaged</span>. (run{" "}
+                <Cmd run={clickRef.current}>cmatrix</Cmd> again to unplug.)
+              </p>
+            ) : (
+              <p className="jsh-out jsh-muted">
+                matrix mode disengaged. welcome back to the desert of the real.
+              </p>
+            ),
+          )
+        }
         case "sudo":
           unlockRef.current("permission-denied")
           return pushText(
@@ -2235,9 +2257,11 @@ export default function Shell() {
         className={`${plex.className} jsh-root`}
         data-reduced={reduced ? "1" : "0"}
         data-theme={theme}
+        data-matrix={matrixMode ? "1" : "0"}
       >
         <StyleBlock />
         <SourceEggs />
+        {matrixMode && <MatrixRain />}
 
         {/* one real, stable heading for SEO + assistive tech */}
         <h1 className="jsh-sr-only">
@@ -3268,6 +3292,50 @@ const CSS = String.raw`
   -webkit-text-fill-color: transparent;
   color: transparent;
 }
+
+/* matrix mode — a green takeover with live rain behind the (still-usable)
+   terminal. Surfaces go translucent so the rain reads through; text glows. */
+.jsh-root[data-matrix="1"] {
+  --jsh-bg: #010a01;
+  --jsh-bg-2: transparent;
+  --jsh-chrome: rgba(2, 14, 4, 0.62);
+  --jsh-surface: rgba(10, 34, 12, 0.5);
+  --jsh-surface-2: rgba(16, 46, 18, 0.5);
+  --jsh-fg: #c6ffc6;
+  --jsh-muted: #5fcf6f;
+  --jsh-faint: #2f7f3a;
+  --jsh-rule: #16451c;
+  --jsh-rule-2: #0f3214;
+  --jsh-amber: #76ff95;
+  --jsh-amber-soft: #46c46a;
+  --jsh-accent-weak: rgba(118, 255, 149, 0.14);
+  --jsh-accent-line: rgba(118, 255, 149, 0.42);
+  --jsh-err: #ff9b9b;
+}
+.jsh-matrix-rain {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.5;
+  pointer-events: none;
+}
+/* lift the terminal above the rain and let it show through the surfaces */
+.jsh-root[data-matrix="1"] .jsh-term {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+}
+.jsh-root[data-matrix="1"] .jsh-scroll { background: transparent; }
+.jsh-root[data-matrix="1"] .jsh-scroll,
+.jsh-root[data-matrix="1"] .jsh-topbar,
+.jsh-root[data-matrix="1"] .jsh-statusbar {
+  text-shadow: 0 0 1px #021006, 0 0 7px rgba(118, 255, 149, 0.5);
+}
+.jsh-root[data-matrix="1"] .jsh-topbar,
+.jsh-root[data-matrix="1"] .jsh-statusbar {
+  backdrop-filter: blur(1px);
+}
+.jsh-root[data-reduced="1"] .jsh-matrix-rain { opacity: 0.34; }
 
 .jsh-root {
   height: 100vh;
