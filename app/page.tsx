@@ -661,6 +661,82 @@ function GamesBlock({ run }: { run: (c: string) => void }) {
   )
 }
 
+/* ----------------------- terminal toys --------------------------- */
+const FORTUNES = [
+  "There are only two hard things in computer science: cache invalidation, naming things, and off-by-one errors.",
+  "It works on my machine.",
+  "Weeks of coding can save you hours of planning.",
+  "There is no place like 127.0.0.1.",
+  "Programming is 10% writing code and 90% understanding why it doesn't work.",
+  "To understand recursion, you must first understand recursion.",
+  "Real programmers count from zero.",
+  "The best thing about a boolean is that even if you're wrong, you're only off by a bit.",
+  "Premature optimization is the root of all evil. — Knuth",
+  "Any sufficiently advanced bug is indistinguishable from a feature.",
+  "git commit -m 'fixed'. (narrator: it was not fixed.)",
+  "I'd tell you a UDP joke, but you might not get it.",
+  "A SQL query walks into a bar, approaches two tables, and asks: may I join you?",
+  "The cloud is just someone else's computer.",
+  "Debugging: being the detective in a crime drama where you are also the murderer.",
+  "It's not a bug, it's an undocumented feature.",
+  "Old programmers never die. They just decompile.",
+  "There are 10 kinds of people: those who read binary, and those who don't.",
+]
+function pickFortune(): string {
+  return FORTUNES[Math.floor(Math.random() * FORTUNES.length)]
+}
+
+function FortuneBlock() {
+  return <p className="jsh-out jsh-measure">{pickFortune()}</p>
+}
+
+function cowBubble(text: string): string {
+  const t = text.length > 44 ? text.slice(0, 43) + "…" : text
+  const bar = "-".repeat(t.length + 2)
+  return ` _${bar}_\n( ${t} )\n -${bar}-`
+}
+const COW = String.raw`        \   ^__^
+         \  (oo)\_______
+            (__)\       )\/\
+                ||----w |
+                ||     ||`
+function CowsayBlock({ text }: { text: string }) {
+  return <pre className="jsh-toy">{cowBubble(text) + "\n" + COW}</pre>
+}
+
+const APT_COW = String.raw`         (__)
+         (oo)
+   /------\/
+  / |    ||
+ *  /\---/\
+    ~~   ~~
+..."Have you mooed today?"`
+function AptMooBlock() {
+  return <pre className="jsh-toy">{APT_COW}</pre>
+}
+
+const SL_TRAIN = String.raw`      ====        ________                ___________
+  _D _|  |_______/        \__I_I_____===__|_________|
+   |(_)---  |   H\________/ |   |        =|___ ___|
+   /     |  |   H  |  |     |   |         ||_| |_||
+  |      |  |   H  |__--------------------| [___] |
+  | ________|___H__/__|_____/[][]~\_______|       |
+  | |      |-----------I_____I [][] []  D   |=======|__
+__/ =| o |=-~~\  /~~\  /~~\  /~~\ ____Y___________|__
+ |/-=|___|=    ||    ||    ||    |_____/~\___/
+  \_/      \O=====O=====O=====O_/      \_/`
+function SlBlock() {
+  const [done, setDone] = useState(false)
+  if (done) return null // collapse once the train has chuffed off-screen
+  return (
+    <div className="jsh-sl" aria-hidden="true">
+      <pre className="jsh-sl-train" onAnimationEnd={() => setDone(true)}>
+        {SL_TRAIN}
+      </pre>
+    </div>
+  )
+}
+
 // A self-contained, decorative rotating status line. Cycles the gag pool, then
 // settles on the real descriptor. Manages its own timing so it stays decoupled
 // from the shell; assistive tech only ever hears the settled value.
@@ -1288,6 +1364,11 @@ export default function Shell() {
       const arg = rest.join(" ")
       const h = head.toLowerCase()
 
+      // a tiny nod to the classic pipe
+      if (/^fortune\s*\|\s*cowsay$/i.test(cmd)) {
+        return pushText(<CowsayBlock text={pickFortune()} />)
+      }
+
       switch (h) {
         case "help":
         case "?":
@@ -1345,6 +1426,32 @@ export default function Shell() {
         case "make":
           unlockRef.current("caffeinated")
           return pushText(<CoffeeBlock />)
+        case "fortune":
+          return pushText(<FortuneBlock />)
+        case "cowsay":
+          return pushText(<CowsayBlock text={arg || pickFortune()} />)
+        case "sl":
+          return pushText(<SlBlock />)
+        case "apt":
+        case "apt-get":
+          if (/\bmoo\b/.test(arg)) return pushText(<AptMooBlock />)
+          return pushText(
+            <p className="jsh-out jsh-muted">
+              E: unable to locate package. (this is not that kind of machine.)
+            </p>,
+          )
+        case "aptitude":
+          if (/\bmoo\b/.test(arg))
+            return pushText(
+              <p className="jsh-out jsh-muted">
+                There are no Easter Eggs in this program.
+              </p>,
+            )
+          return pushText(
+            <Errline>
+              aptitude: try <Cmd run={runRef.current}>aptitude moo</Cmd>.
+            </Errline>,
+          )
         case "pwd":
           return pushText(<p className="jsh-out">/home/{USER}</p>)
         case "echo":
@@ -3075,6 +3182,39 @@ const CSS = String.raw`
   color: var(--jsh-muted);
 }
 .jsh-game-hint b { color: var(--jsh-amber-soft); font-weight: 600; }
+
+/* terminal toys */
+.jsh-toy {
+  color: var(--jsh-amber-soft);
+  font-size: 12px;
+  line-height: 1.3;
+  margin: 4px 0;
+  white-space: pre;
+  overflow-x: auto;
+}
+.jsh-sl {
+  position: relative;
+  overflow: hidden;
+  height: 9.6em;
+  margin: 4px 0;
+}
+.jsh-sl-train {
+  position: absolute;
+  top: 0;
+  margin: 0;
+  color: var(--jsh-amber-soft);
+  font-size: 11px;
+  line-height: 1.18;
+  white-space: pre;
+  animation: jsh-sl-run 3.4s linear forwards;
+}
+@keyframes jsh-sl-run {
+  from { left: 100%; }
+  to { left: -64ch; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jsh-sl-train { animation: none; left: 0; }
+}
 
 .jsh-coffee-art {
   color: var(--jsh-amber-soft);
