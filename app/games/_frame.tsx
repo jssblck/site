@@ -8,7 +8,11 @@
   own canvas/board inside and read keys via onKey.
 */
 
-import { useEffect, useRef } from "react"
+import { createContext, useContext, useEffect, useRef } from "react"
+
+// The shell provides this so a game can close its fullscreen overlay on exit.
+// Defaults to a no-op for any standalone use.
+export const GameExitContext = createContext<() => void>(() => {})
 
 export function GameFrame({
   title,
@@ -28,12 +32,14 @@ export function GameFrame({
   children: React.ReactNode
 }) {
   const ref = useRef<HTMLDivElement>(null)
+  const closeOverlay = useContext(GameExitContext)
   useEffect(() => {
     ref.current?.focus({ preventScroll: true })
   }, [])
 
   const exit = () => {
     onExit?.()
+    closeOverlay()
     document.getElementById("jsh-input")?.focus()
   }
 

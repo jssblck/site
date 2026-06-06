@@ -23,6 +23,7 @@ import {
 import type { JSX, KeyboardEvent as ReactKeyboardEvent } from "react"
 import { IBM_Plex_Mono, Martian_Mono } from "next/font/google"
 import dynamic from "next/dynamic"
+import { GameExitContext } from "@/app/games/_frame"
 
 // Industrial mono for the REPL body. Static weights — predictable rhythm.
 const plex = IBM_Plex_Mono({
@@ -497,6 +498,7 @@ function buildBoot(): BootLine[] {
     ok("paru -Syu 2048"),
     ok("paru -Syu tetris"),
     ok("paru -Syu breakout"),
+    ok("paru -Syu asteroids"),
     ok("pacman -S fortune-mod"),
     ok("pacman -S cowsay"),
     ok("pacman -S sl"),
@@ -630,6 +632,7 @@ const COMMANDS = [
   "2048",
   "tetris",
   "breakout",
+  "asteroids",
   "neofetch",
   "clear",
 ] as const
@@ -737,30 +740,56 @@ const GAMES: Record<string, React.ComponentType> = {
     ssr: false,
     loading: () => <p className="jsh-out jsh-muted">loading breakout…</p>,
   }),
+  asteroids: dynamic(() => import("@/app/games/asteroids"), {
+    ssr: false,
+    loading: () => <p className="jsh-out jsh-muted">loading asteroids…</p>,
+  }),
 }
 const GAME_LIST: Array<[string, string]> = [
   ["snake", "eat, grow, do not bite yourself"],
   ["2048", "slide tiles, make 2048"],
   ["tetris", "the blocks, the lines, the dread"],
   ["breakout", "paddle, ball, a wall to demolish"],
+  ["asteroids", "thrust, wrap, shoot the rocks"],
 ]
 
-function GameBlock({ name }: { name: string }) {
+// Games take over the whole screen: a focused overlay above the shell. Esc, the
+// ✕, or a click on the backdrop returns you to the prompt. Lazy-loaded.
+function GameOverlay({ name, onExit }: { name: string; onExit: () => void }) {
   const Game = GAMES[name]
-  if (!Game) {
-    return (
-      <p className="jsh-out jsh-err">
-        <span className="jsh-err-mark" aria-hidden="true">
-          ✗
-        </span>
-        no such game: {name}
-      </p>
-    )
-  }
+  // Safety net: Esc closes even if focus slipped off the game surface. (When the
+  // game is focused, GameFrame handles Esc and stops it before it reaches here.)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onExit()
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [onExit])
+
   return (
-    <div className="jsh-block-pad">
-      <Game />
-    </div>
+    <GameExitContext.Provider value={onExit}>
+      <div
+        className="jsh-game-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${name} — fullscreen game`}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onExit()
+        }}
+      >
+        <div className="jsh-game-stage">
+          {Game ? (
+            <Game />
+          ) : (
+            <p className="jsh-out jsh-err">no such game: {name}</p>
+          )}
+          <p className="jsh-game-exit-note">
+            press <b>Esc</b> to exit
+          </p>
+        </div>
+      </div>
+    </GameExitContext.Provider>
   )
 }
 
@@ -1094,6 +1123,7 @@ export default function Shell() {
   const [guest, setGuest] = useState("guest")
   const [achievements, setAchievements] = useState<string[]>([])
   const [preview, setPreview] = useState<string | null>(null)
+  const [activeGame, setActiveGame] = useState<string | null>(null)
 
   const idRef = useRef(0)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -1114,6 +1144,10 @@ export default function Shell() {
   const cmdCountRef = useRef(0)
   const guestRef = useRef(guest)
   guestRef.current = guest
+  // True while a fullscreen game is open — used to mute the shell's global key
+  // handlers so they don't steal focus or advance behind the overlay.
+  const activeGameRef = useRef<string | null>(null)
+  activeGameRef.current = activeGame
   // Tab-completion cycle state (multiple candidates → cycle through them).
   const tabCycle = useRef<{ base: string; matches: string[]; idx: number } | null>(
     null,
@@ -1742,7 +1776,10 @@ export default function Shell() {
             </p>,
           )
         default:
-          if (GAMES[h]) return pushText(<GameBlock name={h} />)
+          if (GAMES[h]) {
+            setActiveGame(h)
+            return
+          }
           return pushText(
             <Errline>
               {head}: command not found. try <Cmd run={clickRef.current}>help</Cmd> — or
@@ -1801,6 +1838,7 @@ export default function Shell() {
     ]
     let pos = 0
     const onKey = (e: globalThis.KeyboardEvent) => {
+      if (activeGameRef.current) return // arrows belong to the game, not konami
       const k = e.key.toLowerCase()
       if (k === SEQ[pos]) {
         pos += 1
@@ -1903,6 +1941,7 @@ export default function Shell() {
   /* --------- global key affordance: any key skips the boot -------- */
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
+      if (activeGameRef.current) return // a fullscreen game owns the keyboard
       // While booting, any key (except pure modifiers) jumps to the prompt.
       if (phase === "booting" && bootCancel.current) {
         if (["Shift", "Control", "Alt", "Meta"].includes(e.key)) return
@@ -1944,6 +1983,12 @@ export default function Shell() {
     // bottom and fight the click-to-replace snap that pins the header up top.
     if (phase === "ready") inputRef.current?.focus({ preventScroll: true })
   }, [phase])
+
+  // Close the fullscreen game and hand focus back to the prompt.
+  const onExitGame = useCallback(() => {
+    setActiveGame(null)
+    inputRef.current?.focus({ preventScroll: true })
+  }, [])
 
   /* ----------------------------- VIEW ----------------------------- */
 
@@ -2087,6 +2132,8 @@ export default function Shell() {
             </nav>
           </div>
         </section>
+
+        {activeGame && <GameOverlay name={activeGame} onExit={onExitGame} />}
       </main>
       </PreviewContext.Provider>
       </GuestContext.Provider>
@@ -3536,6 +3583,58 @@ const CSS = String.raw`
   color: var(--jsh-muted);
 }
 .jsh-game-hint b { color: var(--jsh-amber-soft); font-weight: 600; }
+
+/* fullscreen game overlay — a game takes over the whole shell */
+.jsh-game-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(12px, 4vh, 48px);
+  background: var(--jsh-bg);
+  background-image: radial-gradient(circle at 50% 32%, var(--jsh-bg-2), var(--jsh-bg) 72%);
+  animation: jsh-overlay-in 160ms ease;
+}
+@keyframes jsh-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.jsh-game-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 100%;
+}
+.jsh-game-overlay .jsh-game {
+  margin: 0;
+  max-width: 94vw;
+  box-shadow: 0 12px 60px rgba(0, 0, 0, 0.45);
+}
+.jsh-game-overlay .jsh-game-canvas {
+  width: auto;
+  height: min(58vh, 540px);
+  max-width: 92vw;
+}
+.jsh-game-overlay .jsh-game-body { padding: clamp(10px, 2.2vh, 24px); }
+.jsh-game-exit-note {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--jsh-muted);
+  letter-spacing: 0.3px;
+}
+.jsh-game-exit-note b {
+  color: var(--jsh-fg);
+  font-weight: 600;
+  border: 1px solid var(--jsh-rule);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 7px;
+  margin: 0 3px;
+}
+.jsh-root[data-reduced="1"] .jsh-game-overlay { animation: none; }
 
 /* terminal toys */
 .jsh-toy {
