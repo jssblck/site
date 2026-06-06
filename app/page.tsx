@@ -177,6 +177,25 @@ const LINKS: Link[] = [
 
 const linkUrl = (k: string) => LINKS.find((l) => l.key === k)?.url ?? "#"
 
+// A visitor is a guest on jess's machine. Rather than an IP (creepy + useless),
+// they get a stable, Docker-style handle: an adjective + a computer-science name,
+// generated once and remembered per browser.
+const GUEST_ADJ = [
+  "curious", "nostalgic", "eager", "brave", "clever", "gentle", "quiet",
+  "bold", "keen", "witty", "stoic", "lucid", "nimble", "wry", "candid",
+  "plucky", "jolly", "mellow", "zesty", "dapper",
+]
+const GUEST_NAME = [
+  "lovelace", "turing", "hopper", "knuth", "dijkstra", "hamilton", "liskov",
+  "ritchie", "torvalds", "perlis", "backus", "engelbart", "goldberg",
+  "wozniak", "shannon", "babbage", "kay", "sutherland", "hejlsberg", "matsumoto",
+]
+function makeGuest(): string {
+  const a = GUEST_ADJ[Math.floor(Math.random() * GUEST_ADJ.length)]
+  const n = GUEST_NAME[Math.floor(Math.random() * GUEST_NAME.length)]
+  return `${a}_${n}`
+}
+
 // Skills, modeled as SKILL.md files — the kind you hand an agent. Each is a real
 // little document with name / description / level frontmatter and a short body.
 type Skill = {
@@ -444,14 +463,32 @@ function buildBoot(): string[] {
 
 const BOOT: string[] = buildBoot()
 
+/* --------------------------- achievements ------------------------ */
+type Achievement = { id: string; name: string; desc: string }
+const ACHIEVEMENTS: Achievement[] = [
+  { id: "first-contact", name: "First Contact", desc: "ran your first command" },
+  { id: "rtfm", name: "RTFM", desc: "actually read the help" },
+  { id: "permission-denied", name: "Permission Denied", desc: "reached for sudo" },
+  { id: "nice-try", name: "Nice Try", desc: "attempted rm -rf" },
+  { id: "caffeinated", name: "Caffeinated", desc: "brewed a coffee" },
+  { id: "cheat-code", name: "Cheat Code", desc: "entered the konami code" },
+  { id: "speedrunner", name: "Speedrunner", desc: "skipped the boot" },
+  { id: "interior-decorator", name: "Interior Decorator", desc: "tried every theme" },
+  { id: "archaeologist", name: "Archaeologist", desc: "scrolled to the top of the boot log" },
+  { id: "power-user", name: "Power User", desc: "ran twenty commands" },
+  { id: "completionist", name: "Completionist", desc: "unlocked everything else" },
+]
+const ACH_POWER_USER_AT = 20
+
 /* ----------------------------- themes ----------------------------- */
 
-type Theme = "amber" | "green" | "paper"
-const THEMES: Theme[] = ["amber", "green", "paper"]
+type Theme = "amber" | "green" | "paper" | "pride"
+const THEMES: Theme[] = ["amber", "green", "paper", "pride"]
 const THEME_NOTE: Record<Theme, string> = {
   amber: "phosphor amber on near-black (default)",
   green: "phosphor green on near-black",
   paper: "ink on warm paper (light)",
+  pride: "rainbow wordmark — everyone's welcome",
 }
 
 /* ------------------------------------------------------------------ *
@@ -479,6 +516,7 @@ const COMMANDS = [
   "tree",
   "theme",
   "history",
+  "achievements",
   "neofetch",
   "clear",
 ] as const
@@ -506,6 +544,12 @@ const CAT_TARGETS = [
 const RunContext = createContext<(cmd: string) => void>(() => {})
 function useRun(): (cmd: string) => void {
   return useContext(RunContext)
+}
+
+// The visitor's guest handle, shared with transcript-embedded blocks.
+const GuestContext = createContext<string>("guest")
+function useGuest(): string {
+  return useContext(GuestContext)
 }
 
 function Ext({ href, children }: { href: string; children: React.ReactNode }) {
@@ -668,6 +712,8 @@ export default function Shell() {
   const [focused, setFocused] = useState(true)
   const [theme, setTheme] = useState<Theme>("amber")
   const [clock, setClock] = useState("")
+  const [guest, setGuest] = useState("guest")
+  const [achievements, setAchievements] = useState<string[]>([])
 
   const idRef = useRef(0)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -679,6 +725,12 @@ export default function Shell() {
   historyRef.current = history
   const themeRef = useRef<Theme>(theme)
   themeRef.current = theme
+  const achievementsRef = useRef<string[]>(achievements)
+  achievementsRef.current = achievements
+  const usedThemesRef = useRef<Set<string>>(new Set())
+  const cmdCountRef = useRef(0)
+  const guestRef = useRef(guest)
+  guestRef.current = guest
   // Tab-completion cycle state (multiple candidates → cycle through them).
   const tabCycle = useRef<{ base: string; matches: string[]; idx: number } | null>(
     null,
@@ -700,6 +752,35 @@ export default function Shell() {
     (node: JSX.Element) => push({ kind: "text", node }),
     [push],
   )
+
+  // Unlock an achievement once: persist it and drop a quiet toast in the
+  // transcript. When everything else is unlocked, "completionist" follows.
+  const unlock = useCallback(
+    (id: string) => {
+      if (achievementsRef.current.includes(id)) return
+      const next = [...achievementsRef.current, id]
+      achievementsRef.current = next
+      setAchievements(next)
+      try {
+        window.localStorage.setItem("jsh-achievements", JSON.stringify(next))
+      } catch {
+        /* ignore */
+      }
+      const a = ACHIEVEMENTS.find((x) => x.id === id)
+      if (a) pushText(<AchievementToast a={a} />)
+      const others = ACHIEVEMENTS.filter((x) => x.id !== "completionist").map(
+        (x) => x.id,
+      )
+      if (id !== "completionist" && others.every((o) => next.includes(o))) {
+        window.setTimeout(() => unlockRef.current("completionist"), 450)
+      }
+    },
+    [pushText],
+  )
+  const unlockRef = useRef(unlock)
+  useEffect(() => {
+    unlockRef.current = unlock
+  }, [unlock])
 
   /* -------------------- prefers-reduced-motion -------------------- */
   useEffect(() => {
@@ -726,6 +807,36 @@ export default function Shell() {
       /* ignore */
     }
   }, [theme])
+
+  /* ------------------ guest handle + saved progress --------------- */
+  useEffect(() => {
+    try {
+      let g = window.localStorage.getItem("jsh-guest")
+      if (!g) {
+        g = makeGuest()
+        window.localStorage.setItem("jsh-guest", g)
+      }
+      setGuest(g)
+    } catch {
+      setGuest(makeGuest())
+    }
+    try {
+      const raw = window.localStorage.getItem("jsh-achievements")
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) {
+          setAchievements(parsed.filter((x) => typeof x === "string"))
+        }
+      }
+      const ut = window.localStorage.getItem("jsh-themes-used")
+      if (ut) {
+        const arr = JSON.parse(ut)
+        if (Array.isArray(arr)) usedThemesRef.current = new Set(arr)
+      }
+    } catch {
+      /* ignore corrupt storage */
+    }
+  }, [])
 
   /* --------------------------- live clock ------------------------- */
   // Her local time (PT). Empty on the server + first paint to avoid a
@@ -866,6 +977,19 @@ export default function Shell() {
     if (phase === "ready") inputRef.current?.focus({ preventScroll: true })
   }, [phase])
 
+  /* --------- archaeologist: scroll up to the top of the boot ------ */
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const onScroll = () => {
+      if (phase === "ready" && el.scrollTop < 24 && el.querySelector(".jsh-bootline")) {
+        unlockRef.current("archaeologist")
+      }
+    }
+    el.addEventListener("scroll", onScroll, { passive: true })
+    return () => el.removeEventListener("scroll", onScroll)
+  }, [phase])
+
   /* --------------------- window focus tracking -------------------- */
   useEffect(() => {
     const on = () => setFocused(true)
@@ -929,6 +1053,14 @@ export default function Shell() {
       }
       const apply = (nx: Theme) => {
         setTheme(nx)
+        const used = usedThemesRef.current
+        used.add(nx)
+        try {
+          window.localStorage.setItem("jsh-themes-used", JSON.stringify([...used]))
+        } catch {
+          /* ignore */
+        }
+        if (used.size >= THEMES.length) unlockRef.current("interior-decorator")
         pushText(
           <p className="jsh-out">
             <span className="jsh-ok">✓</span> theme → <span className="jsh-em">{nx}</span>{" "}
@@ -1078,6 +1210,10 @@ export default function Shell() {
 
       push({ kind: "echo", cmd })
 
+      cmdCountRef.current += 1
+      unlockRef.current("first-contact")
+      if (cmdCountRef.current >= ACH_POWER_USER_AT) unlockRef.current("power-user")
+
       const [head, ...rest] = cmd.split(/\s+/)
       const arg = rest.join(" ")
       const h = head.toLowerCase()
@@ -1086,6 +1222,7 @@ export default function Shell() {
         case "help":
         case "?":
         case "man":
+          unlockRef.current("rtfm")
           return runHelp()
         case "ls":
         case "ll":
@@ -1123,32 +1260,40 @@ export default function Shell() {
         case "neofetch":
         case "fetch":
           return runNeofetch()
+        case "achievements":
+        case "achievement":
+        case "trophies":
+          return pushText(<AchievementsBlock unlocked={achievementsRef.current} />)
         case "history":
           return pushText(
             <HistoryBlock items={historyRef.current} run={runRef.current} />,
           )
         case "coffee":
         case "make":
+          unlockRef.current("caffeinated")
           return pushText(<CoffeeBlock />)
         case "pwd":
           return pushText(<p className="jsh-out">/home/{USER}</p>)
         case "echo":
           return pushText(<p className="jsh-out">{arg || " "}</p>)
         case "sudo":
+          unlockRef.current("permission-denied")
           return pushText(
             <Errline>
-              {USER} is not in the sudoers file. this incident will be reported.
-              (it won&apos;t. there is no one to report it to.)
+              {guestRef.current} is not in the sudoers file. this incident will be
+              reported. (it won&apos;t. there is no one to report it to.)
             </Errline>,
           )
         case "rm":
-          if (/-rf?\b/.test(arg) && /(\/|~|\*)/.test(arg))
+          if (/-rf?\b/.test(arg) && /(\/|~|\*)/.test(arg)) {
+            unlockRef.current("nice-try")
             return pushText(
               <p className="jsh-out jsh-muted">
-                nice try. this site is content-addressed — it heals.{" "}
+                nice try. this site is content-addressed; it heals.{" "}
                 <Cmd run={runRef.current}>ls</Cmd>?
               </p>,
             )
+          }
           return pushText(<Errline>rm: refusing. everything here is load-bearing.</Errline>)
         case "exit":
         case "logout":
@@ -1217,6 +1362,7 @@ export default function Shell() {
         pos += 1
         if (pos === SEQ.length) {
           pos = 0
+          unlockRef.current("cheat-code")
           pushText(<KonamiBlock run={runRef.current} />)
         }
       } else {
@@ -1316,6 +1462,7 @@ export default function Shell() {
       if (phase === "booting" && bootCancel.current) {
         if (["Shift", "Control", "Alt", "Meta"].includes(e.key)) return
         bootCancel.current()
+        unlockRef.current("speedrunner")
         window.setTimeout(() => inputRef.current?.focus(), 0)
         return
       }
@@ -1353,11 +1500,12 @@ export default function Shell() {
 
   /* ----------------------------- VIEW ----------------------------- */
 
-  const promptStr = `${USER}@${HOST}:~$`
+  const promptStr = `${guest}@${HOST}:~$`
   const reveal = useMemo(() => (reduced ? "" : "jsh-reveal"), [reduced])
 
   return (
     <RunContext.Provider value={dispatch}>
+      <GuestContext.Provider value={guest}>
       <main
         className={`${plex.className} jsh-root`}
         data-reduced={reduced ? "1" : "0"}
@@ -1385,7 +1533,7 @@ export default function Shell() {
               <i />
             </span>
             <span className="jsh-topbar-title">
-              {USER}@{HOST}
+              {guest}@{HOST}
               <span className="jsh-faint">:</span>
               <span className="jsh-path">~</span>
             </span>
@@ -1480,6 +1628,7 @@ export default function Shell() {
           </div>
         </section>
       </main>
+      </GuestContext.Provider>
     </RunContext.Provider>
   )
 }
@@ -1540,8 +1689,9 @@ function WelcomeCard() {
 
 // neofetch-style identity card: wordmark + key/value system info.
 function NeofetchCard() {
+  const guest = useGuest()
   const rows: Array<[string, React.ReactNode]> = [
-    ["host", "jess@jessica.black"],
+    ["host", `${guest}@jessica.black`],
     ["role", "Founding Engineer @ Attune"],
     ["uptime", "13 years in production"],
     ["bugs in prod", <AnimatedCount key="bugs" />],
@@ -1627,6 +1777,7 @@ function HelpBlock({ run }: { run: (c: string) => void }) {
     ["open <target>", "open a link — e.g. open github, open hurry"],
     ["theme <name>", "amber · green · paper"],
     ["history", "what you have run"],
+    ["achievements", "what you've unlocked"],
     ["clear", "wipe the screen (⌃L)"],
   ]
   return (
@@ -1989,6 +2140,65 @@ function CoffeeBlock() {
   )
 }
 
+function AchievementToast({ a }: { a: Achievement }) {
+  const run = useRun()
+  return (
+    <p className="jsh-out jsh-ach">
+      <span className="jsh-ach-mark" aria-hidden="true">
+        ✦
+      </span>{" "}
+      <span className="jsh-ach-label">achievement unlocked</span>{" "}
+      <span className="jsh-ach-name">{a.name}</span>{" "}
+      <span className="jsh-ach-desc jsh-muted">· {a.desc}</span>{" "}
+      <button
+        type="button"
+        className="jsh-ach-link"
+        onClick={() => run("achievements")}
+      >
+        see all
+      </button>
+    </p>
+  )
+}
+
+function AchievementsBlock({ unlocked }: { unlocked: string[] }) {
+  const run = useRun()
+  const have = new Set(unlocked)
+  const got = ACHIEVEMENTS.filter((a) => have.has(a.id)).length
+  return (
+    <div className="jsh-achs">
+      <p className="jsh-out jsh-muted">
+        <span className="jsh-ok">$</span> cat ~/.achievements{" "}
+        <span className="jsh-faint">
+          ({got}/{ACHIEVEMENTS.length})
+        </span>
+      </p>
+      <ul className="jsh-ach-list">
+        {ACHIEVEMENTS.map((a) => {
+          const done = have.has(a.id)
+          return (
+            <li
+              key={a.id}
+              className={`jsh-ach-row ${done ? "jsh-ach-done" : "jsh-ach-locked"}`}
+            >
+              <span className="jsh-ach-box" aria-hidden="true">
+                {done ? "✦" : "·"}
+              </span>
+              <span className="jsh-ach-name">{done ? a.name : "???"}</span>
+              <span className="jsh-ach-desc jsh-muted">
+                {done ? a.desc : "locked"}
+              </span>
+            </li>
+          )
+        })}
+      </ul>
+      <p className="jsh-out jsh-muted">
+        some unlock by doing, some by trying. there is a <Cmd run={run}>help</Cmd>.
+      </p>
+    </div>
+  )
+}
+
 function WritingBlock() {
   return (
     <div className="jsh-writing">
@@ -2207,6 +2417,35 @@ const CSS = String.raw`
   --jsh-scan: rgba(0, 0, 0, 0.028);
   --jsh-scan-blend: multiply;
   --jsh-err: #ab4524;
+}
+
+/* pride — dark and lavender-accented, with a rainbow wordmark */
+.jsh-root[data-theme="pride"] {
+  --jsh-bg: #0c0c0e;
+  --jsh-bg-2: #100d14;
+  --jsh-chrome: #0c0a10;
+  --jsh-surface: #15101c;
+  --jsh-surface-2: #1b1426;
+  --jsh-fg: #ece9f2;
+  --jsh-muted: #9991a8;
+  --jsh-faint: #635a73;
+  --jsh-rule: #251f30;
+  --jsh-rule-2: #1c1726;
+  --jsh-amber: #cf95ff;
+  --jsh-amber-soft: #a07fd6;
+  --jsh-accent-weak: rgba(207, 149, 255, 0.13);
+  --jsh-accent-line: rgba(207, 149, 255, 0.42);
+  --jsh-scan: rgba(255, 255, 255, 0.025);
+  --jsh-scan-blend: overlay;
+  --jsh-err: #ff8fa3;
+}
+.jsh-root[data-theme="pride"] .jsh-nf-name,
+.jsh-root[data-theme="pride"] .jsh-nf-glyph {
+  background: linear-gradient(95deg, #e40303, #ff8c00, #ffed00, #1aa340, #1763ff, #8a1bbd);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
 }
 
 .jsh-root {
@@ -2671,9 +2910,46 @@ const CSS = String.raw`
 .jsh-theme-dot-amber { background: #e0a23a; }
 .jsh-theme-dot-green { background: #7dd66e; }
 .jsh-theme-dot-paper { background: #efece3; }
+.jsh-theme-dot-pride {
+  background: linear-gradient(95deg, #e40303, #ff8c00, #ffed00, #1aa340, #1763ff, #8a1bbd);
+}
 .jsh-theme-note { font-size: 12.5px; }
 .jsh-theme-cur { font-size: 11px; }
 .jsh-theme-foot { margin-top: 8px; }
+
+/* achievements */
+.jsh-ach { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; }
+.jsh-ach-mark { color: var(--jsh-amber); }
+.jsh-ach-label {
+  color: var(--jsh-faint);
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.jsh-ach-name { color: var(--jsh-amber); font-weight: 600; }
+.jsh-ach-link {
+  font: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--jsh-faint);
+  border-bottom: 1px dashed var(--jsh-accent-line);
+  padding: 0;
+}
+.jsh-ach-link:hover { border-bottom-style: solid; }
+.jsh-ach-link:focus-visible { outline: none; background: var(--jsh-accent-weak); }
+.jsh-ach-list { list-style: none; margin: 6px 0 8px; padding: 0; display: grid; gap: 3px; }
+.jsh-ach-row {
+  display: grid;
+  grid-template-columns: 18px minmax(120px, max-content) 1fr;
+  gap: 12px;
+  align-items: baseline;
+}
+.jsh-ach-box { color: var(--jsh-amber-soft); }
+.jsh-ach-desc { font-size: 12.5px; }
+.jsh-ach-locked .jsh-ach-name,
+.jsh-ach-locked .jsh-ach-box { color: var(--jsh-faint); }
+.jsh-ach-done .jsh-ach-name { color: var(--jsh-amber); }
 
 .jsh-coffee-art {
   color: var(--jsh-amber-soft);
