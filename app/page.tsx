@@ -613,7 +613,9 @@ type Block =
   | { kind: "echo"; cmd: string } // the command the user "ran"
   | { kind: "boot"; line: BootLine } // a boot reel line (kernel / systemd / bare)
 
-type Line = { id: number; block: Block }
+// `home` marks the welcome card — the persistent header/"tab bar". Clicking a
+// command collapses the transcript back to this line, then shows that command.
+type Line = { id: number; block: Block; home?: boolean }
 
 // Verb table — used for Tab completion and the not-found hint.
 const COMMANDS = [
@@ -1106,6 +1108,9 @@ export default function Shell() {
   const tailSpacerRef = useRef<HTMLDivElement>(null)
   const bootCancel = useRef<(() => void) | null>(null)
   const scrollWelcomeTop = useRef(false)
+  // True once the welcome card (the home header) is on screen — gates the
+  // click-to-replace "tab bar" behavior.
+  const hasHomeRef = useRef(false)
   const historyRef = useRef<string[]>(history)
   historyRef.current = history
   const themeRef = useRef<Theme>(theme)
@@ -1249,7 +1254,7 @@ export default function Shell() {
       next.push({ id: ++n, block: { kind: "boot", line: BOOT[k] } })
     }
     if (done) {
-      next.push({ id: ++n, block: { kind: "text", node: <WelcomeCard /> } })
+      next.push({ id: ++n, block: { kind: "text", node: <WelcomeCard /> }, home: true })
     }
     idRef.current = n
     setLines(next)
@@ -1258,6 +1263,7 @@ export default function Shell() {
   const finishBoot = useCallback(() => {
     scrollWelcomeTop.current = true
     renderBoot(BOOT.length, true)
+    hasHomeRef.current = true
     setPhase("ready")
   }, [renderBoot])
 
@@ -1382,19 +1388,19 @@ export default function Shell() {
   /* ----------------------- COMMAND ENGINE ------------------------- */
 
   const runHelp = useCallback(() => {
-    pushText(<HelpBlock run={runRef.current} />)
+    pushText(<HelpBlock run={clickRef.current} />)
   }, [pushText])
 
   const runLs = useCallback(() => {
-    pushText(<LsBlock run={runRef.current} />)
+    pushText(<LsBlock run={clickRef.current} />)
   }, [pushText])
 
   const runWhoami = useCallback(() => {
-    pushText(<WhoamiBlock run={runRef.current} />)
+    pushText(<WhoamiBlock run={clickRef.current} />)
   }, [pushText])
 
   const runSkills = useCallback(() => {
-    pushText(<SkillsBlock run={runRef.current} />)
+    pushText(<SkillsBlock run={clickRef.current} />)
   }, [pushText])
 
   const runWriting = useCallback(() => {
@@ -1406,11 +1412,11 @@ export default function Shell() {
   }, [pushText])
 
   const runResume = useCallback(() => {
-    pushText(<ResumeBlock run={runRef.current} />)
+    pushText(<ResumeBlock run={clickRef.current} />)
   }, [pushText])
 
   const runTree = useCallback(() => {
-    pushText(<TreeBlock run={runRef.current} />)
+    pushText(<TreeBlock run={clickRef.current} />)
   }, [pushText])
 
   const runNeofetch = useCallback(() => {
@@ -1425,7 +1431,7 @@ export default function Shell() {
     (arg: string) => {
       const t = arg.trim().toLowerCase()
       if (!t || t === "list" || t === "ls") {
-        pushText(<ThemeList current={themeRef.current} run={runRef.current} />)
+        pushText(<ThemeList current={themeRef.current} run={clickRef.current} />)
         return
       }
       const apply = (nx: Theme) => {
@@ -1460,7 +1466,7 @@ export default function Shell() {
           {THEMES.map((th, i) => (
             <span key={th}>
               {i > 0 ? " " : ""}
-              <Cmd run={runRef.current}>{`theme ${th}`}</Cmd>
+              <Cmd run={clickRef.current}>{`theme ${th}`}</Cmd>
             </span>
           ))}
         </Errline>,
@@ -1475,21 +1481,21 @@ export default function Shell() {
       if (!t) {
         pushText(
           <Errline>
-            cat: missing operand. try <Cmd run={runRef.current}>cat about</Cmd> or{" "}
-            <Cmd run={runRef.current}>ls</Cmd>
+            cat: missing operand. try <Cmd run={clickRef.current}>cat about</Cmd> or{" "}
+            <Cmd run={clickRef.current}>ls</Cmd>
           </Errline>,
         )
         return
       }
-      if (t === "about") return pushText(<WhoamiBlock run={runRef.current} />)
+      if (t === "about") return pushText(<WhoamiBlock run={clickRef.current} />)
       if (t === "experience" || t === "work" || t === "work/" || t === "~/work") {
-        pushText(<LsBlock run={runRef.current} />)
+        pushText(<LsBlock run={clickRef.current} />)
         for (const j of JOBS) pushText(<JobBlock job={j} />)
         return
       }
       // skills directory listing
       if (t === "skills" || t === "skills/" || t === "~/skills" || t === "~/skills/")
-        return pushText(<SkillsBlock run={runRef.current} />)
+        return pushText(<SkillsBlock run={clickRef.current} />)
       // a specific skill file: ~/skills/rust, skills/rust, rust.skill.md, or rust
       const skillId = (() => {
         const m = t.match(/^(?:~\/)?skills\/([a-z0-9-]+)(?:\.skill\.md)?$/)
@@ -1503,11 +1509,11 @@ export default function Shell() {
         if (sk) return pushText(<SkillFileBlock skill={sk} />)
       }
       if (t === "resume" || t === "resume.txt" || t === "cv")
-        return pushText(<ResumeBlock run={runRef.current} />)
+        return pushText(<ResumeBlock run={clickRef.current} />)
       if (t === "writing") return pushText(<WritingBlock />)
       if (t === "contact" || t === ".contact") return pushText(<ContactBlock />)
       if (t === "readme" || t === "readme.md")
-        return pushText(<ReadmeBlock run={runRef.current} />)
+        return pushText(<ReadmeBlock run={clickRef.current} />)
       const job = JOBS.find((j) => j.id === t || j.org.toLowerCase() === t)
       if (job) return pushText(<JobBlock job={job} expanded />)
       pushText(
@@ -1516,7 +1522,7 @@ export default function Shell() {
           {CAT_TARGETS.map((c, i) => (
             <span key={c}>
               {i > 0 ? " " : ""}
-              <Cmd run={runRef.current}>{`cat ${c}`}</Cmd>
+              <Cmd run={clickRef.current}>{`cat ${c}`}</Cmd>
             </span>
           ))}
         </Errline>,
@@ -1531,9 +1537,9 @@ export default function Shell() {
       if (!t) {
         pushText(
           <Errline>
-            open: which one? try <Cmd run={runRef.current}>open github</Cmd>,{" "}
-            <Cmd run={runRef.current}>open linkedin</Cmd>, or a repo like{" "}
-            <Cmd run={runRef.current}>open hurry</Cmd>
+            open: which one? try <Cmd run={clickRef.current}>open github</Cmd>,{" "}
+            <Cmd run={clickRef.current}>open linkedin</Cmd>, or a repo like{" "}
+            <Cmd run={clickRef.current}>open hurry</Cmd>
           </Errline>,
         )
         return
@@ -1544,7 +1550,7 @@ export default function Shell() {
       if (!target) {
         pushText(
           <Errline>
-            open: {arg}: unknown target. try <Cmd run={runRef.current}>ls</Cmd> to see
+            open: {arg}: unknown target. try <Cmd run={clickRef.current}>ls</Cmd> to see
             what&apos;s here.
           </Errline>,
         )
@@ -1567,8 +1573,13 @@ export default function Shell() {
   )
 
   // Master dispatch. Echoes the command, then renders its output.
+  // `replace` is the website-mode path: a clicked command collapses the page
+  // back to the welcome header (its "tab bar") and shows just that command, so
+  // visitors can hop between cat experience / skills / resume without scrolling
+  // back up. Typed commands append, like a real terminal.
   const run = useCallback(
-    (raw: string) => {
+    (raw: string, opts?: { replace?: boolean }) => {
+      const replace = opts?.replace === true
       setPreview(null)
       const cmd = raw.trim()
       if (cmd.length === 0) {
@@ -1576,14 +1587,34 @@ export default function Shell() {
         return
       }
 
-      // record history (dedupe consecutive)
-      setHistory((h) => (h[h.length - 1] === cmd ? h : [...h, cmd]))
+      // record history (dedupe consecutive) — typed commands only; clicks are
+      // website navigation, not shell history.
+      if (!replace) {
+        setHistory((h) => (h[h.length - 1] === cmd ? h : [...h, cmd]))
+      }
       setHistIdx(-1)
 
       if (cmd === "clear") {
         setLines([])
         idRef.current = 0
+        hasHomeRef.current = false
         return
+      }
+
+      // website mode: drop everything below the welcome header before showing
+      // this command, and re-pin the header to the top.
+      if (replace && hasHomeRef.current) {
+        scrollWelcomeTop.current = true
+        setLines((prev) => {
+          let homeIdx = -1
+          for (let i = prev.length - 1; i >= 0; i--) {
+            if (prev[i].home) {
+              homeIdx = i
+              break
+            }
+          }
+          return homeIdx >= 0 ? prev.slice(0, homeIdx + 1) : prev
+        })
       }
 
       push({ kind: "echo", cmd })
@@ -1649,10 +1680,10 @@ export default function Shell() {
           return pushText(<AchievementsBlock unlocked={achievementsRef.current} />)
         case "games":
         case "play":
-          return pushText(<GamesBlock run={runRef.current} />)
+          return pushText(<GamesBlock run={clickRef.current} />)
         case "history":
           return pushText(
-            <HistoryBlock items={historyRef.current} run={runRef.current} />,
+            <HistoryBlock items={historyRef.current} run={clickRef.current} />,
           )
         case "coffee":
         case "make":
@@ -1681,7 +1712,7 @@ export default function Shell() {
             )
           return pushText(
             <Errline>
-              aptitude: try <Cmd run={runRef.current}>aptitude moo</Cmd>.
+              aptitude: try <Cmd run={clickRef.current}>aptitude moo</Cmd>.
             </Errline>,
           )
         case "pwd":
@@ -1702,7 +1733,7 @@ export default function Shell() {
             return pushText(
               <p className="jsh-out jsh-muted">
                 nice try. this site is content-addressed; it heals.{" "}
-                <Cmd run={runRef.current}>ls</Cmd>?
+                <Cmd run={clickRef.current}>ls</Cmd>?
               </p>,
             )
           }
@@ -1713,14 +1744,14 @@ export default function Shell() {
           return pushText(
             <p className="jsh-out jsh-muted">
               there is no exit. there is only{" "}
-              <Cmd run={runRef.current}>open github</Cmd>.
+              <Cmd run={clickRef.current}>open github</Cmd>.
             </p>,
           )
         default:
           if (GAMES[h]) return pushText(<GameBlock name={h} />)
           return pushText(
             <Errline>
-              {head}: command not found. try <Cmd run={runRef.current}>help</Cmd> — or
+              {head}: command not found. try <Cmd run={clickRef.current}>help</Cmd> — or
               just click something below.
             </Errline>,
           )
@@ -1750,9 +1781,15 @@ export default function Shell() {
     runRef.current = run
   }, [run])
 
-  // A stable dispatcher for context consumers — never goes stale, never changes
-  // identity, so transcript-embedded blocks always reach live `run`.
-  const dispatch = useCallback((cmd: string) => runRef.current(cmd), [])
+  // Clicking a command (palette pills, command tokens, file names) navigates
+  // like a website: it REPLACES the page content. Stored in a ref so the blocks
+  // baked into the transcript always reach the live dispatcher.
+  const clickRef = useRef<(cmd: string) => void>(() => {})
+  clickRef.current = (cmd: string) => runRef.current(cmd, { replace: true })
+
+  // The context dispatcher (palette, Cmd tokens, etc.) is the click path —
+  // stable identity, always reaches live `run` in replace mode.
+  const dispatch = useCallback((cmd: string) => clickRef.current(cmd), [])
 
   /* ------------------- konami code: a quiet wink ------------------ */
   useEffect(() => {
@@ -1776,7 +1813,7 @@ export default function Shell() {
         if (pos === SEQ.length) {
           pos = 0
           unlockRef.current("cheat-code")
-          pushText(<KonamiBlock run={runRef.current} />)
+          pushText(<KonamiBlock run={clickRef.current} />)
         }
       } else {
         pos = k === SEQ[0] ? 1 : 0
@@ -1909,7 +1946,9 @@ export default function Shell() {
   const focusPrompt = useCallback(() => {
     const sel = window.getSelection?.()
     if (sel && sel.toString().length > 0) return // let users copy text
-    if (phase === "ready") inputRef.current?.focus()
+    // preventScroll so a click that bubbles here doesn't yank the view to the
+    // bottom and fight the click-to-replace snap that pins the header up top.
+    if (phase === "ready") inputRef.current?.focus({ preventScroll: true })
   }, [phase])
 
   /* ----------------------------- VIEW ----------------------------- */
@@ -2035,7 +2074,7 @@ export default function Shell() {
 
           <div className="jsh-statusbar">
             <div className="jsh-status-hint">
-              <span className="jsh-hint-key">type</span> <Cmd run={run}>help</Cmd>
+              <span className="jsh-hint-key">type</span> <Cmd run={clickRef.current}>help</Cmd>
               <span className="jsh-muted"> · ↑↓ history · Tab completes · ⌃L clears</span>
               {phase === "booting" && (
                 <span className="jsh-hint-skip"> · any key skips boot</span>
@@ -2050,7 +2089,7 @@ export default function Shell() {
               <span className="jsh-foot-sep" aria-hidden="true">
                 ::
               </span>
-              <Cmd run={run}>theme</Cmd>
+              <Cmd run={clickRef.current}>theme</Cmd>
             </nav>
           </div>
         </section>
