@@ -389,6 +389,8 @@ function buildBoot(): string[] {
     "crng init done", "entropy pool refilled", "swap: politely declined",
     "thermal throttle: not today", "clock skew corrected",
     "NTP: time is a construct, synced anyway", "keyboard: mechanical, loud, correct",
+    "fortune favors the curious", "easter eggs: hidden, not absent",
+    "the arcade opens after boot",
   ]
 
   // Multi-stage micro-stories — woven in order across the reel. Clever observers
@@ -418,9 +420,14 @@ function buildBoot(): string[] {
   const finale = [
     "loading ~/skills/*.skill.md",
     "mounting ~/work: attune, fossa, reynolds & reynolds",
-    "Reached target Multi-User System", "Reached target Graphical Interface",
-    "starting login on tty1", "uptime: 13 years, plenty of bugs",
-    "the shell is yours",
+    "mounting /usr/games: snake, 2048, tetris, breakout",
+    "fortuned: cookies warm · cowsayd: 1 cow ready · sl: rails greased",
+    "registering achievements: 11 · konami listener: armed",
+    "Reached target Multi-User System",
+    "Reached target Graphical Interface",
+    "starting login on tty1",
+    "uptime: 13 years, plenty of bugs",
+    "the shell is yours (try `help`, or `games`)",
   ]
 
   const MIDDLE = 520
@@ -558,6 +565,13 @@ function useGuest(): string {
   return useContext(GuestContext)
 }
 
+// Hovering/focusing a command "ghosts" it into the prompt. Components call this
+// with the command string on enter, and null on leave.
+const PreviewContext = createContext<(cmd: string | null) => void>(() => {})
+function usePreview(): (cmd: string | null) => void {
+  return useContext(PreviewContext)
+}
+
 function Ext({ href, children }: { href: string; children: React.ReactNode }) {
   const external = !href.startsWith("mailto:")
   return (
@@ -584,12 +598,17 @@ function Cmd({
   label?: string
 }) {
   const ctxRun = useRun()
+  const preview = usePreview()
   const dispatch = run ?? ctxRun
   return (
     <button
       type="button"
       className="jsh-cmd"
       onClick={() => dispatch(children)}
+      onMouseEnter={() => preview(children)}
+      onMouseLeave={() => preview(null)}
+      onFocus={() => preview(children)}
+      onBlur={() => preview(null)}
       aria-label={label ?? `run command: ${children}`}
     >
       {children}
@@ -646,6 +665,7 @@ function GameBlock({ name }: { name: string }) {
 }
 
 function GamesBlock({ run }: { run: (c: string) => void }) {
+  const preview = usePreview()
   return (
     <div className="jsh-games">
       <p className="jsh-out jsh-muted">
@@ -658,6 +678,10 @@ function GamesBlock({ run }: { run: (c: string) => void }) {
               type="button"
               className="jsh-sk-file"
               onClick={() => run(id)}
+              onMouseEnter={() => preview(id)}
+              onMouseLeave={() => preview(null)}
+              onFocus={() => preview(id)}
+              onBlur={() => preview(null)}
               title={`play ${id}`}
             >
               {id}
@@ -872,6 +896,7 @@ export default function Shell() {
   const [clock, setClock] = useState("")
   const [guest, setGuest] = useState("guest")
   const [achievements, setAchievements] = useState<string[]>([])
+  const [preview, setPreview] = useState<string | null>(null)
 
   const idRef = useRef(0)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -1350,6 +1375,7 @@ export default function Shell() {
   // Master dispatch. Echoes the command, then renders its output.
   const run = useCallback(
     (raw: string) => {
+      setPreview(null)
       const cmd = raw.trim()
       if (cmd.length === 0) {
         push({ kind: "echo", cmd: "" })
@@ -1577,6 +1603,7 @@ export default function Shell() {
 
   const onChange = useCallback((v: string) => {
     tabCycle.current = null // any edit resets Tab-cycling
+    setPreview(null) // typing dismisses the hover-ghost
     setInput(v)
   }, [])
 
@@ -1699,6 +1726,7 @@ export default function Shell() {
   return (
     <RunContext.Provider value={dispatch}>
       <GuestContext.Provider value={guest}>
+      <PreviewContext.Provider value={setPreview}>
       <main
         className={`${plex.className} jsh-root`}
         data-reduced={reduced ? "1" : "0"}
@@ -1778,14 +1806,26 @@ export default function Shell() {
                       spellCheck={false}
                       aria-label="terminal command input"
                     />
-                    <span className="jsh-caret-track" aria-hidden="true">
-                      <span className="jsh-caret-ghost">{input}</span>
-                      <span
-                        className={`jsh-cursor ${focused ? "" : "jsh-cursor-hollow"}`}
-                      >
-                        ▋
+                    {input === "" && preview ? (
+                      <span className="jsh-ghost" aria-hidden="true">
+                        <span className="jsh-ghost-cmd">{preview}</span>
+                        <span
+                          className={`jsh-cursor ${focused ? "" : "jsh-cursor-hollow"}`}
+                        >
+                          ▋
+                        </span>
+                        <span className="jsh-ghost-enter">↵</span>
                       </span>
-                    </span>
+                    ) : (
+                      <span className="jsh-caret-track" aria-hidden="true">
+                        <span className="jsh-caret-ghost">{input}</span>
+                        <span
+                          className={`jsh-cursor ${focused ? "" : "jsh-cursor-hollow"}`}
+                        >
+                          ▋
+                        </span>
+                      </span>
+                    )}
                   </span>
                 </form>
               )}
@@ -1821,6 +1861,7 @@ export default function Shell() {
           </div>
         </section>
       </main>
+      </PreviewContext.Provider>
       </GuestContext.Provider>
     </RunContext.Provider>
   )
@@ -1929,6 +1970,7 @@ function NeofetchCard() {
 // The clickable command palette. Dispatches through RunContext.
 function PaletteRow() {
   const run = useRun()
+  const preview = usePreview()
   const items: Array<[string, string]> = [
     ["whoami", "who is this"],
     ["ls", "list work/"],
@@ -1946,6 +1988,10 @@ function PaletteRow() {
           type="button"
           className="jsh-pill"
           onClick={() => run(cmd)}
+          onMouseEnter={() => preview(cmd)}
+          onMouseLeave={() => preview(null)}
+          onFocus={() => preview(cmd)}
+          onBlur={() => preview(null)}
           title={hint}
         >
           <span className="jsh-pill-cmd">{cmd}</span>
@@ -1996,13 +2042,14 @@ function HelpBlock({ run }: { run: (c: string) => void }) {
       <p className="jsh-out jsh-muted jsh-help-foot">
         history: <kbd className="jsh-kbd">↑</kbd> <kbd className="jsh-kbd">↓</kbd> ·
         complete: <kbd className="jsh-kbd">Tab</kbd> · or never type at all — everything
-        is clickable.
+        is clickable. (not everything is listed — try what a terminal junkie would.)
       </p>
     </div>
   )
 }
 
 function LsBlock({ run }: { run: (c: string) => void }) {
+  const preview = usePreview()
   return (
     <div className="jsh-ls">
       <p className="jsh-out jsh-muted">
@@ -2019,6 +2066,10 @@ function LsBlock({ run }: { run: (c: string) => void }) {
               type="button"
               className="jsh-ls-name"
               onClick={() => run(`cat ${j.id}`)}
+              onMouseEnter={() => preview(`cat ${j.id}`)}
+              onMouseLeave={() => preview(null)}
+              onFocus={() => preview(`cat ${j.id}`)}
+              onBlur={() => preview(null)}
               title={`cat ${j.id}`}
             >
               {j.id}/
@@ -2082,6 +2133,7 @@ function JobBlock({ job, expanded }: { job: Job; expanded?: boolean }) {
 }
 
 function SkillsBlock({ run }: { run: (c: string) => void }) {
+  const preview = usePreview()
   return (
     <div className="jsh-skills">
       <p className="jsh-out jsh-muted">
@@ -2097,6 +2149,10 @@ function SkillsBlock({ run }: { run: (c: string) => void }) {
               type="button"
               className="jsh-sk-file"
               onClick={() => run(`cat ~/skills/${s.id}`)}
+              onMouseEnter={() => preview(`cat ~/skills/${s.id}`)}
+              onMouseLeave={() => preview(null)}
+              onFocus={() => preview(`cat ~/skills/${s.id}`)}
+              onBlur={() => preview(null)}
               title={`cat ~/skills/${s.id}.skill.md`}
             >
               {s.id}.skill.md
@@ -2202,6 +2258,7 @@ function ResumeBlock({ run }: { run: (c: string) => void }) {
 }
 
 function TreeBlock({ run }: { run: (c: string) => void }) {
+  const preview = usePreview()
   const rows: Array<{ branch: string; cmd?: string; name: string; meta?: string }> = [
     { branch: "├──", name: "work/", meta: `${JOBS.length} roles` },
     { branch: "│   ├──", cmd: "cat attune", name: "attune/", meta: "2025—" },
@@ -2230,6 +2287,10 @@ function TreeBlock({ run }: { run: (c: string) => void }) {
                   type="button"
                   className="jsh-tree-name"
                   onClick={() => run(r.cmd as string)}
+                  onMouseEnter={() => preview(r.cmd as string)}
+                  onMouseLeave={() => preview(null)}
+                  onFocus={() => preview(r.cmd as string)}
+                  onBlur={() => preview(null)}
                   title={r.cmd}
                 >
                   {r.name}
@@ -2477,7 +2538,8 @@ function ReadmeBlock({ run }: { run: (c: string) => void }) {
       </p>
       <p className="jsh-out jsh-muted">
         Everything here is also reachable by clicking. Start with <Cmd run={run}>ls</Cmd>{" "}
-        or <Cmd run={run}>whoami</Cmd>. There is a <Cmd run={run}>theme</Cmd>, and a
+        or <Cmd run={run}>whoami</Cmd>. There is a <Cmd run={run}>theme</Cmd>,{" "}
+        <Cmd run={run}>games</Cmd>, a few hidden toys (fortune, cowsay, sl), and a
         konami code.
       </p>
       <p className="jsh-out jsh-muted jsh-readme-fine">
@@ -2542,10 +2604,10 @@ function StyleBlock() {
 // to the DOM, so we inject genuine <!-- --> nodes via an invisible wrapper.
 const SOURCE_EGGS = [
   "you found the source. it borrow-checks.",
-  "no framework was harmed. one file, hooks only, three themes.",
+  "no framework was harmed. one file, hooks only, four themes.",
   "the REPL is real — try the up arrow. the history buffer works.",
-  "reticulating phantom types… (done, statically)",
-  "yes, the konami code does something. ↑↑↓↓←→←→ b a",
+  "psst — there are games (type `games`) and toys: fortune, cowsay, sl.",
+  "yes, the konami code does something. ↑↑↓↓←→←→ b a. so does `coffee`.",
   "if you're reading this in devtools, you're exactly the kind of person I'd want to work with. say hi: me@jessica.black",
 ]
   .map((c) => `<!-- ${c} -->`)
@@ -2865,6 +2927,24 @@ const CSS = String.raw`
   overflow: hidden;
 }
 .jsh-caret-ghost { visibility: hidden; white-space: pre; }
+
+/* hover-ghost: a hovered command appears faintly at the prompt, with a ↵ */
+.jsh-ghost {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: inline-flex;
+  align-items: baseline;
+  pointer-events: none;
+  white-space: pre;
+  max-width: 100%;
+}
+.jsh-ghost-cmd { color: var(--jsh-faint); }
+.jsh-ghost-enter {
+  color: var(--jsh-amber-soft);
+  margin-left: 10px;
+  opacity: 0.75;
+}
 
 .jsh-cursor {
   color: var(--jsh-amber);
