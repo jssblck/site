@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://jessica.black"),
   title: "Jessica Black — Founding Engineer",
   description:
-    "Founding engineer building AI agent systems in Rust and TypeScript. Twelve years shipping distributed systems, program-analysis engines, and developer tools.",
+    "Founding engineer building AI agent systems in Rust and TypeScript. Thirteen years shipping distributed systems, program-analysis engines, and developer tools.",
   authors: [{ name: "Jessica Black", url: "https://jessica.black" }],
   creator: "Jessica Black",
   openGraph: {
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
       "Founding engineer building AI agent systems in Rust and TypeScript.",
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Jessica Black — Founding Engineer",
     description:
       "Founding engineer building AI agent systems in Rust and TypeScript.",
