@@ -788,6 +788,21 @@ const GAME_LIST: Array<[string, string]> = [
   ["pong", "you vs the machine, first to 11"],
 ]
 
+// Each game quietly persists a personal best; the games list surfaces it so the
+// arcade feels lived-in. Semantics differ (score / streak / time / rally), so
+// each formats its own. Life is a sandbox, so it has no entry.
+const GAME_STAT: Record<string, { key: string; fmt: (n: number) => string }> = {
+  snake: { key: "jsh-snake-best", fmt: (n) => `best ${n}` },
+  "2048": { key: "jsh-2048-best", fmt: (n) => `best ${n}` },
+  tetris: { key: "jsh-tetris-best", fmt: (n) => `best ${n}` },
+  breakout: { key: "jsh-breakout-best", fmt: (n) => `best ${n}` },
+  asteroids: { key: "jsh-asteroids-best", fmt: (n) => `best ${n}` },
+  flappy: { key: "jsh-flappy-best", fmt: (n) => `best ${n}` },
+  wordle: { key: "jsh-wordle-best", fmt: (n) => `streak ${n}` },
+  minesweeper: { key: "jsh-mines-best", fmt: (n) => `${n}s` },
+  pong: { key: "jsh-pong-best", fmt: (n) => `rally ${n}` },
+}
+
 // Games take over the whole screen: a focused overlay above the shell. Esc, the
 // ✕, or a click on the backdrop returns you to the prompt. Lazy-loaded.
 function GameOverlay({ name, onExit }: { name: string; onExit: () => void }) {
@@ -830,6 +845,23 @@ function GameOverlay({ name, onExit }: { name: string; onExit: () => void }) {
 
 function GamesBlock({ run }: { run: (c: string) => void }) {
   const preview = usePreview()
+  // Pull each game's saved best (client-only — this block only ever renders
+  // after a command, so there's no hydration to mismatch).
+  const [bests, setBests] = useState<Record<string, number>>({})
+  useEffect(() => {
+    const out: Record<string, number> = {}
+    for (const [id] of GAME_LIST) {
+      const stat = GAME_STAT[id]
+      if (!stat) continue
+      try {
+        const v = Number(window.localStorage.getItem(stat.key) || "0")
+        if (v > 0) out[id] = v
+      } catch {
+        /* ignore */
+      }
+    }
+    setBests(out)
+  }, [])
   return (
     <div className="jsh-games">
       <p className="jsh-out jsh-muted">
@@ -850,7 +882,12 @@ function GamesBlock({ run }: { run: (c: string) => void }) {
             >
               {id}
             </button>
-            <span className="jsh-sk-desc">{note}</span>
+            <span className="jsh-sk-desc">
+              {note}
+              {bests[id] != null && (
+                <span className="jsh-game-best"> · {GAME_STAT[id].fmt(bests[id])}</span>
+              )}
+            </span>
           </li>
         ))}
       </ul>
@@ -3445,6 +3482,7 @@ const CSS = String.raw`
 .jsh-sk-file:hover { border-bottom-style: solid; }
 .jsh-sk-file:focus-visible { outline: none; background: var(--jsh-accent-weak); }
 .jsh-sk-desc { color: var(--jsh-muted); font-size: 12.5px; }
+.jsh-game-best { color: var(--jsh-amber-soft); font-variant-numeric: tabular-nums; }
 
 .jsh-skillfile { margin-top: 2px; }
 .jsh-fm {
