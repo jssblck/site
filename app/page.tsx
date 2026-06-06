@@ -499,6 +499,7 @@ function buildBoot(): BootLine[] {
     ok("paru -Syu tetris"),
     ok("paru -Syu breakout"),
     ok("paru -Syu asteroids"),
+    ok("paru -Syu flappy"),
     ok("pacman -S fortune-mod"),
     ok("pacman -S cowsay"),
     ok("pacman -S sl"),
@@ -633,6 +634,7 @@ const COMMANDS = [
   "tetris",
   "breakout",
   "asteroids",
+  "flappy",
   "neofetch",
   "clear",
 ] as const
@@ -744,6 +746,10 @@ const GAMES: Record<string, React.ComponentType> = {
     ssr: false,
     loading: () => <p className="jsh-out jsh-muted">loading asteroids…</p>,
   }),
+  flappy: dynamic(() => import("@/app/games/flappy"), {
+    ssr: false,
+    loading: () => <p className="jsh-out jsh-muted">loading flappy…</p>,
+  }),
 }
 const GAME_LIST: Array<[string, string]> = [
   ["snake", "eat, grow, do not bite yourself"],
@@ -751,6 +757,7 @@ const GAME_LIST: Array<[string, string]> = [
   ["tetris", "the blocks, the lines, the dread"],
   ["breakout", "paddle, ball, a wall to demolish"],
   ["asteroids", "thrust, wrap, shoot the rocks"],
+  ["flappy", "tap to flap, thread the gaps"],
 ]
 
 // Games take over the whole screen: a focused overlay above the shell. Esc, the
