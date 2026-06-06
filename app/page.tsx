@@ -520,6 +520,7 @@ const COMMANDS = [
   "achievements",
   "games",
   "snake",
+  "2048",
   "neofetch",
   "clear",
 ] as const
@@ -603,9 +604,14 @@ const GAMES: Record<string, React.ComponentType> = {
     ssr: false,
     loading: () => <p className="jsh-out jsh-muted">loading snake…</p>,
   }),
+  "2048": dynamic(() => import("@/app/games/g2048"), {
+    ssr: false,
+    loading: () => <p className="jsh-out jsh-muted">loading 2048…</p>,
+  }),
 }
 const GAME_LIST: Array<[string, string]> = [
   ["snake", "eat, grow, do not bite yourself"],
+  ["2048", "slide tiles, make 2048"],
 ]
 
 function GameBlock({ name }: { name: string }) {
