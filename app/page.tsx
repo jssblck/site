@@ -263,52 +263,186 @@ const MOTD_CYCLE: string[] = [
   "founding engineer @ attune — agent systems in rust & ts", // settle
 ]
 
-// Boot lines: a long reel of dry references that print FAST (several per tick),
-// check off, and settle into the prompt in ~1s. Skippable; instant under
-// reduced-motion. The humor is the point; the timing keeps it from overstaying.
-const BOOT: string[] = [
-  "POST: power-on self-test — 1 self, 0 doubts",
-  "loading kernel: rust 1.x — zero-cost abstractions, nonzero ego",
-  "modprobe borrow_checker — lifetimes elided",
-  "fsck /dev/impostor_syndrome — clean (suspiciously)",
-  "mounting /home/jess — ok",
-  "mounting /mnt/coffee — 96% full",
-  "systemd: start caffeine.service — active (running)",
-  "systemd: reached target tabs-over-spaces.target",
-  "cargo build --release — Compiling reality v0.1.0",
-  "   Compiling hurry — cache hit (it is always a cache hit)",
-  "   Compiling nudge — agents nudged back on task",
-  "ghc: typechecking the universe — no errors (yet)",
-  "spawning agents — 3 up, 2 agree, 1 abstains",
-  "reaching consensus (2 of 3) — quorum achieved",
-  "negotiating with the borrow checker — it won",
-  "resolving 200k dependency graphs — acyclic, mostly",
-  "indexing 20+ language ecosystems — polyglot online",
-  "warming build cache — 99.9% hit rate, 0.1% suspense",
-  "reticulating splines — reticulated",
-  "monomorphizing — de-virtualized, re-civilized",
-  "loading ~/.config/personality.toml — [dry_humor = true]",
-  "scanning for phantom types — 0 found (or are there)",
-  "starting orchestrator — topology converged",
-  "probing /dev/ambition — integer overflow, wrapping around",
-  "modprobe haskell — still compiling",
-  "linking libcurious.so — resolved",
-  "seeding RNG with a fair coin — landed on its edge",
-  "defragmenting opinions on monads — endofunctor, obviously",
-  "rotating the npm backronym — 'nice people matter'",
-  "scanning for off-by-one errors — found 0 (or 1)",
-  "applying tabs — spaces flee",
-  "attaching to tmux — you are already in it",
-  "git fsck — the reflog is a diary, sorry",
-  "verifying signatures — trust, but mostly verify",
-  "TLS handshake with reality — cipher suite: vibes-256",
-  "compacting the heap — regrets garbage-collected",
-  "starting curiosity.daemon — pid 1, never exits",
-  "checking uptime — 12y, 0 prod segfaults (knock on wood)",
-  "registering ~/skills/*.skill.md — 8 skills loaded",
-  "mounting ~/work — attune, fossa, reynolds & reynolds",
-  "all systems nominal — the shell is yours",
-]
+// The boot reel. Hundreds of lines that print FAST (dozens per tick) and settle
+// into the prompt in ~1s — you only ever see it again by scrolling up. Most of
+// it is mundane, real-looking systemd/kernel chatter (procedurally generated);
+// references and multi-stage micro-stories are woven through it. The jokes live
+// in the sequencing, not in one-liners. Deterministic so it is stable.
+function mulberry32(seed: number): () => number {
+  let s = seed >>> 0
+  return () => {
+    s = (s + 0x6d2b79f5) >>> 0
+    let t = Math.imul(s ^ (s >>> 15), 1 | s)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+function buildBoot(): string[] {
+  const rand = mulberry32(0x5eed)
+  const pick = <T,>(a: readonly T[]): T => a[Math.floor(rand() * a.length)]
+  const hex = (n: number) => {
+    let s = ""
+    for (let k = 0; k < n; k++) s += "0123456789abcdef"[Math.floor(rand() * 16)]
+    return s
+  }
+  const num = (lo: number, hi: number) => lo + Math.floor(rand() * (hi - lo))
+
+  const services = [
+    "systemd-journald", "systemd-udevd", "systemd-logind", "dbus", "NetworkManager",
+    "sshd", "cron", "polkit", "rsyslog", "chronyd", "avahi-daemon", "cups",
+    "bluetooth", "docker", "containerd", "ufw", "thermald", "upower",
+    "accounts-daemon", "gdm", "pipewire", "wireplumber", "tlp", "fstrim",
+    "logrotate", "systemd-resolved", "systemd-timesyncd", "ModemManager",
+    "irqbalance", "smartd", "lvm2-monitor", "apparmor", "auditd", "haveged",
+    "nscd", "snapd", "fail2ban", "rngd",
+  ]
+  const targets = [
+    "Basic System", "Sockets", "Timers", "Paths", "Local File Systems", "Swap",
+    "Network", "Network is Online", "Remote File Systems",
+    "User and Group Name Lookups", "Host and Network Name Lookups",
+    "Login Prompts", "Multi-User System", "System Initialization", "Sound Card",
+    "Bluetooth Support", "Smartcard", "Slices", "System Time Synchronized",
+  ]
+  const mounts = [
+    "/", "/boot", "/boot/efi", "/home", "/home/jess", "/var", "/var/log", "/tmp",
+    "/srv", "/mnt/coffee", "/dev/hugepages", "/sys/kernel/debug", "/run/user/1000",
+  ]
+  const devices = [
+    "sda", "sda1", "sda2", "nvme0n1", "nvme0n1p1", "nvme0n1p2", "eth0", "wlan0",
+    "usb1", "usb2", "tty1", "tty2", "fb0", "dri/card0", "input/event3", "rfkill",
+  ]
+
+  const filler = (): string => {
+    const forms = [
+      () => `Started ${pick(services)}.service`,
+      () => `Reached target ${pick(targets)}`,
+      () => `Mounted ${pick(mounts)}`,
+      () => `Listening on ${pick(services)}.socket`,
+      () => `Starting ${pick(services)}...`,
+      () => `Created slice ${pick(services)}.slice`,
+      () => `Finished ${pick(services)} setup`,
+      () => `udevd[${num(100, 9999)}]: ${pick(devices)}: link is up`,
+      () => `EXT4-fs (${pick(devices)}): mounted filesystem, ordered data mode`,
+      () => `loaded module ${pick(services).replace(/-/g, "_")}_mod @ 0x${hex(8)}`,
+      () => `registered handler for ${pick(devices)} (irq ${num(8, 255)})`,
+      () => `${pick(services)}: configuration loaded`,
+    ]
+    return pick(forms)()
+  }
+
+  // References — plain phrases, no punchlines. Programming, gaming, AI, her work.
+  const refs = [
+    "git blame: inconclusive", "rebasing onto reality", "force-push to main aborted",
+    "tabs applied; spaces evicted", "monomorphizing generics",
+    "deduplicating the dependency tree", "rolling back the rollback",
+    "yak fully shaved", "bikeshed painted blue", "linking libcurious.so",
+    "loading ~/.config/personality.toml", "npm: nice people matter",
+    "npm: note paper machine", "summoning the garbage collector",
+    "borrow checker appeased", "lifetimes elided", "phantom types: spectral",
+    "located the monad (it is an endofunctor)", "Cargo.lock: reproducible",
+    "semver respected, mostly", "rm -rf /tmp/regret", "off-by-one accounted for",
+    "the rubber duck has notes", "the duck said rewrite it in rust",
+    "unwrapping Option<Hope>", "compiling with -O3 and prayer",
+    "reticulating splines", "the cake is in the oven", "war never changes",
+    "it is dangerous to go alone", "press F (respects paid)", "wololo",
+    "all your base accounted for", "GLaDOS: still alive", "no lifeforms detected",
+    "rolling for initiative", "natural 20", "Half-Life 3: building",
+    "downloading more RAM", "loading shaders 9999/9999",
+    "fast travel locked: enemies nearby", "respawning", "a winner is you",
+    "would you kindly continue booting", "do a barrel roll",
+    "the princess is in another castle", "saving... do not power off",
+    "warming the GPUs", "loading model weights", "context window: 200k tokens",
+    "tool call: bash('whoami')", "agent handoff complete", "MCP servers connected",
+    "tree-sitter grammars loaded", "Claude Code hooks registered",
+    "the agents are arguing again", "taking the median of three agents",
+    "RAG retrieved 0 relevant docs", "embedding the embeddings",
+    "hallucination check: pending", "temperature set to 0.7",
+    "system prompt: redacted", "alignment: locally optimal",
+    "prompt injected (by me, on purpose)", "hurry: cache primed",
+    "nudge: guardrails armed", "circe: peeling container layers",
+    "fossa-cli: scanning 20+ ecosystems", "broker: tunnel to on-prem open",
+    "dependency graph warmed", "analysis pipeline online", "P vs NP: still pending",
+    "halting problem did not halt", "proving termination",
+    "Cthulhu: not summoned (deprecated)", "dividing by zero (carefully)",
+    "counting to infinity (37%)", "Collatz conjecture: still going",
+    "crng init done", "entropy pool refilled", "swap: politely declined",
+    "thermal throttle: not today", "clock skew corrected",
+    "NTP: time is a construct, synced anyway", "keyboard: mechanical, loud, correct",
+  ]
+
+  // Multi-stage micro-stories — woven in order across the reel. Clever observers
+  // connect the stages over time; it is fine if they do not.
+  const threads = [
+    ["verifying signatures...", "checking the web of trust", "signatures trusted", "signatures verified"],
+    ["spawning agents...", "agent[1] online", "agent[2] online", "agent[3] online", "agents: 3 of 3 responding", "reaching consensus...", "consensus: 2 of 3", "quorum achieved"],
+    ["warming build cache...", "cache: scanning objects", "cache: 4.2M objects indexed", "cache hit rate: 99.9%"],
+    ["resolving dependencies...", "building the dependency graph", "graph: 213,847 nodes", "graph: acyclic (mostly)", "dependencies resolved"],
+    ["fsck /home/jess...", "/home/jess: recovering journal", "/home/jess: 1337 files checked", "/home/jess: clean"],
+    ["compiling Haskell...", "GHC: typechecking", "GHC: still typechecking", "Haskell: compiling (this is fine)"],
+    ["modprobe borrow_checker...", "borrow_checker: registering lifetimes", "borrow_checker: 0 leaks", "borrow_checker: loaded"],
+    ["starting orchestrator...", "orchestrator: registering tools", "orchestrator: 14 tools online", "orchestrator: topology converged"],
+    ["reticulating splines...", "splines: 3,217 reticulated", "splines: smooth"],
+    ["mounting /dev/ambition...", "/dev/ambition: integer overflow", "/dev/ambition: wrapping around", "/dev/ambition: mounted rw"],
+    ["aligning the agents...", "RLHF: collecting preferences", "RLHF: 2 of 3 raters agree", "RLHF: locally aligned"],
+    ["scrubbing the data lake...", "data lake: 4.1B rows", "data lake: sparkling"],
+  ]
+
+  const header = [
+    "jsh bootloader v13.0", "decompressing reality... ok", "loading kernel: rust 1.x",
+    "CPU0: one core of pure stubbornness", "RAM: enough (downloading more anyway)",
+    "POST: 1 self, several doubts", "initializing /dev/null (it is full)",
+    "EDD: searching for a bootable curiosity", "probing hardware...",
+    "calibrating the coffee delay loop",
+  ]
+  const finale = [
+    "loading ~/skills/*.skill.md",
+    "mounting ~/work: attune, fossa, reynolds & reynolds",
+    "Reached target Multi-User System", "Reached target Graphical Interface",
+    "starting login on tty1", "uptime: 13 years, plenty of bugs",
+    "the shell is yours",
+  ]
+
+  const MIDDLE = 520
+  // schedule each thread stage at an increasing position so the stories unfold
+  const scheduled = new Map<number, string>()
+  threads.forEach((th, ti) => {
+    th.forEach((line, si) => {
+      const base = Math.floor((MIDDLE * (si + 1)) / (th.length + 1))
+      let pos = (base + ti * 7) % MIDDLE
+      while (scheduled.has(pos)) pos = (pos + 1) % MIDDLE
+      scheduled.set(pos, line)
+    })
+  })
+
+  // deterministic shuffle of the reference pool
+  const refPool = [...refs]
+  for (let k = refPool.length - 1; k > 0; k--) {
+    const j = Math.floor(rand() * (k + 1))
+    const tmp = refPool[k]
+    refPool[k] = refPool[j]
+    refPool[j] = tmp
+  }
+  let refIdx = 0
+
+  const out: string[] = [...header]
+  for (let i = 0; i < MIDDLE; i++) {
+    const staged = scheduled.get(i)
+    if (staged) {
+      out.push(staged)
+      continue
+    }
+    if (i % 7 === 3 && refIdx < refPool.length) {
+      out.push(refPool[refIdx++])
+      continue
+    }
+    out.push(filler())
+  }
+  out.push(...finale)
+  return out
+}
+
+const BOOT: string[] = buildBoot()
 
 /* ----------------------------- themes ----------------------------- */
 
@@ -447,6 +581,79 @@ function RotatingGag() {
   )
 }
 
+// A count that revises itself in real time: types a huge number, deletes it
+// down toward 0, pauses to reconsider, and lands on an honest 3. Temporal
+// storytelling instead of claiming zero. Settles instantly under reduced-motion.
+const COUNT_SEQUENCE = ["2,147,483,647", "9,001", "42", "0", "3"]
+function AnimatedCount() {
+  const final = COUNT_SEQUENCE[COUNT_SEQUENCE.length - 1]
+  const [text, setText] = useState(COUNT_SEQUENCE[0])
+  const [done, setDone] = useState(false)
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setText(final)
+      setDone(true)
+      return
+    }
+    let cancelled = false
+    const timers: number[] = []
+    const wait = (ms: number, fn: () => void) => {
+      timers.push(
+        window.setTimeout(() => {
+          if (!cancelled) fn()
+        }, ms),
+      )
+    }
+    let cur = COUNT_SEQUENCE[0]
+    let idx = 0
+    const advance = () => {
+      idx += 1
+      if (idx >= COUNT_SEQUENCE.length) {
+        setDone(true)
+        return
+      }
+      const target = COUNT_SEQUENCE[idx]
+      const isLast = idx === COUNT_SEQUENCE.length - 1
+      const erase = () => {
+        if (cur.length > 0) {
+          cur = cur.slice(0, -1)
+          setText(cur)
+          wait(38, erase)
+        } else {
+          type()
+        }
+      }
+      const type = () => {
+        if (cur.length < target.length) {
+          cur = target.slice(0, cur.length + 1)
+          setText(cur)
+          wait(52, type)
+        } else {
+          wait(isLast ? 1300 : 480, advance)
+        }
+      }
+      // "think" for a beat before the honest final revision (0 → 3)
+      wait(isLast ? 650 : 0, erase)
+    }
+    wait(900, advance)
+    return () => {
+      cancelled = true
+      timers.forEach((t) => window.clearTimeout(t))
+    }
+  }, [final])
+  return (
+    <span className="jsh-count">
+      <span aria-hidden="true">{text}</span>
+      {!done && (
+        <span className="jsh-cursor jsh-cursor-sm" aria-hidden="true">
+          ▋
+        </span>
+      )}
+      <span className="jsh-sr-only">{final}</span>
+    </span>
+  )
+}
+
 /* ------------------------------------------------------------------ *
  *  THE COMPONENT
  * ------------------------------------------------------------------ */
@@ -465,7 +672,9 @@ export default function Shell() {
   const idRef = useRef(0)
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const tailSpacerRef = useRef<HTMLDivElement>(null)
   const bootCancel = useRef<(() => void) | null>(null)
+  const scrollWelcomeTop = useRef(false)
   const historyRef = useRef<string[]>(history)
   historyRef.current = history
   const themeRef = useRef<Theme>(theme)
@@ -559,6 +768,7 @@ export default function Shell() {
   }, [])
 
   const finishBoot = useCallback(() => {
+    scrollWelcomeTop.current = true
     renderBoot(BOOT.length, true)
     setPhase("ready")
   }, [renderBoot])
@@ -593,8 +803,7 @@ export default function Shell() {
         renderBoot(i, false)
         timers.push(window.setTimeout(step, TICK))
       } else {
-        renderBoot(BOOT.length, true)
-        setPhase("ready")
+        finishBoot()
         bootCancel.current = null
       }
     }
@@ -610,11 +819,52 @@ export default function Shell() {
   }, [reduced])
 
   /* --------------------- autoscroll on growth --------------------- */
+  // Normally pin to the bottom. But the instant the boot reel finishes, snap the
+  // welcome card to the TOP instead — so the boot log scrolls out of sight and
+  // you only meet it again by scrolling up.
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
+    const spacer = tailSpacerRef.current
+    if (scrollWelcomeTop.current) {
+      scrollWelcomeTop.current = false
+      const offset = (w: HTMLElement) =>
+        w.getBoundingClientRect().top - el.getBoundingClientRect().top - 6
+      const snap = () => {
+        const w = el.querySelector(".jsh-welcome") as HTMLElement | null
+        if (!w) return
+        if (spacer) spacer.style.height = "0px"
+        el.scrollTop += offset(w)
+        // If the scroll bottomed out before the welcome reached the top, there
+        // is not enough content below it — add exactly that much tail space so
+        // the whole boot reel sits above the fold.
+        const residual = offset(w)
+        if (residual > 1 && spacer) {
+          spacer.style.height = `${Math.ceil(residual)}px`
+          el.scrollTop += residual
+        }
+      }
+      snap()
+      // Re-assert across the next frames + once fonts swap in, since both the
+      // prompt mounting and the custom fonts reflow the long boot reel.
+      requestAnimationFrame(() => {
+        snap()
+        requestAnimationFrame(snap)
+      })
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(snap).catch(() => {})
+      }
+      return
+    }
+    // normal growth: drop any tail spacer and pin to the bottom
+    if (spacer) spacer.style.height = "0px"
     el.scrollTop = el.scrollHeight
   }, [lines])
+
+  /* ------------- focus the prompt when ready (no jump) ------------ */
+  useEffect(() => {
+    if (phase === "ready") inputRef.current?.focus({ preventScroll: true })
+  }, [phase])
 
   /* --------------------- window focus tracking -------------------- */
   useEffect(() => {
@@ -1186,8 +1436,6 @@ export default function Shell() {
                       autoCorrect="off"
                       spellCheck={false}
                       aria-label="terminal command input"
-                      // eslint-disable-next-line jsx-a11y/no-autofocus
-                      autoFocus
                     />
                     <span className="jsh-caret-track" aria-hidden="true">
                       <span className="jsh-caret-ghost">{input}</span>
@@ -1206,6 +1454,7 @@ export default function Shell() {
                   <span className="jsh-cursor">▋</span>
                 </p>
               )}
+              <div ref={tailSpacerRef} className="jsh-tail-spacer" aria-hidden="true" />
             </div>
           </div>
 
@@ -1279,17 +1528,10 @@ function WelcomeCard() {
   return (
     <div className="jsh-welcome">
       <NeofetchCard />
-      <p className="jsh-w-line">
-        <span className="jsh-ok">login:</span> welcome. this is a real shell — mostly.
-        it parses commands, keeps history, completes on{" "}
-        <kbd className="jsh-kbd">Tab</kbd>.
-      </p>
       <p className="jsh-w-line jsh-measure jsh-muted">
-        founding engineer building AI agent systems in Rust and TypeScript. twelve years
-        shipping distributed systems, program-analysis engines, and developer tools.
-      </p>
-      <p className="jsh-w-line jsh-muted">
-        nothing here needs typing — click a command to run it:
+        founding engineer building AI agent systems in Rust and TypeScript.
+        thirteen years shipping distributed systems, program-analysis engines,
+        and developer tools.
       </p>
       <PaletteRow />
     </div>
@@ -1301,8 +1543,9 @@ function NeofetchCard() {
   const rows: Array<[string, React.ReactNode]> = [
     ["host", "jess@jessica.black"],
     ["role", "Founding Engineer @ Attune"],
-    ["uptime", "12 years, 0 prod segfaults"],
-    ["shell", "jsh 12.0 · hooks only"],
+    ["uptime", "13 years in production"],
+    ["bugs in prod", <AnimatedCount key="bugs" />],
+    ["shell", "jsh 13.0 · hooks only"],
     ["stack", "Rust · Haskell · Go · TypeScript"],
     ["focus", "AI agents · distributed systems"],
     ["where", "Mountain View, CA"],
@@ -1568,7 +1811,7 @@ function ResumeBlock({ run }: { run: (c: string) => void }) {
         </span>
       </div>
       <p className="jsh-out jsh-measure">
-        Founding engineer building AI agent systems in Rust and TypeScript. 12 years
+        Founding engineer building AI agent systems in Rust and TypeScript. 13 years
         shipping distributed systems, program-analysis engines, and developer tools.
         Deep fluency across Rust, Haskell, Go, and TypeScript.
       </p>
@@ -1721,9 +1964,8 @@ function KonamiBlock({ run }: { run: (c: string) => void }) {
     <div className="jsh-konami">
       <p className="jsh-out jsh-em">↑ ↑ ↓ ↓ ← → ← → B A</p>
       <p className="jsh-out jsh-measure">
-        achievement unlocked: you entered a cheat code into a résumé. no lives were
-        granted — this site has a strict no-glow budget — but you clearly read the
-        manual. as a reward, here is a <Cmd run={run}>coffee</Cmd>.
+        +30 lives granted. spend them wisely. and, since you clearly read the
+        manual, have a <Cmd run={run}>coffee</Cmd>.
       </p>
     </div>
   )
@@ -1742,9 +1984,7 @@ function CoffeeBlock() {
           "     `----'",
         ].join("\n")}
       </pre>
-      <p className="jsh-out jsh-muted">
-        brewed. ☕ the only warm thing on a site with no glow budget.
-      </p>
+      <p className="jsh-out jsh-muted">brewed. ☕ black, no sugar.</p>
     </div>
   )
 }
@@ -1805,7 +2045,7 @@ function WhoamiBlock({ run }: { run: (c: string) => void }) {
         <span className="jsh-em">Jessica Black</span> — founding engineer.
       </p>
       <p className="jsh-out jsh-measure">
-        I build AI agent systems in Rust and TypeScript. Twelve years shipping
+        I build AI agent systems in Rust and TypeScript. Thirteen years shipping
         distributed systems, program-analysis engines, and developer tools — from a
         200k-project dependency-analysis platform to multi-agent orchestration built
         from scratch. I like hard problems with crisp correctness conditions:
@@ -1828,9 +2068,8 @@ function ReadmeBlock({ run }: { run: (c: string) => void }) {
         <span className="jsh-em"># jessica.black</span>
       </p>
       <p className="jsh-out jsh-measure">
-        A personal site that presents as a full-screen shell session. It is one React
-        file, hooks only — no terminal emulator library, no framework gymnastics. The
-        prompt is real: it parses commands, keeps history, and completes on Tab.
+        A personal site that presents as a full-screen shell session — one React
+        file, hooks only. No terminal emulator, no framework gymnastics.
       </p>
       <p className="jsh-out jsh-muted">
         Everything here is also reachable by clicking. Start with <Cmd run={run}>ls</Cmd>{" "}
@@ -2236,7 +2475,7 @@ const CSS = String.raw`
 }
 .jsh-nf-row {
   display: grid;
-  grid-template-columns: 66px 1fr;
+  grid-template-columns: 104px 1fr;
   gap: 12px;
   align-items: baseline;
 }
@@ -2244,6 +2483,12 @@ const CSS = String.raw`
 .jsh-nf-row dd { margin: 0; color: var(--jsh-fg); font-size: 13px; }
 .jsh-nf-status { display: inline-flex; align-items: baseline; gap: 2px; }
 .jsh-nf-links { color: var(--jsh-muted); }
+.jsh-count {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+}
 
 .jsh-w-line { margin: 6px 0; }
 .jsh-palette {
