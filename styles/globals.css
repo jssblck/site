@@ -1,20 +1,34 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/*
+  Global reset. No CSS framework — the page brings its own styles inline.
+  Kept deliberately small: just enough to make the document a calm dark canvas
+  before the Shell paints itself.
+*/
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
 
 html {
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
 }
 
-:root {
-  --lavender-300: #d1c4e9;
-  --lavender-400: #b39ddb;
-  --lavender-500: #9575cd;
-  --lavender-900: #4527a0;
+html,
+body {
+  margin: 0;
+  padding: 0;
 }
 
-@layer base {
-  body {
-    @apply bg-black text-zinc-100;
+body {
+  min-height: 100dvh;
+  background-color: #0c0c0e;
+  color: #e8e6df;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
   }
 }
