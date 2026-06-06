@@ -500,6 +500,7 @@ function buildBoot(): BootLine[] {
     ok("paru -Syu breakout"),
     ok("paru -Syu asteroids"),
     ok("paru -Syu flappy"),
+    ok("paru -Syu wordle"),
     ok("pacman -S fortune-mod"),
     ok("pacman -S cowsay"),
     ok("pacman -S sl"),
@@ -635,6 +636,7 @@ const COMMANDS = [
   "breakout",
   "asteroids",
   "flappy",
+  "wordle",
   "neofetch",
   "clear",
 ] as const
@@ -750,6 +752,10 @@ const GAMES: Record<string, React.ComponentType> = {
     ssr: false,
     loading: () => <p className="jsh-out jsh-muted">loading flappy…</p>,
   }),
+  wordle: dynamic(() => import("@/app/games/wordle"), {
+    ssr: false,
+    loading: () => <p className="jsh-out jsh-muted">loading wordle…</p>,
+  }),
 }
 const GAME_LIST: Array<[string, string]> = [
   ["snake", "eat, grow, do not bite yourself"],
@@ -758,6 +764,7 @@ const GAME_LIST: Array<[string, string]> = [
   ["breakout", "paddle, ball, a wall to demolish"],
   ["asteroids", "thrust, wrap, shoot the rocks"],
   ["flappy", "tap to flap, thread the gaps"],
+  ["wordle", "six guesses, five letters"],
 ]
 
 // Games take over the whole screen: a focused overlay above the shell. Esc, the
@@ -3607,6 +3614,13 @@ const CSS = String.raw`
 @keyframes jsh-overlay-in {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+@keyframes jsh-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
 }
 .jsh-game-stage {
   display: flex;
