@@ -108,40 +108,79 @@ const JOBS: Job[] = [
   },
 ]
 
-type Repo = { name: string; lang: string; url: string; note: string }
+// Everything worth pointing at, open source or not. The shape is uniform; what
+// differs is the link. Open-source projects carry a `code` URL (their repo) and
+// a `lang`; closed ones may instead have a `site` (their own public home, like
+// Sandi's) and a `badge`. `open <name>` and the projects list send you to
+// `code ?? site` — the code if it's open, its home if not, nowhere if neither.
+type Project = {
+  name: string
+  note: string
+  code?: string // public source repo — present iff open source
+  site?: string // a public home of its own (e.g. Sandi's site)
+  lang?: string // language badge, for open-source code
+  badge?: string // badge text for projects without public code
+}
 
-const REPOS: Repo[] = [
+const PROJECTS: Project[] = [
+  {
+    name: "sandi",
+    site: "https://sandi.jessica.black",
+    badge: "live · private",
+    note: "household intelligence on Discord — memory, tools, taste of her own",
+  },
   {
     name: "hurry",
+    code: "https://github.com/attunehq/hurry",
     lang: "Rust",
-    url: "https://github.com/attunehq/hurry",
     note: "distributed, content-addressed build cache for Cargo",
   },
   {
     name: "nudge",
+    code: "https://github.com/attunehq/nudge",
     lang: "Rust",
-    url: "https://github.com/attunehq/nudge",
     note: "guardrails for AI coding agents via Claude Code hooks",
   },
   {
     name: "fossa-cli",
+    code: "https://github.com/fossas/fossa-cli",
     lang: "Haskell",
-    url: "https://github.com/fossas/fossa-cli",
     note: "dependency analysis across 20+ ecosystems",
   },
   {
     name: "broker",
+    code: "https://github.com/fossas/broker",
     lang: "Rust",
-    url: "https://github.com/fossas/broker",
     note: "secure on-prem bridge to FOSSA's cloud",
   },
   {
     name: "circe",
+    code: "https://github.com/fossas/circe",
     lang: "Rust",
-    url: "https://github.com/fossas/circe",
     note: "container image extraction & analysis",
   },
+  {
+    name: "mite",
+    code: "https://github.com/jssblck/mite",
+    lang: "Rust",
+    note: "windows-first OCR overlay for reading Japanese in games",
+  },
+  {
+    name: "unempty",
+    code: "https://github.com/jssblck/unempty",
+    lang: "Rust",
+    note: "non-empty collection types, published on crates.io",
+  },
+  {
+    name: "procession",
+    code: "https://github.com/jssblck/procession",
+    lang: "Rust",
+    note: "language-agnostic, Redis-backed background job server",
+  },
 ]
+
+// Where a project opens: its source if open, else its own home, else nowhere.
+const projectUrl = (p: Project): string | undefined => p.code ?? p.site
 
 type Writing = { title: string; where: string; url: string }
 
@@ -630,6 +669,7 @@ const COMMANDS = [
   "skills",
   "resume",
   "writing",
+  "projects",
   "contact",
   "tree",
   "theme",
@@ -691,13 +731,19 @@ const MANPAGES: Record<string, ManEntry> = {
     name: "skills — list skill files",
     synopsis: "skills",
     desc: "Lists ~/skills/*.skill.md — the kind of capability files you'd hand an agent. cat one to read it.",
-    see: ["cat", "resume"],
+    see: ["cat", "resume", "projects"],
+  },
+  projects: {
+    name: "projects — list the things I've built",
+    synopsis: "projects",
+    desc: "Lists ~/projects with a one-line note each. Open-source ones (hurry, nudge, circe, mite, unempty, procession, …) link to their code; others, like sandi, link to their own home. Click one, or `open <name>`, to visit it.",
+    see: ["resume", "skills"],
   },
   resume: {
     name: "resume — print the full résumé",
     synopsis: "resume",
     desc: "The whole thing: experience, skills, writing, contact. Switch to the paper theme first if you're printing.",
-    see: ["theme", "cat", "contact"],
+    see: ["theme", "cat", "contact", "projects"],
   },
   theme: {
     name: "theme — set the colour theme",
@@ -1756,14 +1802,15 @@ export default function Shell() {
           <Errline>
             open: which one? try <Cmd run={clickRef.current}>open github</Cmd>,{" "}
             <Cmd run={clickRef.current}>open linkedin</Cmd>, or a repo like{" "}
-            <Cmd run={clickRef.current}>open hurry</Cmd>
+            <Cmd run={clickRef.current}>open hurry</Cmd> —{" "}
+            <Cmd run={clickRef.current}>projects</Cmd> lists them all
           </Errline>,
         )
         return
       }
       const link = LINKS.find((l) => l.key === t)
-      const repo = REPOS.find((r) => r.name === t)
-      const target = link?.url ?? repo?.url
+      const proj = PROJECTS.find((p) => p.name === t)
+      const target = link?.url ?? (proj ? projectUrl(proj) : undefined)
       if (!target) {
         pushText(
           <Errline>
@@ -1777,7 +1824,7 @@ export default function Shell() {
       pushText(
         <p className="jsh-out">
           <span className="jsh-ok">→</span> opening{" "}
-          <Ext href={target}>{link?.label ?? repo?.name}</Ext>
+          <Ext href={target}>{link?.label ?? proj?.name}</Ext>
           {!isMail ? " in a new tab…" : "…"}
         </p>,
       )
@@ -1891,6 +1938,10 @@ export default function Shell() {
         case "writing":
         case "blog":
           return runWriting()
+        case "projects":
+        case "repos":
+        case "oss":
+          return pushText(<ProjectsBlock run={clickRef.current} />)
         case "contact":
         case "email":
           return runContact()
@@ -2583,6 +2634,7 @@ function HelpBlock({ run }: { run: (c: string) => void }) {
     ["whoami", "the short version"],
     ["cat <name>", "read a file — e.g. cat attune, cat readme"],
     ["skills", "skill files — like the ones you give an agent"],
+    ["projects", "the things I've built"],
     ["resume", "the whole résumé, printed"],
     ["tree", "the filesystem, at a glance"],
     ["writing", "blog posts & interviews"],
@@ -2628,6 +2680,7 @@ const HOME_ENTRIES: Array<{ name: string; cmd: string; note: string }> = [
   { name: "about", cmd: "whoami", note: "who I am" },
   { name: "experience/", cmd: "cat experience", note: "where I've worked" },
   { name: "skills/", cmd: "skills", note: "what I'm fluent in" },
+  { name: "projects/", cmd: "projects", note: "things I've built" },
   { name: "resume.txt", cmd: "resume", note: "the whole thing" },
   { name: "writing/", cmd: "writing", note: "things I've written" },
   { name: "games/", cmd: "games", note: "the arcade" },
@@ -2829,14 +2882,17 @@ function ResumeBlock({ run }: { run: (c: string) => void }) {
       ))}
       <p className="jsh-resume-h">skills</p>
       <p className="jsh-out">{SKILLS.map((s) => s.name).join(" · ")}</p>
-      <p className="jsh-resume-h">open source</p>
+      <p className="jsh-resume-h">projects</p>
       <p className="jsh-out">
-        {REPOS.map((r, i) => (
-          <span key={r.name}>
-            {i > 0 ? " · " : ""}
-            <Ext href={r.url}>{r.name}</Ext>
-          </span>
-        ))}
+        {PROJECTS.map((p, i) => {
+          const url = projectUrl(p)
+          return (
+            <span key={p.name}>
+              {i > 0 ? " · " : ""}
+              {url ? <Ext href={url}>{p.name}</Ext> : <span>{p.name}</span>}
+            </span>
+          )
+        })}
       </p>
       <p className="jsh-out jsh-muted jsh-resume-foot">
         ↑ that&apos;s the whole résumé. or read it piece by piece:{" "}
@@ -2854,6 +2910,7 @@ function TreeBlock({ run }: { run: (c: string) => void }) {
     { branch: "│   ├──", cmd: "cat fossa", name: "fossa/", meta: "2019—25" },
     { branch: "│   └──", cmd: "cat reynolds", name: "reynolds/", meta: "2013—19" },
     { branch: "├──", cmd: "skills", name: "skills/", meta: `${SKILLS.length} files` },
+    { branch: "├──", cmd: "projects", name: "projects/", meta: `${PROJECTS.length} projects` },
     { branch: "├──", cmd: "writing", name: "writing/", meta: `${WRITING.length} posts` },
     { branch: "├──", cmd: "resume", name: "resume.txt", meta: "the whole thing" },
     { branch: "└──", cmd: "contact", name: ".contact", meta: "github · linkedin · email" },
@@ -3058,13 +3115,76 @@ function WritingBlock() {
         ))}
       </ul>
       <p className="jsh-out jsh-muted">
-        open-source work:{" "}
-        {REPOS.map((r, i) => (
-          <span key={r.name}>
-            {i > 0 ? " · " : ""}
-            <Ext href={r.url}>{r.name}</Ext>
-          </span>
-        ))}
+        projects:{" "}
+        {PROJECTS.map((p, i) => {
+          const url = projectUrl(p)
+          return (
+            <span key={p.name}>
+              {i > 0 ? " · " : ""}
+              {url ? <Ext href={url}>{p.name}</Ext> : <span>{p.name}</span>}
+            </span>
+          )
+        })}
+      </p>
+    </div>
+  )
+}
+
+// `projects` — the things Jess has built, listed like the skills/arcade blocks:
+// a name, a one-line note, and a badge. Open-source projects badge their
+// language and open their code; others (Sandi) badge "live · private" and open
+// their own home. A name with a public home is clickable (dispatches
+// `open <name>`); one with neither code nor site is just text.
+function ProjectsBlock({ run }: { run: (c: string) => void }) {
+  const preview = usePreview()
+  return (
+    <div className="jsh-projects">
+      <p className="jsh-out jsh-muted">
+        <span className="jsh-ok">$</span> ls ~/projects/
+      </p>
+      <p className="jsh-ls-total jsh-muted">
+        {PROJECTS.length} projects — the open ones link to code
+      </p>
+      <ul className="jsh-sk-list">
+        {PROJECTS.map((p) => {
+          const url = projectUrl(p)
+          const cmd = `open ${p.name}`
+          const badge = p.lang ?? p.badge
+          return (
+            <li key={p.name} className="jsh-sk-row">
+              {url ? (
+                <button
+                  type="button"
+                  className="jsh-sk-file"
+                  onClick={() => run(cmd)}
+                  onMouseEnter={() => preview(cmd)}
+                  onMouseLeave={() => preview(null)}
+                  onFocus={() => preview(cmd)}
+                  onBlur={() => preview(null)}
+                  title={cmd}
+                >
+                  {p.name}
+                </button>
+              ) : (
+                <span className="jsh-sk-file jsh-sk-file-static">{p.name}</span>
+              )}
+              <span className="jsh-sk-desc">
+                {p.note}
+                {badge && (
+                  <span className={p.lang ? "jsh-game-best" : "jsh-proj-live"}>
+                    {" "}
+                    · {badge}
+                  </span>
+                )}
+              </span>
+            </li>
+          )
+        })}
+      </ul>
+      <p className="jsh-out jsh-muted jsh-ls-hint">
+        → click to open. open-source projects open their code on GitHub;{" "}
+        <Cmd run={run}>open sandi</Cmd> visits her own place. more at{" "}
+        <Cmd run={run}>open github</Cmd>.
       </p>
     </div>
   )
@@ -3748,6 +3868,11 @@ const CSS = String.raw`
 .jsh-sk-file:focus-visible { outline: none; background: var(--jsh-accent-weak); }
 .jsh-sk-desc { color: var(--jsh-muted); font-size: 12.5px; }
 .jsh-game-best { color: var(--jsh-amber-soft); font-variant-numeric: tabular-nums; }
+/* a non-language project badge (e.g. sandi's "live · private") — full accent so
+   it reads a touch brighter than the dim language badges. */
+.jsh-proj-live { color: var(--jsh-amber); }
+/* a project name with no public home: shown, but not a link. */
+.jsh-sk-file-static { color: var(--jsh-fg); border-bottom: none; cursor: default; }
 
 /* man pages */
 .jsh-man { margin: 4px 0; font-size: 13px; }
