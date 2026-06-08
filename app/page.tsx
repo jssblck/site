@@ -651,7 +651,7 @@ const THEME_NOTE: Record<Theme, string> = {
 
 type Block =
   | { kind: "text"; node: JSX.Element }
-  | { kind: "echo"; cmd: string } // the command the user "ran"
+  | { kind: "echo"; cmd: string; prompt: string } // the command the user "ran", and the prompt it ran under
   | { kind: "boot"; line: BootLine } // a boot reel line (kernel / systemd / bare)
 
 // `home` marks the welcome card — the persistent header/"tab bar". Clicking a
@@ -663,9 +663,12 @@ const COMMANDS = [
   "help",
   "man",
   "ls",
+  "cd",
+  "pwd",
   "whoami",
   "cat",
   "open",
+  "experience",
   "skills",
   "resume",
   "writing",
@@ -691,18 +694,16 @@ const COMMANDS = [
   "clear",
 ] as const
 
-// Things `cat` knows about, for the error hint.
+// Real files `cat` can print, for the not-found hint. (Directories like skills/
+// or projects/ aren't here — cat-ing a directory is an error; you `ls` those.)
 const CAT_TARGETS = [
   "about",
-  "experience",
+  "readme",
+  "resume",
+  "contact",
   "attune",
   "fossa",
   "reynolds",
-  "skills",
-  "resume",
-  "writing",
-  "contact",
-  "readme",
 ] as const
 
 // Manual pages — `man <cmd>` prints one, classic-formatted. Concise but real;
@@ -712,14 +713,32 @@ const MANPAGES: Record<string, ManEntry> = {
   ls: {
     name: "ls — list directory contents",
     synopsis: "ls [path]",
-    desc: "Lists the home directory: about, experience/, skills/, resume.txt, writing/, games/, contact, readme.md. Click a name or cat it. `ls ~/skills` lists the skill files.",
-    see: ["cat", "tree", "skills"],
+    desc: "Lists a directory — with no argument, the one you're in (cd moves you). Folders end in /; cat a file, ls a folder, run a game. Try `ls`, `ls ~/skills`, `ls /`.",
+    see: ["cd", "cat", "tree"],
+  },
+  cd: {
+    name: "cd — change the working directory",
+    synopsis: "cd [path]",
+    desc: "Moves around the tree: `cd skills`, `cd ..`, `cd ~` (home), `cd /` (root). The prompt and the top bar track where you are. Folders only — a file isn't a directory.",
+    see: ["ls", "pwd", "tree"],
+  },
+  pwd: {
+    name: "pwd — print working directory",
+    synopsis: "pwd",
+    desc: "Prints the absolute path you're standing in. You start in /home/jess; cd moves you, and the prompt follows.",
+    see: ["cd", "ls"],
   },
   cat: {
     name: "cat — concatenate and print files",
     synopsis: "cat <file>",
-    desc: "Prints a file. Knows about, experience, attune/fossa/reynolds, skills, resume, writing, contact, readme — plus any ~/skills/*.skill.md.",
-    see: ["ls", "resume", "skills"],
+    desc: "Prints a file: about, readme.md, resume.txt, contact, ~/experience/*.md, ~/skills/*.skill.md. Bare names work too (`cat rust`). cat a directory and it'll point you at `ls` instead.",
+    see: ["ls", "cd", "resume"],
+  },
+  tree: {
+    name: "tree — list contents as a tree",
+    synopsis: "tree [path]",
+    desc: "A recursive view from here (or a given path), drawn from the same filesystem ls and cd see. Click any name to open it.",
+    see: ["ls", "cd"],
   },
   whoami: {
     name: "whoami — print the current user",
@@ -941,6 +960,397 @@ const GAME_STAT: Record<string, { key: string; fmt: (n: number) => string }> = {
   minesweeper: { key: "jsh-mines-best", fmt: (n) => `${n}s` },
   pong: { key: "jsh-pong-best", fmt: (n) => `rally ${n}` },
 }
+
+/* ------------------------------------------------------------------ *
+ *  VIRTUAL FILESYSTEM + SHELL
+ *
+ *  The site presents as a shell over a fake home directory, so the fake
+ *  directory had better be real. This section is the one place that owns
+ *  it: an in-memory tree plus a Shell that resolves paths (~, ., .., /,
+ *  relative) and implements ls / cat / cd / pwd / tree the way a real
+ *  shell would. Every "content command" (skills, projects, resume, …) is
+ *  just an alias for an ls or cat of a known path — so typing `ls ~/skills`
+ *  and clicking `skills` land in exactly the same place, and `cd skills`
+ *  moves the prompt for real.
+ *
+ *  Files render rich JSX on `cat` (this is a website, not /bin/cat), so a
+ *  node carries a `render` thunk instead of byte content. A directory may
+ *  carry a custom `listing` (the pretty skills/projects/games views);
+ *  without one it falls back to a generic `ls`. The whole tree is built
+ *  from the same JOBS / SKILLS / PROJECTS / WRITING / GAME_LIST data the
+ *  rest of the page renders — one source of truth, so ls, tree, and cat
+ *  can never drift apart again.
+ * ------------------------------------------------------------------ */
+
+type RunCmd = (cmd: string) => void
+
+interface FsFileNode {
+  kind: "file"
+  name: string // basename, with extension: "resume.txt", "rust.skill.md"
+  note?: string // right-gutter note in ls / tree
+  cmd?: string // preferred command when the name is clicked (its alias); else `cat <path>`
+  open?: string // external URL — a "link file" (a project or a post)
+  exe?: boolean // executable (a game): running the name launches it; cat is a gag
+  render: (run: RunCmd) => JSX.Element // what `cat` prints
+}
+interface FsDirNode {
+  kind: "dir"
+  name: string // basename ("" only for the root)
+  note?: string
+  cmd?: string // preferred command when clicked (its alias); else `ls <path>`
+  children: FsNode[]
+  listing?: (run: RunCmd) => JSX.Element // rich `ls` view; omit for a generic listing
+  treeMeta?: string // in `tree`, the right-gutter note for this directory
+  treeLeaf?: boolean // in `tree`, stop here — show the dir but don't recurse into it
+}
+type FsNode = FsFileNode | FsDirNode
+
+// Home is /home/jess. Paths are stored as segment arrays from the root.
+const HOME_PATH = ["home", USER]
+
+// "rust.skill.md" → "rust", "resume.txt" → "resume", "about" → "about".
+// Used both for tab-friendly bare-name `cat` and for lenient path matching.
+function fileBase(name: string): string {
+  if (name.endsWith(".skill.md")) return name.slice(0, -".skill.md".length)
+  const dot = name.lastIndexOf(".")
+  return dot > 0 ? name.slice(0, dot) : name
+}
+
+// First non-flag operand of an argument string (so `ls -la ~/skills` → "~/skills").
+function firstOperand(arg: string): string {
+  for (const tok of arg.trim().split(/\s+/)) {
+    if (tok && !tok.startsWith("-")) return tok
+  }
+  return ""
+}
+
+function slugify(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+}
+
+// Build ~ from the data of record. Each array entry becomes a file or a
+// directory; the rich blocks (SkillsBlock, ProjectsBlock, …) stay the custom
+// `listing` for their directory, so `ls ~/skills` looks exactly like `skills`.
+function buildHomeChildren(): FsNode[] {
+  const jobs: FsNode[] = JOBS.map((j): FsFileNode => ({
+    kind: "file",
+    name: `${j.id}.md`,
+    note: `${j.org} · ${j.years}`,
+    cmd: `cat ~/experience/${j.id}.md`,
+    render: () => <JobBlock job={j} expanded />,
+  }))
+  const skills: FsNode[] = SKILLS.map((s): FsFileNode => ({
+    kind: "file",
+    name: `${s.id}.skill.md`,
+    note: s.description,
+    cmd: `cat ~/skills/${s.id}`,
+    render: () => <SkillFileBlock skill={s} />,
+  }))
+  const projects: FsNode[] = PROJECTS.map((p): FsFileNode => ({
+    kind: "file",
+    name: p.name,
+    note: p.note,
+    cmd: `open ${p.name}`,
+    open: projectUrl(p),
+    render: (run) => <ProjectFileBlock project={p} run={run} />,
+  }))
+  const writing: FsNode[] = WRITING.map((w): FsFileNode => {
+    const file = `${slugify(w.title)}.md`
+    return {
+      kind: "file",
+      name: file,
+      note: w.where,
+      open: w.url,
+      render: () => <WritingFileBlock item={w} file={file} />,
+    }
+  })
+  const games: FsNode[] = GAME_LIST.map(([id, note]): FsFileNode => ({
+    kind: "file",
+    name: id,
+    note,
+    cmd: id,
+    exe: true,
+    render: (run) => <BinaryBlock name={id} run={run} />,
+  }))
+  return [
+    {
+      kind: "file",
+      name: "about",
+      note: "who I am",
+      cmd: "whoami",
+      render: (run) => <WhoamiBlock run={run} />,
+    },
+    {
+      kind: "file",
+      name: "readme.md",
+      note: "about this shell",
+      cmd: "cat readme",
+      render: (run) => <ReadmeBlock run={run} />,
+    },
+    {
+      kind: "file",
+      name: "resume.txt",
+      note: "the whole résumé",
+      cmd: "resume",
+      render: (run) => <ResumeBlock run={run} />,
+    },
+    {
+      kind: "file",
+      name: "contact",
+      note: "how to reach me",
+      cmd: "contact",
+      render: () => <ContactBlock />,
+    },
+    {
+      kind: "dir",
+      name: "experience",
+      note: "where I've worked",
+      cmd: "experience",
+      children: jobs,
+      listing: (run) => <ExperienceListing run={run} />,
+      treeMeta: `${JOBS.length} roles`,
+    },
+    {
+      kind: "dir",
+      name: "skills",
+      note: "what I'm fluent in",
+      cmd: "skills",
+      children: skills,
+      listing: (run) => <SkillsBlock run={run} />,
+      treeMeta: `${SKILLS.length} files`,
+      treeLeaf: true,
+    },
+    {
+      kind: "dir",
+      name: "projects",
+      note: "things I've built",
+      cmd: "projects",
+      children: projects,
+      listing: (run) => <ProjectsBlock run={run} />,
+      treeMeta: `${PROJECTS.length} projects`,
+      treeLeaf: true,
+    },
+    {
+      kind: "dir",
+      name: "writing",
+      note: "things I've written",
+      cmd: "writing",
+      children: writing,
+      listing: () => <WritingBlock />,
+      treeMeta: `${WRITING.length} posts`,
+      treeLeaf: true,
+    },
+    {
+      kind: "dir",
+      name: "games",
+      note: "the arcade",
+      cmd: "games",
+      children: games,
+      listing: (run) => <GamesBlock run={run} />,
+      treeMeta: `${GAME_LIST.length} games`,
+      treeLeaf: true,
+    },
+  ]
+}
+
+const FS: FsDirNode = {
+  kind: "dir",
+  name: "",
+  children: [
+    {
+      kind: "dir",
+      name: "home",
+      children: [{ kind: "dir", name: USER, children: buildHomeChildren() }],
+    },
+  ],
+}
+
+type LsResult =
+  | { kind: "dir"; node: FsDirNode; segs: string[] }
+  | { kind: "file"; node: FsFileNode; segs: string[] }
+  | { kind: "error"; msg: string }
+type CatResult =
+  | { kind: "file"; node: FsFileNode }
+  | { kind: "dir"; name: string }
+  | { kind: "missing" }
+  | { kind: "error"; msg: string }
+type CdResult = { kind: "ok"; cwd: string[] } | { kind: "error"; msg: string }
+type TreeRow = { prefix: string; name: string; isDir: boolean; cmd: string; meta?: string }
+type TreeResult =
+  | { kind: "dir"; label: string; rows: TreeRow[] }
+  | { kind: "file"; node: FsFileNode; segs: string[] }
+  | { kind: "error"; msg: string }
+
+// The one object that knows the rules. Pure and React-free: it returns
+// resolved nodes or shell-style errors, and the transcript layer decides how
+// to paint them. cwd lives in React state and is passed in on every call.
+// (Named ShellFs to avoid clashing with the page component, which is Shell.)
+class ShellFs {
+  private index = new Map<string, string[]>()
+
+  constructor(
+    readonly root: FsDirNode,
+    readonly home: readonly string[],
+  ) {
+    this.indexFiles(root, [])
+  }
+
+  // Flat index of file basenames (with and without extension) → absolute path,
+  // so `cat readme`, `cat attune`, `cat rust` resolve from anywhere, the way a
+  // muscle-memory shortcut would. First writer wins; there are no collisions.
+  private indexFiles(node: FsNode, segs: string[]) {
+    const here = node.name ? [...segs, node.name] : [...segs]
+    if (node.kind === "file") {
+      if (!this.index.has(node.name)) this.index.set(node.name, here)
+      const base = fileBase(node.name)
+      if (!this.index.has(base)) this.index.set(base, here)
+    } else {
+      for (const c of node.children) this.indexFiles(c, here)
+    }
+  }
+
+  // Resolve a path argument against cwd → absolute segments. Handles ~, /,
+  // relative, ., and .. exactly like a real shell.
+  resolve(cwd: readonly string[], arg: string): string[] {
+    const a = arg.trim()
+    if (a === "") return [...cwd] // no path means "right here", like a real shell
+    if (a === "~") return [...this.home]
+    if (a === "/") return []
+    let segs: string[]
+    let rest: string[]
+    if (a.startsWith("~/")) {
+      segs = [...this.home]
+      rest = a.slice(2).split("/")
+    } else if (a.startsWith("/")) {
+      segs = []
+      rest = a.slice(1).split("/")
+    } else {
+      segs = [...cwd]
+      rest = a.split("/")
+    }
+    for (const part of rest) {
+      if (part === "" || part === ".") continue
+      if (part === "..") {
+        if (segs.length) segs.pop()
+        continue
+      }
+      segs.push(part)
+    }
+    return segs
+  }
+
+  // Walk the tree to a node. The final segment matches by exact name first,
+  // then by extension-less base (so `cat skills/rust` finds rust.skill.md).
+  lookup(segs: readonly string[]): FsNode | null {
+    let node: FsNode = this.root
+    for (const name of segs) {
+      if (node.kind !== "dir") return null
+      const next: FsNode | undefined =
+        node.children.find((c) => c.name === name) ??
+        node.children.find((c) => fileBase(c.name) === name)
+      if (!next) return null
+      node = next
+    }
+    return node
+  }
+
+  // ~/skills inside home, /etc elsewhere, ~ at home, / at root.
+  pathLabel(segs: readonly string[]): string {
+    const h = this.home
+    const underHome = segs.length >= h.length && h.every((s, i) => segs[i] === s)
+    if (underHome) {
+      const rest = segs.slice(h.length)
+      return rest.length ? "~/" + rest.join("/") : "~"
+    }
+    return "/" + segs.join("/")
+  }
+
+  // Always the real absolute path (what `pwd` prints): /home/jess.
+  absPath(segs: readonly string[]): string {
+    return "/" + segs.join("/")
+  }
+
+  ls(cwd: readonly string[], arg: string): LsResult {
+    const path = firstOperand(arg)
+    const segs = this.resolve(cwd, path)
+    const node = this.lookup(segs)
+    if (!node)
+      return { kind: "error", msg: `ls: cannot access '${path}': No such file or directory` }
+    if (node.kind === "file") return { kind: "file", node, segs }
+    return { kind: "dir", node, segs }
+  }
+
+  cat(cwd: readonly string[], arg: string): CatResult {
+    const path = firstOperand(arg)
+    if (!path) return { kind: "missing" }
+    const segs = this.resolve(cwd, path)
+    let node = this.lookup(segs)
+    // Bare name (no slash) that isn't on the resolved path? Fall back to the
+    // flat index: `cat rust` from ~ finds ~/skills/rust.skill.md.
+    if (!node && !path.includes("/")) {
+      const hit = this.index.get(path.toLowerCase())
+      if (hit) node = this.lookup(hit)
+    }
+    if (!node) return { kind: "error", msg: `cat: ${path}: No such file or directory` }
+    if (node.kind === "dir") return { kind: "dir", name: path }
+    return { kind: "file", node }
+  }
+
+  cd(cwd: readonly string[], arg: string): CdResult {
+    const path = firstOperand(arg) || "~" // bare `cd` goes home
+    const segs = this.resolve(cwd, path)
+    const node = this.lookup(segs)
+    if (!node) return { kind: "error", msg: `cd: ${path}: No such file or directory` }
+    if (node.kind !== "dir") return { kind: "error", msg: `cd: ${path}: Not a directory` }
+    return { kind: "ok", cwd: segs }
+  }
+
+  tree(cwd: readonly string[], arg: string): TreeResult {
+    const path = firstOperand(arg)
+    const segs = this.resolve(cwd, path)
+    const node = this.lookup(segs)
+    if (!node)
+      return {
+        kind: "error",
+        msg: `tree: ${path || this.pathLabel(segs)}: No such file or directory`,
+      }
+    if (node.kind === "file") return { kind: "file", node, segs }
+    return { kind: "dir", label: this.pathLabel(segs), rows: this.treeRows(node, segs) }
+  }
+
+  // Flatten a directory into ASCII-tree rows. Dirs marked treeLeaf show as a
+  // single line (with a count); everything else recurses, like real `tree`.
+  private treeRows(dir: FsDirNode, dirSegs: readonly string[]): TreeRow[] {
+    const rows: TreeRow[] = []
+    const walk = (d: FsDirNode, segs: readonly string[], pad: string) => {
+      d.children.forEach((c, i) => {
+        const last = i === d.children.length - 1
+        const childSegs = [...segs, c.name]
+        const isDir = c.kind === "dir"
+        // Folders drill in (cd && ls); files open their view (cat, or alias).
+        const cmd = isDir
+          ? `cd ${this.pathLabel(childSegs)} && ls`
+          : (c.cmd ?? `cat ${this.pathLabel(childSegs)}`)
+        const meta = c.kind === "dir" ? c.treeMeta : c.note
+        rows.push({
+          prefix: pad + (last ? "└── " : "├── "),
+          name: isDir ? c.name + "/" : c.name,
+          isDir,
+          cmd,
+          meta,
+        })
+        if (c.kind === "dir" && !c.treeLeaf) walk(c, childSegs, pad + (last ? "    " : "│   "))
+      })
+    }
+    walk(dir, dirSegs, "")
+    return rows
+  }
+}
+
+const SHELL = new ShellFs(FS, HOME_PATH)
 
 // Games take over the whole screen: a focused overlay above the shell. Esc, the
 // ✕, or a click on the backdrop returns you to the prompt. Lazy-loaded.
@@ -1336,6 +1746,9 @@ export default function Shell() {
   const [preview, setPreview] = useState<string | null>(null)
   const [activeGame, setActiveGame] = useState<string | null>(null)
   const [matrixMode, setMatrixMode] = useState(false)
+  // Current working directory, as segments from the root. `cd` moves it; the
+  // prompt and the top bar track it. Starts at /home/jess (~).
+  const [cwd, setCwd] = useState<string[]>(() => [...HOME_PATH])
 
   const idRef = useRef(0)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -1362,6 +1775,8 @@ export default function Shell() {
   activeGameRef.current = activeGame
   const matrixModeRef = useRef(false)
   matrixModeRef.current = matrixMode
+  const cwdRef = useRef(cwd)
+  cwdRef.current = cwd
   // Tab-completion cycle state (multiple candidates → cycle through them).
   const tabCycle = useRef<{ base: string; matches: string[]; idx: number } | null>(
     null,
@@ -1382,6 +1797,13 @@ export default function Shell() {
   const pushText = useCallback(
     (node: JSX.Element) => push({ kind: "text", node }),
     [push],
+  )
+
+  // The prompt as it stands right now — captured per echo line so scrollback
+  // keeps the path each command actually ran under, even after `cd` moves on.
+  const ps1 = useCallback(
+    () => `${guestRef.current}@${HOST}:${SHELL.pathLabel(cwdRef.current)}$`,
+    [],
   )
 
   // Unlock an achievement once: persist it and drop a quiet toast in the
@@ -1633,33 +2055,55 @@ export default function Shell() {
     pushText(<HelpBlock run={clickRef.current} />)
   }, [pushText])
 
-  const runLs = useCallback(() => {
-    pushText(<LsBlock run={clickRef.current} />)
+  const runLs = useCallback(
+    (arg: string) => {
+      const r = SHELL.ls(cwdRef.current, arg)
+      if (r.kind === "error") return pushText(<Errline>{r.msg}</Errline>)
+      if (r.kind === "file")
+        return pushText(<FileLsBlock node={r.node} segs={r.segs} run={clickRef.current} />)
+      // a directory: its rich listing if it has one, else a generic ls
+      return pushText(
+        r.node.listing ? (
+          r.node.listing(clickRef.current)
+        ) : (
+          <DirListing node={r.node} segs={r.segs} run={clickRef.current} />
+        ),
+      )
+    },
+    [pushText],
+  )
+
+  const runCd = useCallback(
+    (arg: string): boolean => {
+      const r = SHELL.cd(cwdRef.current, arg)
+      if (r.kind === "error") {
+        pushText(<Errline>{r.msg}</Errline>)
+        return false
+      }
+      // Update the ref synchronously so a chained `cd x && ls` sees the new cwd
+      // immediately; setCwd moves the prompt on the next render. cd itself is
+      // silent, like a real shell — the `&& ls` is what shows the contents.
+      cwdRef.current = r.cwd
+      setCwd(r.cwd)
+      return true
+    },
+    [pushText],
+  )
+
+  const runPwd = useCallback(() => {
+    pushText(<p className="jsh-out">{SHELL.absPath(cwdRef.current)}</p>)
   }, [pushText])
 
-  const runWhoami = useCallback(() => {
-    pushText(<WhoamiBlock run={clickRef.current} />)
-  }, [pushText])
-
-  const runSkills = useCallback(() => {
-    pushText(<SkillsBlock run={clickRef.current} />)
-  }, [pushText])
-
-  const runWriting = useCallback(() => {
-    pushText(<WritingBlock />)
-  }, [pushText])
-
-  const runContact = useCallback(() => {
-    pushText(<ContactBlock />)
-  }, [pushText])
-
-  const runResume = useCallback(() => {
-    pushText(<ResumeBlock run={clickRef.current} />)
-  }, [pushText])
-
-  const runTree = useCallback(() => {
-    pushText(<TreeBlock run={clickRef.current} />)
-  }, [pushText])
+  const runTree = useCallback(
+    (arg: string) => {
+      const r = SHELL.tree(cwdRef.current, arg)
+      if (r.kind === "error") return pushText(<Errline>{r.msg}</Errline>)
+      if (r.kind === "file")
+        return pushText(<FileLsBlock node={r.node} segs={r.segs} run={clickRef.current} />)
+      return pushText(<TreeBlock label={r.label} rows={r.rows} run={clickRef.current} />)
+    },
+    [pushText],
+  )
 
   const runNeofetch = useCallback(() => {
     pushText(
@@ -1740,56 +2184,36 @@ export default function Shell() {
 
   const runCat = useCallback(
     (arg: string) => {
-      const t = arg.trim().toLowerCase()
-      if (!t) {
-        pushText(
+      const r = SHELL.cat(cwdRef.current, arg)
+      if (r.kind === "missing")
+        return pushText(
           <Errline>
             cat: missing operand. try <Cmd run={clickRef.current}>cat about</Cmd> or{" "}
             <Cmd run={clickRef.current}>ls</Cmd>
           </Errline>,
         )
-        return
-      }
-      if (t === "about") return pushText(<WhoamiBlock run={clickRef.current} />)
-      if (t === "experience" || t === "work" || t === "work/" || t === "~/work") {
-        // the expandable cards are the whole story now — no ls preamble
-        for (const j of JOBS) pushText(<JobBlock job={j} />)
-        return
-      }
-      // skills directory listing
-      if (t === "skills" || t === "skills/" || t === "~/skills" || t === "~/skills/")
-        return pushText(<SkillsBlock run={clickRef.current} />)
-      // a specific skill file: ~/skills/rust, skills/rust, rust.skill.md, or rust
-      const skillId = (() => {
-        const m = t.match(/^(?:~\/)?skills\/([a-z0-9-]+)(?:\.skill\.md)?$/)
-        if (m) return m[1]
-        if (t.endsWith(".skill.md")) return t.slice(0, -9)
-        if (SKILLS.some((s) => s.id === t)) return t
-        return null
-      })()
-      if (skillId) {
-        const sk = SKILLS.find((s) => s.id === skillId)
-        if (sk) return pushText(<SkillFileBlock skill={sk} />)
-      }
-      if (t === "resume" || t === "resume.txt" || t === "cv")
-        return pushText(<ResumeBlock run={clickRef.current} />)
-      if (t === "writing") return pushText(<WritingBlock />)
-      if (t === "contact" || t === ".contact") return pushText(<ContactBlock />)
-      if (t === "readme" || t === "readme.md")
-        return pushText(<ReadmeBlock run={clickRef.current} />)
-      const job = JOBS.find((j) => j.id === t || j.org.toLowerCase() === t)
-      if (job) return pushText(<JobBlock job={job} expanded />)
-      pushText(
-        <Errline>
-          cat: {arg}: no such file. known files:{" "}
-          {CAT_TARGETS.map((c, i) => (
-            <span key={c}>
-              {i > 0 ? " " : ""}
-              <Cmd run={clickRef.current}>{`cat ${c}`}</Cmd>
-            </span>
-          ))}
-        </Errline>,
-      )
+      if (r.kind === "dir")
+        return pushText(
+          <Errline>
+            cat: {r.name}: Is a directory — try{" "}
+            <Cmd run={clickRef.current}>{`ls ${r.name}`}</Cmd>
+          </Errline>,
+        )
+      if (r.kind === "error")
+        return pushText(
+          <Errline>
+            {r.msg}. known files:{" "}
+            {CAT_TARGETS.map((c, i) => (
+              <span key={c}>
+                {i > 0 ? " " : ""}
+                <Cmd run={clickRef.current}>{`cat ${c}`}</Cmd>
+              </span>
+            ))}{" "}
+            · or <Cmd run={clickRef.current}>ls</Cmd> to look around
+          </Errline>,
+        )
+      // a file: render its rich content
+      return pushText(r.node.render(clickRef.current))
     },
     [pushText],
   )
@@ -1839,15 +2263,16 @@ export default function Shell() {
   // Master dispatch. Echoes the command, then renders its output.
   // `replace` is the website-mode path: a clicked command collapses the page
   // back to the welcome header (its "tab bar") and shows just that command, so
-  // visitors can hop between cat experience / skills / resume without scrolling
-  // back up. Typed commands append, like a real terminal.
+  // visitors can hop between experience / skills / resume without scrolling
+  // back up. Typed commands append, like a real terminal. Commands are also
+  // &&-chained (a folder click runs `cd <dir> && ls`).
   const run = useCallback(
     (raw: string, opts?: { replace?: boolean }) => {
       const replace = opts?.replace === true
       setPreview(null)
       const cmd = raw.trim()
       if (cmd.length === 0) {
-        push({ kind: "echo", cmd: "" })
+        push({ kind: "echo", cmd: "", prompt: ps1() })
         return
       }
 
@@ -1881,229 +2306,254 @@ export default function Shell() {
         })
       }
 
-      push({ kind: "echo", cmd })
+      push({ kind: "echo", cmd, prompt: ps1() })
 
       cmdCountRef.current += 1
       unlockRef.current("first-contact")
       if (cmdCountRef.current >= ACH_POWER_USER_AT) unlockRef.current("power-user")
 
-      const [head, ...rest] = cmd.split(/\s+/)
-      const arg = rest.join(" ")
-      const h = head.toLowerCase()
+      // Commands chain on && like a real shell: run each segment in order and
+      // stop at the first failure. A folder click sends `cd <dir> && ls`, so it
+      // drills in (the prompt moves) and shows the contents — like opening a
+      // folder in a file browser. Most commands "succeed" (return undefined);
+      // only a bad cd or an unknown command returns false to break the chain.
+      const execOne = (segment: string): boolean | void => {
+        const [head, ...rest] = segment.split(/\s+/)
+        const arg = rest.join(" ")
+        const h = head.toLowerCase()
+        if (!h) return
 
-      // a tiny nod to the classic pipe
-      if (/^fortune\s*\|\s*cowsay$/i.test(cmd)) {
-        return pushText(<CowsayBlock text={pickFortune()} />)
-      }
-      // the vim escape reflex
-      if (/^:(w?q!?|x)$/i.test(cmd) || cmd === "ZZ") {
-        return pushText(
-          <p className="jsh-out jsh-muted">
-            not in an editor — but the reflex is respected. you&apos;re already free.
-          </p>,
-        )
-      }
-
-      switch (h) {
-        case "help":
-        case "?":
-          unlockRef.current("rtfm")
-          return runHelp()
-        case "man":
-        case "info":
-          unlockRef.current("rtfm")
-          return runMan(arg)
-        case "ls":
-        case "ll":
-        case "dir":
-          if (/skill/.test(arg)) return runSkills()
-          if (/work|experience/.test(arg)) return runCat("experience")
-          return runLs()
-        case "whoami":
-        case "about":
-          return runWhoami()
-        case "cat":
-        case "less":
-        case "more":
-          return runCat(arg)
-        case "open":
-        case "xdg-open":
-        case "start":
-          return runOpen(arg)
-        case "skills":
-          return runSkills()
-        case "resume":
-        case "cv":
-          return runResume()
-        case "writing":
-        case "blog":
-          return runWriting()
-        case "projects":
-        case "repos":
-        case "oss":
-          return pushText(<ProjectsBlock run={clickRef.current} />)
-        case "contact":
-        case "email":
-          return runContact()
-        case "tree":
-          return runTree()
-        case "theme":
-        case "color":
-        case "colour":
-          return runTheme(arg)
-        case "neofetch":
-        case "fetch":
-          return runNeofetch()
-        case "achievements":
-        case "achievement":
-        case "trophies":
-          return pushText(<AchievementsBlock unlocked={achievementsRef.current} />)
-        case "games":
-        case "play":
-          return pushText(<GamesBlock run={clickRef.current} />)
-        case "history":
-          return pushText(
-            <HistoryBlock items={historyRef.current} run={clickRef.current} />,
-          )
-        case "coffee":
-        case "make":
-          unlockRef.current("caffeinated")
-          return pushText(<CoffeeBlock />)
-        case "fortune":
-          return pushText(<FortuneBlock />)
-        case "cowsay":
-          return pushText(<CowsayBlock text={arg || pickFortune()} />)
-        case "sl":
-          return pushText(<SlBlock />)
-        case "apt":
-        case "apt-get":
-          if (/\bmoo\b/.test(arg)) return pushText(<AptMooBlock />)
+        // a tiny nod to the classic pipe
+        if (/^fortune\s*\|\s*cowsay$/i.test(segment)) {
+          return pushText(<CowsayBlock text={pickFortune()} />)
+        }
+        // the vim escape reflex
+        if (/^:(w?q!?|x)$/i.test(segment) || segment === "ZZ") {
           return pushText(
             <p className="jsh-out jsh-muted">
-              E: unable to locate package. (this is not that kind of machine.)
+              not in an editor — but the reflex is respected. you&apos;re already free.
             </p>,
           )
-        case "aptitude":
-          if (/\bmoo\b/.test(arg))
+        }
+
+        switch (h) {
+          case "help":
+          case "?":
+            unlockRef.current("rtfm")
+            return runHelp()
+          case "man":
+          case "info":
+            unlockRef.current("rtfm")
+            return runMan(arg)
+          // ---- real filesystem verbs (the Shell owns the rules) ----
+          case "ls":
+          case "ll":
+          case "dir":
+            return runLs(arg)
+          case "cd":
+          case "chdir":
+            return runCd(arg)
+          case "tree":
+            return runTree(arg)
+          case "cat":
+          case "less":
+          case "more":
+            return runCat(arg)
+          case "open":
+          case "xdg-open":
+          case "start":
+            return runOpen(arg)
+          // ---- content shortcuts: each is just an ls/cat of a known path ----
+          case "whoami":
+          case "about":
+            return runCat("about")
+          case "experience":
+          case "work":
+          case "jobs":
+            return runLs("~/experience")
+          case "skills":
+            return runLs("~/skills")
+          case "resume":
+          case "cv":
+            return runCat("~/resume.txt")
+          case "writing":
+          case "blog":
+            return runLs("~/writing")
+          case "projects":
+          case "repos":
+          case "oss":
+            return runLs("~/projects")
+          case "contact":
+          case "email":
+            return runCat("contact")
+          case "readme":
+            return runCat("readme")
+          case "theme":
+          case "color":
+          case "colour":
+            return runTheme(arg)
+          case "neofetch":
+          case "fetch":
+            return runNeofetch()
+          case "achievements":
+          case "achievement":
+          case "trophies":
+            return pushText(<AchievementsBlock unlocked={achievementsRef.current} />)
+          case "games":
+          case "play":
+            return runLs("~/games")
+          case "history":
+            return pushText(
+              <HistoryBlock items={historyRef.current} run={clickRef.current} />,
+            )
+          case "coffee":
+          case "make":
+            unlockRef.current("caffeinated")
+            return pushText(<CoffeeBlock />)
+          case "fortune":
+            return pushText(<FortuneBlock />)
+          case "cowsay":
+            return pushText(<CowsayBlock text={arg || pickFortune()} />)
+          case "sl":
+            return pushText(<SlBlock />)
+          case "apt":
+          case "apt-get":
+            if (/\bmoo\b/.test(arg)) return pushText(<AptMooBlock />)
             return pushText(
               <p className="jsh-out jsh-muted">
-                There are no Easter Eggs in this program.
+                E: unable to locate package. (this is not that kind of machine.)
               </p>,
             )
-          return pushText(
-            <Errline>
-              aptitude: try <Cmd run={clickRef.current}>aptitude moo</Cmd>.
-            </Errline>,
-          )
-        case "pwd":
-          return pushText(<p className="jsh-out">/home/{USER}</p>)
-        case "echo":
-          return pushText(<p className="jsh-out">{arg || " "}</p>)
-        case "vim":
-        case "vi":
-        case "nvim":
-          return pushText(
-            <p className="jsh-out jsh-muted">
-              nice reflex — but nothing&apos;s open. to leave, type{" "}
-              <Cmd run={clickRef.current}>:q</Cmd> like the rest of us.
-            </p>,
-          )
-        case "nano":
-          return pushText(
-            <p className="jsh-out jsh-muted">
-              nano? a gentle choice. this house runs vim, but you do you.
-            </p>,
-          )
-        case "emacs":
-          return pushText(
-            <p className="jsh-out jsh-muted">
-              emacs: a fine operating system, lacking only a decent editor. (kidding.
-              mostly.)
-            </p>,
-          )
-        case "ping":
-          return pushText(
-            <pre className="jsh-toy">{`PING jessica.black (127.0.0.1): 56 data bytes
+          case "aptitude":
+            if (/\bmoo\b/.test(arg))
+              return pushText(
+                <p className="jsh-out jsh-muted">
+                  There are no Easter Eggs in this program.
+                </p>,
+              )
+            return pushText(
+              <Errline>
+                aptitude: try <Cmd run={clickRef.current}>aptitude moo</Cmd>.
+              </Errline>,
+            )
+          case "pwd":
+            return runPwd()
+          case "echo":
+            return pushText(<p className="jsh-out">{arg || " "}</p>)
+          case "vim":
+          case "vi":
+          case "nvim":
+            return pushText(
+              <p className="jsh-out jsh-muted">
+                nice reflex — but nothing&apos;s open. to leave, type{" "}
+                <Cmd run={clickRef.current}>:q</Cmd> like the rest of us.
+              </p>,
+            )
+          case "nano":
+            return pushText(
+              <p className="jsh-out jsh-muted">
+                nano? a gentle choice. this house runs vim, but you do you.
+              </p>,
+            )
+          case "emacs":
+            return pushText(
+              <p className="jsh-out jsh-muted">
+                emacs: a fine operating system, lacking only a decent editor. (kidding.
+                mostly.)
+              </p>,
+            )
+          case "ping":
+            return pushText(
+              <pre className="jsh-toy">{`PING jessica.black (127.0.0.1): 56 data bytes
 64 bytes from 127.0.0.1: icmp_seq=0 time=0.013 ms
 64 bytes from 127.0.0.1: icmp_seq=1 time=0.011 ms
 --- jessica.black ping statistics ---
 2 packets transmitted, 2 received, 0% loss. she's right here.`}</pre>,
-          )
-        case "cmatrix":
-        case "matrix": {
-          const next = !matrixModeRef.current
-          setMatrixMode(next)
-          try {
-            window.localStorage.setItem("jsh-matrix", next ? "1" : "0")
-          } catch {
-            /* ignore */
-          }
-          return pushText(
-            next ? (
-              <p className="jsh-out jsh-muted">
-                wake up… matrix mode <span className="jsh-em">engaged</span>. (run{" "}
-                <Cmd run={clickRef.current}>cmatrix</Cmd> again to unplug.)
-              </p>
-            ) : (
-              <p className="jsh-out jsh-muted">
-                matrix mode disengaged. welcome back to the desert of the real.
-              </p>
-            ),
-          )
-        }
-        case "sudo":
-          unlockRef.current("permission-denied")
-          return pushText(
-            <Errline>
-              {guestRef.current} is not in the sudoers file. this incident will be
-              reported. (it won&apos;t. there is no one to report it to.)
-            </Errline>,
-          )
-        case "rm":
-          if (/-rf?\b/.test(arg) && /(\/|~|\*)/.test(arg)) {
-            unlockRef.current("nice-try")
+            )
+          case "cmatrix":
+          case "matrix": {
+            const next = !matrixModeRef.current
+            setMatrixMode(next)
+            try {
+              window.localStorage.setItem("jsh-matrix", next ? "1" : "0")
+            } catch {
+              /* ignore */
+            }
             return pushText(
-              <p className="jsh-out jsh-muted">
-                nice try. this site is content-addressed; it heals.{" "}
-                <Cmd run={clickRef.current}>ls</Cmd>?
-              </p>,
+              next ? (
+                <p className="jsh-out jsh-muted">
+                  wake up… matrix mode <span className="jsh-em">engaged</span>. (run{" "}
+                  <Cmd run={clickRef.current}>cmatrix</Cmd> again to unplug.)
+                </p>
+              ) : (
+                <p className="jsh-out jsh-muted">
+                  matrix mode disengaged. welcome back to the desert of the real.
+                </p>
+              ),
             )
           }
-          return pushText(<Errline>rm: refusing. everything here is load-bearing.</Errline>)
-        case "exit":
-        case "logout":
-        case "quit":
-          return pushText(
-            <p className="jsh-out jsh-muted">
-              there is no exit. there is only{" "}
-              <Cmd run={clickRef.current}>open github</Cmd>.
-            </p>,
-          )
-        default:
-          if (GAMES[h]) {
-            setActiveGame(h)
-            return
-          }
-          return pushText(
-            <Errline>
-              {head}: command not found. try <Cmd run={clickRef.current}>help</Cmd> — or
-              just click something below.
-            </Errline>,
-          )
+          case "sudo":
+            unlockRef.current("permission-denied")
+            return pushText(
+              <Errline>
+                {guestRef.current} is not in the sudoers file. this incident will be
+                reported. (it won&apos;t. there is no one to report it to.)
+              </Errline>,
+            )
+          case "rm":
+            if (/-rf?\b/.test(arg) && /(\/|~|\*)/.test(arg)) {
+              unlockRef.current("nice-try")
+              return pushText(
+                <p className="jsh-out jsh-muted">
+                  nice try. this site is content-addressed; it heals.{" "}
+                  <Cmd run={clickRef.current}>ls</Cmd>?
+                </p>,
+              )
+            }
+            return pushText(
+              <Errline>rm: refusing. everything here is load-bearing.</Errline>,
+            )
+          case "exit":
+          case "logout":
+          case "quit":
+            return pushText(
+              <p className="jsh-out jsh-muted">
+                there is no exit. there is only{" "}
+                <Cmd run={clickRef.current}>open github</Cmd>.
+              </p>,
+            )
+          default:
+            if (GAMES[h]) {
+              setActiveGame(h)
+              return
+            }
+            pushText(
+              <Errline>
+                {head}: command not found. try <Cmd run={clickRef.current}>help</Cmd> —
+                or just click something below.
+              </Errline>,
+            )
+            return false
+        }
+      }
+
+      // chain on && — run each segment, stop at the first failure
+      for (const part of cmd.split("&&")) {
+        const seg = part.trim()
+        if (!seg) continue
+        if (execOne(seg) === false) break
       }
     },
     [
       push,
       pushText,
+      ps1,
       runHelp,
       runLs,
-      runWhoami,
+      runCd,
+      runPwd,
       runCat,
       runOpen,
-      runSkills,
-      runResume,
-      runWriting,
-      runContact,
       runTree,
       runTheme,
       runNeofetch,
@@ -2234,13 +2684,13 @@ export default function Shell() {
       if (e.key === "c" && e.ctrlKey) {
         // ^C cancels the current line, like a real shell
         e.preventDefault()
-        push({ kind: "echo", cmd: input + "^C" })
+        push({ kind: "echo", cmd: input + "^C", prompt: ps1() })
         setInput("")
         setHistIdx(-1)
         return
       }
     },
-    [input, history, histIdx, onSubmit, push],
+    [input, history, histIdx, onSubmit, push, ps1],
   )
 
   /* --------- global key affordance: any key skips the boot -------- */
@@ -2297,7 +2747,7 @@ export default function Shell() {
 
   /* ----------------------------- VIEW ----------------------------- */
 
-  const promptStr = `${guest}@${HOST}:~$`
+  const promptStr = `${guest}@${HOST}:${SHELL.pathLabel(cwd)}$`
   const reveal = useMemo(() => (reduced ? "" : "jsh-reveal"), [reduced])
 
   return (
@@ -2335,7 +2785,7 @@ export default function Shell() {
             <span className="jsh-topbar-title">
               {guest}@{HOST}
               <span className="jsh-faint">:</span>
-              <span className="jsh-path">~</span>
+              <span className="jsh-path">{SHELL.pathLabel(cwd)}</span>
             </span>
             <span className="jsh-topbar-right">
               <span className="jsh-clock jsh-tnum" aria-hidden="true">
@@ -2355,7 +2805,7 @@ export default function Shell() {
           >
             <div className="jsh-scroll-inner">
               {lines.map((l) => (
-                <TranscriptRow key={l.id} line={l} prompt={promptStr} reduced={reduced} />
+                <TranscriptRow key={l.id} line={l} reduced={reduced} />
               ))}
 
               {phase === "ready" && (
@@ -2452,21 +2902,13 @@ export default function Shell() {
  *  ROW RENDERER
  * ------------------------------------------------------------------ */
 
-function TranscriptRow({
-  line,
-  prompt,
-  reduced,
-}: {
-  line: Line
-  prompt: string
-  reduced: boolean
-}) {
+function TranscriptRow({ line, reduced }: { line: Line; reduced: boolean }) {
   const cls = reduced ? "" : "jsh-row-in"
   const b = line.block
   if (b.kind === "echo") {
     return (
       <div className={`jsh-echo ${cls}`}>
-        <span className="jsh-ps1">{prompt}</span>
+        <span className="jsh-ps1">{b.prompt}</span>
         <span className="jsh-echo-cmd">{b.cmd}</span>
       </div>
     )
@@ -2562,7 +3004,7 @@ function PaletteRow() {
   const items: Array<[string, string]> = [
     ["whoami", "who is this"],
     ["ls", "browse files"],
-    ["cat experience", "full history"],
+    ["experience", "full history"],
     ["skills", "skill files"],
     ["resume", "the whole thing"],
     ["contact", "say hi"],
@@ -2630,7 +3072,9 @@ function HelpBlock({ run }: { run: (c: string) => void }) {
   const rows: Array<[string, string]> = [
     ["help", "this list"],
     ["man <cmd>", "read the manual — e.g. man ls"],
-    ["ls", "list ~/ — the files"],
+    ["ls", "list the current directory"],
+    ["cd <dir>", "change directory — e.g. cd skills, cd .."],
+    ["pwd", "print where you are"],
     ["whoami", "the short version"],
     ["cat <name>", "read a file — e.g. cat attune, cat readme"],
     ["skills", "skill files — like the ones you give an agent"],
@@ -2674,56 +3118,171 @@ function HelpBlock({ run }: { run: (c: string) => void }) {
   )
 }
 
-// `ls ~` — the home directory as a clickable site map. Names route to the
-// command that opens them; directories get a trailing slash, like real `ls`.
-const HOME_ENTRIES: Array<{ name: string; cmd: string; note: string }> = [
-  { name: "about", cmd: "whoami", note: "who I am" },
-  { name: "experience/", cmd: "cat experience", note: "where I've worked" },
-  { name: "skills/", cmd: "skills", note: "what I'm fluent in" },
-  { name: "projects/", cmd: "projects", note: "things I've built" },
-  { name: "resume.txt", cmd: "resume", note: "the whole thing" },
-  { name: "writing/", cmd: "writing", note: "things I've written" },
-  { name: "games/", cmd: "games", note: "the arcade" },
-  { name: "contact", cmd: "contact", note: "how to reach me" },
-  { name: "readme.md", cmd: "cat readme", note: "about this shell" },
-]
-
-function LsBlock({ run }: { run: (c: string) => void }) {
+// `ls <dir>` — a directory as a clickable listing, generated from the live FS
+// node. Files cat, folders ls, executables run; the per-node `cmd` (its alias)
+// is used when present so a clicked name lands on the same view typing would.
+function DirListing({
+  node,
+  segs,
+  run,
+}: {
+  node: FsDirNode
+  segs: string[]
+  run: RunCmd
+}) {
   const preview = usePreview()
+  const label = SHELL.pathLabel(segs)
   return (
     <div className="jsh-ls">
       <p className="jsh-out jsh-muted">
-        <span className="jsh-ok">$</span> ls -la ~
+        <span className="jsh-ok">$</span> ls -la {label}
       </p>
       <p className="jsh-ls-total jsh-muted">
-        total {HOME_ENTRIES.length} · {USER} {USER}
+        total {node.children.length} · {USER} {USER}
       </p>
       <ul className="jsh-lslist">
-        {HOME_ENTRIES.map((e) => (
-          <li key={e.name} className="jsh-lsrow">
-            <span className="jsh-ls-perm jsh-muted">
-              {e.name.endsWith("/") ? "drwxr-xr-x" : "-rw-r--r--"}
-            </span>
-            <button
-              type="button"
-              className="jsh-ls-name"
-              onClick={() => run(e.cmd)}
-              onMouseEnter={() => preview(e.cmd)}
-              onMouseLeave={() => preview(null)}
-              onFocus={() => preview(e.cmd)}
-              onBlur={() => preview(null)}
-              title={e.cmd}
-            >
-              {e.name}
-            </button>
-            <span className="jsh-ls-role jsh-muted">{e.note}</span>
-          </li>
-        ))}
+        {node.children.map((e) => {
+          const childPath = label === "/" ? `/${e.name}` : `${label}/${e.name}`
+          // Folders drill in (cd && ls), like opening one in a file browser;
+          // files open their view (cat, or their alias).
+          const cmd =
+            e.kind === "dir" ? `cd ${childPath} && ls` : (e.cmd ?? `cat ${childPath}`)
+          const perm =
+            e.kind === "dir" ? "drwxr-xr-x" : e.exe ? "-rwxr-xr-x" : "-rw-r--r--"
+          return (
+            <li key={e.name} className="jsh-lsrow">
+              <span className="jsh-ls-perm jsh-muted">{perm}</span>
+              <button
+                type="button"
+                className="jsh-ls-name"
+                onClick={() => run(cmd)}
+                onMouseEnter={() => preview(cmd)}
+                onMouseLeave={() => preview(null)}
+                onFocus={() => preview(cmd)}
+                onBlur={() => preview(null)}
+                title={cmd}
+              >
+                {e.kind === "dir" ? e.name + "/" : e.name}
+              </button>
+              {e.note && <span className="jsh-ls-role jsh-muted">{e.note}</span>}
+            </li>
+          )
+        })}
       </ul>
       <p className="jsh-out jsh-muted jsh-ls-hint">
-        → click a name to open it, or type e.g. <Cmd run={run}>cat experience</Cmd>.
+        → click a folder to step into it, or a file to read it.{" "}
+        <span className="jsh-em">cd ..</span> goes back;{" "}
+        <span className="jsh-em">pwd</span> shows where you are.
       </p>
     </div>
+  )
+}
+
+// `ls <file>` — a single row, like a real `ls` of one file.
+function FileLsBlock({
+  node,
+  segs,
+  run,
+}: {
+  node: FsFileNode
+  segs: string[]
+  run: RunCmd
+}) {
+  const label = SHELL.pathLabel(segs)
+  const cmd = node.cmd ?? `cat ${label}`
+  return (
+    <div className="jsh-ls">
+      <p className="jsh-out jsh-muted">
+        <span className="jsh-ok">$</span> ls -la {label}
+      </p>
+      <ul className="jsh-lslist">
+        <li className="jsh-lsrow">
+          <span className="jsh-ls-perm jsh-muted">
+            {node.exe ? "-rwxr-xr-x" : "-rw-r--r--"}
+          </span>
+          <button type="button" className="jsh-ls-name" onClick={() => run(cmd)} title={cmd}>
+            {node.name}
+          </button>
+          {node.note && <span className="jsh-ls-role jsh-muted">{node.note}</span>}
+        </li>
+      </ul>
+      <p className="jsh-out jsh-muted jsh-ls-hint">
+        → it&apos;s a file — <Cmd run={run}>{cmd}</Cmd> to read it.
+      </p>
+    </div>
+  )
+}
+
+// `ls ~/experience` — the three roles as collapsed cards (hover/cat to expand).
+function ExperienceListing({ run }: { run: RunCmd }) {
+  return (
+    <div className="jsh-exp">
+      <p className="jsh-out jsh-muted">
+        <span className="jsh-ok">$</span> ls ~/experience/
+      </p>
+      {JOBS.map((j) => (
+        <JobBlock key={j.id} job={j} />
+      ))}
+      <p className="jsh-out jsh-muted jsh-ls-hint">
+        → hover a card to expand, or <Cmd run={run}>cat ~/experience/attune.md</Cmd> for
+        one. the printable version: <Cmd run={run}>resume</Cmd>.
+      </p>
+    </div>
+  )
+}
+
+// `cat ~/projects/<name>` — a project's "file": its note and where it lives.
+// Open-source ones link to code, others to their own home; clicking opens it.
+function ProjectFileBlock({ project, run }: { project: Project; run: RunCmd }) {
+  const url = projectUrl(project)
+  const badge = project.lang ?? project.badge
+  return (
+    <div className="jsh-skillfile">
+      <p className="jsh-out jsh-muted">
+        <span className="jsh-ok">$</span> cat ~/projects/{project.name}
+      </p>
+      <p className="jsh-out">
+        <span className="jsh-em">{project.name}</span>
+        {badge && <span className="jsh-muted"> · {badge}</span>}
+      </p>
+      <p className="jsh-out jsh-measure">{project.note}</p>
+      {url ? (
+        <p className="jsh-out jsh-muted">
+          → <Ext href={url}>{url.replace(/^https?:\/\//, "")}</Ext> ·{" "}
+          <Cmd run={run}>{`open ${project.name}`}</Cmd>
+        </p>
+      ) : (
+        <p className="jsh-out jsh-muted">no public link — this one keeps to itself.</p>
+      )}
+    </div>
+  )
+}
+
+// `cat ~/writing/<slug>.md` — a post's "file": title, venue, and the link.
+function WritingFileBlock({ item, file }: { item: Writing; file: string }) {
+  return (
+    <div className="jsh-skillfile">
+      <p className="jsh-out jsh-muted">
+        <span className="jsh-ok">$</span> cat ~/writing/{file}
+      </p>
+      <p className="jsh-out">
+        <span className="jsh-em">{item.title}</span>
+        <span className="jsh-muted"> · {item.where}</span>
+      </p>
+      <p className="jsh-out jsh-muted">
+        → <Ext href={item.url}>{item.url.replace(/^https?:\/\//, "")}</Ext>
+      </p>
+    </div>
+  )
+}
+
+// `cat ~/games/<name>` — games are "binaries", not text. Don't cat them; run them.
+function BinaryBlock({ name, run }: { name: string; run: RunCmd }) {
+  return (
+    <p className="jsh-out jsh-muted">
+      cat: {name}: binary file — it&apos;s a game, not a text file. <Cmd run={run}>{name}</Cmd>{" "}
+      to play it. (arrows move; esc quits.)
+    </p>
   )
 }
 
@@ -2896,54 +3455,49 @@ function ResumeBlock({ run }: { run: (c: string) => void }) {
       </p>
       <p className="jsh-out jsh-muted jsh-resume-foot">
         ↑ that&apos;s the whole résumé. or read it piece by piece:{" "}
-        <Cmd run={run}>cat experience</Cmd> · <Cmd run={run}>skills</Cmd>.
+        <Cmd run={run}>experience</Cmd> · <Cmd run={run}>skills</Cmd>.
       </p>
     </div>
   )
 }
 
-function TreeBlock({ run }: { run: (c: string) => void }) {
+// `tree` — rendered from rows the Shell flattened out of the live FS, so it
+// always matches what `ls` and `cd` see. Every name is clickable.
+function TreeBlock({
+  label,
+  rows,
+  run,
+}: {
+  label: string
+  rows: TreeRow[]
+  run: RunCmd
+}) {
   const preview = usePreview()
-  const rows: Array<{ branch: string; cmd?: string; name: string; meta?: string }> = [
-    { branch: "├──", name: "work/", meta: `${JOBS.length} roles` },
-    { branch: "│   ├──", cmd: "cat attune", name: "attune/", meta: "2025—" },
-    { branch: "│   ├──", cmd: "cat fossa", name: "fossa/", meta: "2019—25" },
-    { branch: "│   └──", cmd: "cat reynolds", name: "reynolds/", meta: "2013—19" },
-    { branch: "├──", cmd: "skills", name: "skills/", meta: `${SKILLS.length} files` },
-    { branch: "├──", cmd: "projects", name: "projects/", meta: `${PROJECTS.length} projects` },
-    { branch: "├──", cmd: "writing", name: "writing/", meta: `${WRITING.length} posts` },
-    { branch: "├──", cmd: "resume", name: "resume.txt", meta: "the whole thing" },
-    { branch: "└──", cmd: "contact", name: ".contact", meta: "github · linkedin · email" },
-  ]
   return (
     <div className="jsh-tree">
       <p className="jsh-out jsh-muted">
-        <span className="jsh-ok">$</span> tree ~
+        <span className="jsh-ok">$</span> tree {label}
       </p>
-      <p className="jsh-tree-root">~</p>
+      <p className="jsh-tree-root">{label}</p>
       <ul className="jsh-tree-list">
-        {rows.map((r) => (
-          <li key={r.name} className="jsh-tree-row">
+        {rows.map((r, i) => (
+          <li key={i} className="jsh-tree-row">
             <span className="jsh-tree-l">
               <span className="jsh-tree-branch" aria-hidden="true">
-                {r.branch}
-              </span>{" "}
-              {r.cmd ? (
-                <button
-                  type="button"
-                  className="jsh-tree-name"
-                  onClick={() => run(r.cmd as string)}
-                  onMouseEnter={() => preview(r.cmd as string)}
-                  onMouseLeave={() => preview(null)}
-                  onFocus={() => preview(r.cmd as string)}
-                  onBlur={() => preview(null)}
-                  title={r.cmd}
-                >
-                  {r.name}
-                </button>
-              ) : (
-                <span className="jsh-tree-name jsh-tree-name-static">{r.name}</span>
-              )}
+                {r.prefix}
+              </span>
+              <button
+                type="button"
+                className="jsh-tree-name"
+                onClick={() => run(r.cmd)}
+                onMouseEnter={() => preview(r.cmd)}
+                onMouseLeave={() => preview(null)}
+                onFocus={() => preview(r.cmd)}
+                onBlur={() => preview(null)}
+                title={r.cmd}
+              >
+                {r.name}
+              </button>
             </span>
             {r.meta && <span className="jsh-tree-meta jsh-muted">{r.meta}</span>}
           </li>
@@ -3228,7 +3782,7 @@ function WhoamiBlock({ run }: { run: (c: string) => void }) {
       <p className="jsh-out jsh-muted">
         currently <span className="jsh-em">@ Attune</span>. previously tech lead{" "}
         <span className="jsh-em">@ FOSSA</span>. read more:{" "}
-        <Cmd run={run}>cat experience</Cmd> · <Cmd run={run}>skills</Cmd> ·{" "}
+        <Cmd run={run}>experience</Cmd> · <Cmd run={run}>skills</Cmd> ·{" "}
         <Cmd run={run}>contact</Cmd>
       </p>
     </div>
