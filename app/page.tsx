@@ -690,6 +690,8 @@ const COMMANDS = [
   "life",
   "pong",
   "cmatrix",
+  "threebody",
+  "3bp",
   "neofetch",
   "clear",
 ] as const
@@ -774,7 +776,13 @@ const MANPAGES: Record<string, ManEntry> = {
     name: "games — the arcade",
     synopsis: "games | <name>",
     desc: "Lists the arcade and your bests. Run a name (snake, tetris, asteroids, wordle, …) to play fullscreen; Esc exits. Not everything is listed.",
-    see: ["help"],
+    see: ["threebody", "help"],
+  },
+  threebody: {
+    name: "threebody — simulate the three-body problem",
+    synopsis: "threebody | 3bp",
+    desc: "A real-time gravity simulation, integrated with velocity Verlet. Two modes: trisolaris — the books' setup, three suns of unequal mass plus a small planet dragged among them (a real four-body system) — and a chaotic scramble of three equal masses. r reseeds (no two runs alike), space pauses, 1/2 switch, [ ] change speed, t toggles trails, esc quits.",
+    see: ["games", "neofetch"],
   },
   neofetch: {
     name: "neofetch — system + identity card",
@@ -931,6 +939,12 @@ const GAMES: Record<string, React.ComponentType> = {
   pong: dynamic(() => import("@/app/games/pong"), {
     ssr: false,
     loading: () => <p className="jsh-out jsh-muted">loading pong…</p>,
+  }),
+  // not a game in the arcade sense (no score, not in GAME_LIST) — a physics
+  // toy, launched by the `3bp` / `threebody` command. Reuses the game overlay.
+  threebody: dynamic(() => import("@/app/games/threebody"), {
+    ssr: false,
+    loading: () => <p className="jsh-out jsh-muted">loading three-body…</p>,
   }),
 }
 const GAME_LIST: Array<[string, string]> = [
@@ -2492,6 +2506,11 @@ export default function Shell() {
               ),
             )
           }
+          case "3bp":
+          case "threebody":
+          case "3body":
+            setActiveGame("threebody")
+            return
           case "sudo":
             unlockRef.current("permission-denied")
             return pushText(
@@ -3802,8 +3821,8 @@ function ReadmeBlock({ run }: { run: (c: string) => void }) {
       <p className="jsh-out jsh-muted">
         Everything here is also reachable by clicking. Start with <Cmd run={run}>ls</Cmd>{" "}
         or <Cmd run={run}>whoami</Cmd>. There is a <Cmd run={run}>theme</Cmd>,{" "}
-        <Cmd run={run}>games</Cmd>, a few hidden toys (fortune, cowsay, sl), and a
-        konami code.
+        <Cmd run={run}>games</Cmd>, a few hidden toys (fortune, cowsay, sl, a{" "}
+        <Cmd run={run}>threebody</Cmd> simulation), and a konami code.
       </p>
       <p className="jsh-out jsh-muted jsh-readme-fine">
         {/* a wink for the source-divers */}
@@ -4626,7 +4645,7 @@ const CSS = String.raw`
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: clamp(12px, 4vh, 48px);
+  padding: clamp(6px, 1.4vh, 18px);
   background: var(--jsh-bg);
   background-image: radial-gradient(circle at 50% 32%, var(--jsh-bg-2), var(--jsh-bg) 72%);
   animation: jsh-overlay-in 160ms ease;
@@ -4651,13 +4670,22 @@ const CSS = String.raw`
 }
 .jsh-game-overlay .jsh-game {
   margin: 0;
-  max-width: 94vw;
+  max-width: 98vw;
   box-shadow: 0 12px 60px rgba(0, 0, 0, 0.45);
 }
+/* games open near-fullscreen — only a little inset from the screen edges */
 .jsh-game-overlay .jsh-game-canvas {
   width: auto;
-  height: min(58vh, 540px);
-  max-width: 92vw;
+  height: min(74vh, 820px);
+  max-width: 93vw;
+}
+/* the three-body sim sizes its own backing store (DPR-aware) and wants smooth
+   scaling, not the pixel-art nearest-neighbor the arcade games use */
+.jsh-game-overlay .jsh-game-canvas.jsh-sim-canvas {
+  width: min(93vw, 1340px);
+  height: min(78vh, 1000px);
+  max-width: 93vw;
+  image-rendering: auto;
 }
 .jsh-game-overlay .jsh-game-body { padding: clamp(10px, 2.2vh, 24px); }
 .jsh-game-exit-note {
