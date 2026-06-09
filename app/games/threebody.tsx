@@ -21,221 +21,26 @@
 
 import { useEffect, useRef, useState } from "react"
 import { GameFrame, themeColors } from "./_frame"
+import { TRISOLARIS_SEEDS } from "./threebody-catalog"
+import {
+  BASE_SUBSTEPS,
+  DEFAULT_SPEED,
+  DT,
+  PRESETS,
+  SPEEDS,
+  TRAIL,
+  cameraTarget,
+  presetBodies,
+  randomSeed,
+  step,
+  type Body,
+  type Preset,
+} from "./threebody-core"
 
-type Body = { x: number; y: number; vx: number; vy: number; m: number; role?: "planet" }
-type Preset = "trisolaris" | "chaos"
-
-const PRESETS: Preset[] = ["trisolaris", "chaos"]
-const G = 1
-const SOFT2 = 0.0009 // softening² — tames the 1/r² singularity at close range
-const DT = 0.0016 // integration step, in world time
-const BASE_SUBSTEPS = 14 // physics steps per frame at 1× speed
-const SPEEDS = [0.25, 0.5, 1, 2, 4]
-const DEFAULT_SPEED = 2 // index into SPEEDS → 1×
-const TRAIL = 240 // points kept per body's tail
-
-// Subtract the center-of-mass velocity so the whole system doesn't drift off
-// screen — then the camera can hold the center of mass still.
-function zeroMomentum(bodies: Body[]): Body[] {
-  let px = 0
-  let py = 0
-  let tm = 0
-  for (const b of bodies) {
-    px += b.m * b.vx
-    py += b.m * b.vy
-    tm += b.m
-  }
-  for (const b of bodies) {
-    b.vx -= px / tm
-    b.vy -= py / tm
-  }
-  return bodies
-}
-
-// Build a preset's initial conditions. Both reseed differently each time, and
-// both zero the net momentum so the center of mass stays put for the camera.
-function presetBodies(p: Preset): Body[] {
-  if (p === "trisolaris") {
-    // Three suns of unequal mass, started on Lagrange's rotating equilateral
-    // triangle — a real solution to the three-body problem. With comparable
-    // masses that configuration is unstable, so a small kick tips it from an
-    // orderly "stable era" into a chaotic one, yet the system stays gravitation-
-    // ally bound (it dances rather than flying apart). Then a planet so light
-    // (~6e-5 of a sun — think Earth) that the suns don't feel it at all, dropped
-    // into orbit around the heaviest; it just gets dragged along for the ride.
-    const masses = [1.35, 1.0, 0.75]
-    const Mtot = masses[0] + masses[1] + masses[2]
-    const a = 1.35 // triangle side
-    const circum = a / Math.sqrt(3) // centroid → vertex
-    const jit = () => Math.random() - 0.5
-    const spin = Math.random() < 0.5 ? 1 : -1
-    const rot = Math.random() * Math.PI * 2
-    // rigid-rotation rate of the equilateral relative equilibrium: ω² = G·M/a³
-    const omega = Math.sqrt((G * Mtot) / (a * a * a)) * (1 + jit() * 0.03)
-    const verts = [0, 1, 2].map((i) => {
-      const ang = rot + (i * 2 * Math.PI) / 3
-      return { x: Math.cos(ang) * circum, y: Math.sin(ang) * circum }
-    })
-    // center of mass (unequal masses → not the centroid); spin about it
-    let cx = 0
-    let cy = 0
-    for (let i = 0; i < 3; i++) {
-      cx += masses[i] * verts[i].x
-      cy += masses[i] * verts[i].y
-    }
-    cx /= Mtot
-    cy /= Mtot
-    // a gentle perturbation: enough that each reseed diverges differently, small
-    // enough that the orderly "stable era" lasts a good while before chaos wins
-    const stars: Body[] = verts.map((v, i) => {
-      const rx = v.x - cx
-      const ry = v.y - cy
-      return {
-        x: v.x + jit() * 0.03,
-        y: v.y + jit() * 0.03,
-        vx: -ry * omega * spin + jit() * 0.022, // velocity ⟂ to radius (rotation)
-        vy: rx * omega * spin + jit() * 0.022,
-        m: masses[i],
-      }
-    })
-    const host = stars[0] // the heaviest
-    const d = 0.26 // planet's starting orbital radius around its sun
-    const pa = Math.random() * Math.PI * 2
-    const vorb = Math.sqrt((G * host.m) / d) * spin
-    const planet: Body = {
-      x: host.x + Math.cos(pa) * d,
-      y: host.y + Math.sin(pa) * d,
-      vx: host.vx - Math.sin(pa) * vorb,
-      vy: host.vy + Math.cos(pa) * vorb,
-      m: 0.00006,
-      role: "planet",
-    }
-    return zeroMomentum([...stars, planet])
-  }
-  // chaos — three equal masses flung at random, bounded so they start close
-  const bodies: Body[] = []
-  for (let i = 0; i < 3; i++) {
-    const a = (i / 3) * Math.PI * 2 + (Math.random() - 0.5) * 1.2
-    const r = 0.7 + Math.random() * 0.5
-    bodies.push({
-      x: Math.cos(a) * r,
-      y: Math.sin(a) * r,
-      vx: (Math.random() - 0.5) * 0.95,
-      vy: (Math.random() - 0.5) * 0.95,
-      m: 1,
-    })
-  }
-  return zeroMomentum(bodies)
-}
-
-// Pairwise gravitational acceleration, with softening. Newton's third law lets
-// us do each pair once.
-function accel(bodies: Body[]): Array<{ ax: number; ay: number }> {
-  const acc = bodies.map(() => ({ ax: 0, ay: 0 }))
-  for (let i = 0; i < bodies.length; i++) {
-    for (let j = i + 1; j < bodies.length; j++) {
-      const dx = bodies[j].x - bodies[i].x
-      const dy = bodies[j].y - bodies[i].y
-      const d2 = dx * dx + dy * dy + SOFT2
-      const inv = G / (d2 * Math.sqrt(d2)) // G / r³
-      const fx = dx * inv
-      const fy = dy * inv
-      acc[i].ax += fx * bodies[j].m
-      acc[i].ay += fy * bodies[j].m
-      acc[j].ax -= fx * bodies[i].m
-      acc[j].ay -= fy * bodies[i].m
-    }
-  }
-  return acc
-}
-
-// One velocity-Verlet step: drift on the half-kick, recompute, kick again.
-function step(bodies: Body[], dt: number) {
-  const a = accel(bodies)
-  for (let i = 0; i < bodies.length; i++) {
-    bodies[i].x += bodies[i].vx * dt + 0.5 * a[i].ax * dt * dt
-    bodies[i].y += bodies[i].vy * dt + 0.5 * a[i].ay * dt * dt
-  }
-  const a2 = accel(bodies)
-  for (let i = 0; i < bodies.length; i++) {
-    bodies[i].vx += 0.5 * (a[i].ax + a2[i].ax) * dt
-    bodies[i].vy += 0.5 * (a[i].ay + a2[i].ay) * dt
-  }
-}
-
-// Where the camera should look — its center and a characteristic "core" radius.
-// The three-body problem loves to fling a body out on an escape trajectory, and
-// a hard "drop the outlier" rule makes the frame jump as a body rides the
-// threshold in and out. So instead this is a smooth, continuous function of the
-// positions: iterative robust reweighting (a Cauchy/Welsch M-estimator). Each
-// pass weights bodies by m / (1 + (d/core)²), so a far body's pull on the center
-// and the zoom fades smoothly rather than snapping off. When the bodies sit at
-// comparable distances they're all framed; when one clearly escapes it just
-// fades out (and the draw loop gives it an edge arrow). No thresholds, no jumps.
-const MIN_CORE = 0.9 // floor on the core radius, so a tight pair doesn't over-zoom
-function cameraTarget(bodies: Body[]): { cx: number; cy: number; core: number } {
-  // Seed on the closest pair of *stars* (ignore the featherweight planet). After
-  // the system decays into a binary plus escaper(s), the binary sits far tighter
-  // than anything else; seeding the estimator there locks the camera onto it
-  // instead of settling in the empty middle between the receding pieces — which
-  // is what produced the "blank screen with edge arrows" at extreme separations.
-  let ai = -1
-  let bi = -1
-  let best = Infinity
-  for (let i = 0; i < bodies.length; i++) {
-    if (bodies[i].m < 0.01) continue
-    for (let j = i + 1; j < bodies.length; j++) {
-      if (bodies[j].m < 0.01) continue
-      const d = Math.hypot(bodies[i].x - bodies[j].x, bodies[i].y - bodies[j].y)
-      if (d < best) {
-        best = d
-        ai = i
-        bi = j
-      }
-    }
-  }
-  let cx: number
-  let cy: number
-  let core: number
-  if (ai >= 0) {
-    const ma = bodies[ai].m
-    const mb = bodies[bi].m
-    cx = (ma * bodies[ai].x + mb * bodies[bi].x) / (ma + mb)
-    cy = (ma * bodies[ai].y + mb * bodies[bi].y) / (ma + mb)
-    core = Math.max(best, MIN_CORE)
-  } else {
-    let msum = 0
-    cx = 0
-    cy = 0
-    for (const b of bodies) {
-      cx += b.m * b.x
-      cy += b.m * b.y
-      msum += b.m
-    }
-    cx /= msum
-    cy /= msum
-    core = MIN_CORE
-    for (const b of bodies) core = Math.max(core, Math.hypot(b.x - cx, b.y - cy))
-  }
-  for (let it = 0; it < 6; it++) {
-    let wsum = 0
-    let wx = 0
-    let wy = 0
-    let wd2 = 0
-    for (const b of bodies) {
-      const d2 = (b.x - cx) * (b.x - cx) + (b.y - cy) * (b.y - cy)
-      const w = b.m / (1 + d2 / (core * core))
-      wsum += w
-      wx += w * b.x
-      wy += w * b.y
-      wd2 += w * d2
-    }
-    if (wsum <= 0) break
-    cx = wx / wsum
-    cy = wy / wsum
-    core = Math.max(Math.sqrt(wd2 / wsum), MIN_CORE)
-  }
-  return { cx, cy, core }
+function catalogBodies(index: number): Body[] {
+  if (TRISOLARIS_SEEDS.length === 0) return presetBodies("trisolaris", { seed: randomSeed() })
+  const c = TRISOLARIS_SEEDS[index % TRISOLARIS_SEEDS.length]
+  return presetBodies("trisolaris", { seed: c.seed, masses: c.masses })
 }
 
 export default function ThreeBody() {
@@ -245,7 +50,8 @@ export default function ThreeBody() {
   const trailsRef = useRef(true)
   const speedRef = useRef(DEFAULT_SPEED)
   const presetRef = useRef<Preset>("trisolaris")
-  const bodiesRef = useRef<Body[]>(presetBodies("trisolaris"))
+  const catalogIndexRef = useRef(1)
+  const bodiesRef = useRef<Body[]>(catalogBodies(0))
   // one trail per body (4 for trisolaris, 3 for chaos) — derived so the counts
   // never fall out of sync with the body list
   const trailRef = useRef<Array<Array<{ x: number; y: number }>>>(
@@ -259,11 +65,12 @@ export default function ThreeBody() {
   const [preset, setPreset] = useState<Preset>("trisolaris")
   const [paused, setPaused] = useState(false)
   const [trails, setTrails] = useState(true)
-  const [speed, setSpeed] = useState(SPEEDS[DEFAULT_SPEED])
+  const [speed, setSpeed] = useState<number>(SPEEDS[DEFAULT_SPEED].label)
 
   const seed = (p: Preset) => {
     presetRef.current = p
-    bodiesRef.current = presetBodies(p)
+    bodiesRef.current =
+      p === "trisolaris" ? catalogBodies(catalogIndexRef.current++) : presetBodies(p, { seed: randomSeed() })
     trailRef.current = bodiesRef.current.map(() => [])
     snapRef.current = true
     setPreset(p)
@@ -291,11 +98,11 @@ export default function ThreeBody() {
     } else if (k === "[" || k === "-" || k === "arrowdown") {
       e.preventDefault()
       speedRef.current = Math.max(0, speedRef.current - 1)
-      setSpeed(SPEEDS[speedRef.current])
+      setSpeed(SPEEDS[speedRef.current].label)
     } else if (k === "]" || k === "+" || k === "=" || k === "arrowup") {
       e.preventDefault()
       speedRef.current = Math.min(SPEEDS.length - 1, speedRef.current + 1)
-      setSpeed(SPEEDS[speedRef.current])
+      setSpeed(SPEEDS[speedRef.current].label)
     } else if (k === "t") {
       e.preventDefault()
       trailsRef.current = !trailsRef.current
@@ -461,7 +268,7 @@ export default function ThreeBody() {
       // keep simulating even when the window/tab loses focus (only an explicit
       // pause stops it; the browser still throttles rAF in a fully hidden tab)
       if (!pausedRef.current) {
-        const steps = Math.max(1, Math.round(BASE_SUBSTEPS * SPEEDS[speedRef.current]))
+        const steps = Math.max(1, Math.round(BASE_SUBSTEPS * SPEEDS[speedRef.current].multiplier))
         for (let i = 0; i < steps; i++) step(bodies, DT)
         if (trailsRef.current) {
           for (let i = 0; i < bodies.length; i++) {

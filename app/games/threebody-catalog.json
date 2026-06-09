@@ -1,0 +1,1201 @@
+{
+  "schema": 1,
+  "generatedAt": "2026-06-09T06:58:08.423Z",
+  "source": {
+    "checkpoint": ".codex/threebody-search/results-24k.jsonl",
+    "records": 2000,
+    "frames": 24000,
+    "substeps": 14
+  },
+  "scoring": {
+    "summary": "Higher scores favor long periods where all bodies remain bound while the stellar dance stays broad and varied. Long outbound arcs are rewarded when they do not persist as positive-energy escapes.",
+    "hardDecay": [
+      "star-escape",
+      "planet-escape",
+      "compact-lock"
+    ],
+    "softDecay": [
+      "stable-binary"
+    ]
+  },
+  "massSummary": [
+    {
+      "masses": [
+        1.47,
+        1.085,
+        0.545
+      ],
+      "count": 1,
+      "bestScore": 29759,
+      "bestDanceFrames": 24000
+    },
+    {
+      "masses": [
+        1.244,
+        1.161,
+        0.695
+      ],
+      "count": 1,
+      "bestScore": 27293,
+      "bestDanceFrames": 24000
+    },
+    {
+      "masses": [
+        1.387,
+        0.861,
+        0.852
+      ],
+      "count": 1,
+      "bestScore": 26252,
+      "bestDanceFrames": 23807
+    },
+    {
+      "masses": [
+        1.35,
+        1,
+        0.75
+      ],
+      "count": 400,
+      "bestScore": 26079,
+      "bestDanceFrames": 24000
+    },
+    {
+      "masses": [
+        1.17,
+        1.074,
+        0.855
+      ],
+      "count": 1,
+      "bestScore": 25595,
+      "bestDanceFrames": 24000
+    },
+    {
+      "masses": [
+        1.693,
+        0.779,
+        0.628
+      ],
+      "count": 1,
+      "bestScore": 25582,
+      "bestDanceFrames": 24000
+    },
+    {
+      "masses": [
+        1.486,
+        0.933,
+        0.681
+      ],
+      "count": 1,
+      "bestScore": 25153,
+      "bestDanceFrames": 24000
+    },
+    {
+      "masses": [
+        1.549,
+        0.885,
+        0.667
+      ],
+      "count": 1,
+      "bestScore": 24999,
+      "bestDanceFrames": 24000
+    },
+    {
+      "masses": [
+        1.431,
+        1.197,
+        0.472
+      ],
+      "count": 1,
+      "bestScore": 24802,
+      "bestDanceFrames": 24000
+    },
+    {
+      "masses": [
+        1.095,
+        1.092,
+        0.913
+      ],
+      "count": 1,
+      "bestScore": 24547,
+      "bestDanceFrames": 24000
+    },
+    {
+      "masses": [
+        1.583,
+        0.947,
+        0.571
+      ],
+      "count": 1,
+      "bestScore": 24283,
+      "bestDanceFrames": 24000
+    },
+    {
+      "masses": [
+        1.433,
+        0.96,
+        0.707
+      ],
+      "count": 1,
+      "bestScore": 23659,
+      "bestDanceFrames": 24000
+    }
+  ],
+  "candidates": [
+    {
+      "rank": 1,
+      "id": "m-1.470-1.085-0.545-s-96933113",
+      "seed": 96933113,
+      "masses": [
+        1.47,
+        1.085,
+        0.545
+      ],
+      "score": 29759,
+      "danceFrames": 24000,
+      "decayReason": "frame-limit",
+      "quality": {
+        "interestingFraction": 0.486,
+        "boundFraction": 0.982,
+        "longArcFraction": 0.521,
+        "pairChanges": 11,
+        "pairVariety": 0.414,
+        "planetClosePasses": 23524,
+        "averageArea": 0.507,
+        "maxRadius": 28,
+        "maxPlanetRadius": 28,
+        "radiusPenalty": 0,
+        "maxStableFrames": 1357,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          0,
+          300
+        ]
+      }
+    },
+    {
+      "rank": 2,
+      "id": "m-1.244-1.161-0.695-s-2882660698",
+      "seed": 2882660698,
+      "masses": [
+        1.244,
+        1.161,
+        0.695
+      ],
+      "score": 27293,
+      "danceFrames": 24000,
+      "decayReason": "frame-limit",
+      "quality": {
+        "interestingFraction": 0.283,
+        "boundFraction": 0.999,
+        "longArcFraction": 0.415,
+        "pairChanges": 5,
+        "pairVariety": 0.329,
+        "planetClosePasses": 24000,
+        "averageArea": 0.383,
+        "maxRadius": 4.73,
+        "maxPlanetRadius": 4.73,
+        "radiusPenalty": 0,
+        "maxStableFrames": 1140,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "rank": 3,
+      "id": "m-1.387-0.861-0.852-s-809860887",
+      "seed": 809860887,
+      "masses": [
+        1.387,
+        0.861,
+        0.852
+      ],
+      "score": 26252,
+      "danceFrames": 23807,
+      "decayReason": "star-escape",
+      "quality": {
+        "interestingFraction": 0.23,
+        "boundFraction": 0.977,
+        "longArcFraction": 0.752,
+        "pairChanges": 14,
+        "pairVariety": 0.457,
+        "planetClosePasses": 1295,
+        "averageArea": 1.189,
+        "maxRadius": 29.54,
+        "maxPlanetRadius": 29.54,
+        "radiusPenalty": 0,
+        "maxStableFrames": 1721,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          541,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "rank": 4,
+      "id": "m-1.350-1.000-0.750-s-2758084101",
+      "seed": 2758084101,
+      "masses": [
+        1.35,
+        1,
+        0.75
+      ],
+      "score": 26079,
+      "danceFrames": 23325,
+      "decayReason": "star-escape",
+      "quality": {
+        "interestingFraction": 0.116,
+        "boundFraction": 0.975,
+        "longArcFraction": 0.738,
+        "pairChanges": 8,
+        "pairVariety": 0.371,
+        "planetClosePasses": 23326,
+        "averageArea": 2.243,
+        "maxRadius": 25.85,
+        "maxPlanetRadius": 25.85,
+        "radiusPenalty": 0,
+        "maxStableFrames": 44,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          541,
+          1
+        ]
+      }
+    },
+    {
+      "rank": 5,
+      "id": "m-1.170-1.074-0.855-s-3227308850",
+      "seed": 3227308850,
+      "masses": [
+        1.17,
+        1.074,
+        0.855
+      ],
+      "score": 25595,
+      "danceFrames": 24000,
+      "decayReason": "frame-limit",
+      "quality": {
+        "interestingFraction": 0.153,
+        "boundFraction": 1,
+        "longArcFraction": 0.455,
+        "pairChanges": 12,
+        "pairVariety": 0.429,
+        "planetClosePasses": 417,
+        "averageArea": 2.418,
+        "maxRadius": 31.18,
+        "maxPlanetRadius": 27.17,
+        "radiusPenalty": 0,
+        "maxStableFrames": 73,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "rank": 6,
+      "id": "m-1.693-0.779-0.628-s-665140463",
+      "seed": 665140463,
+      "masses": [
+        1.693,
+        0.779,
+        0.628
+      ],
+      "score": 25582,
+      "danceFrames": 24000,
+      "decayReason": "frame-limit",
+      "quality": {
+        "interestingFraction": 0.262,
+        "boundFraction": 0.999,
+        "longArcFraction": 0.38,
+        "pairChanges": 36,
+        "pairVariety": 0.771,
+        "planetClosePasses": 822,
+        "averageArea": 3.092,
+        "maxRadius": 51.25,
+        "maxPlanetRadius": 16.33,
+        "radiusPenalty": 0.051,
+        "maxStableFrames": 100,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "rank": 7,
+      "id": "m-1.486-0.933-0.681-s-1315003519",
+      "seed": 1315003519,
+      "masses": [
+        1.486,
+        0.933,
+        0.681
+      ],
+      "score": 25153,
+      "danceFrames": 24000,
+      "decayReason": "frame-limit",
+      "quality": {
+        "interestingFraction": 0.069,
+        "boundFraction": 1,
+        "longArcFraction": 0.651,
+        "pairChanges": 11,
+        "pairVariety": 0.414,
+        "planetClosePasses": 688,
+        "averageArea": 3.315,
+        "maxRadius": 39.21,
+        "maxPlanetRadius": 27.93,
+        "radiusPenalty": 0,
+        "maxStableFrames": 1460,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "rank": 8,
+      "id": "m-1.549-0.885-0.667-s-792276627",
+      "seed": 792276627,
+      "masses": [
+        1.549,
+        0.885,
+        0.667
+      ],
+      "score": 24999,
+      "danceFrames": 24000,
+      "decayReason": "frame-limit",
+      "quality": {
+        "interestingFraction": 0.51,
+        "boundFraction": 1,
+        "longArcFraction": 0.627,
+        "pairChanges": 23,
+        "pairVariety": 0.586,
+        "planetClosePasses": 1359,
+        "averageArea": 1.294,
+        "maxRadius": 166.11,
+        "maxPlanetRadius": 166.11,
+        "radiusPenalty": 0.18,
+        "maxStableFrames": 68,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "rank": 9,
+      "id": "m-1.431-1.197-0.472-s-3924935373",
+      "seed": 3924935373,
+      "masses": [
+        1.431,
+        1.197,
+        0.472
+      ],
+      "score": 24802,
+      "danceFrames": 24000,
+      "decayReason": "frame-limit",
+      "quality": {
+        "interestingFraction": 0.237,
+        "boundFraction": 0.999,
+        "longArcFraction": 0.14,
+        "pairChanges": 11,
+        "pairVariety": 0.414,
+        "planetClosePasses": 24000,
+        "averageArea": 0.27,
+        "maxRadius": 3.85,
+        "maxPlanetRadius": 3.85,
+        "radiusPenalty": 0,
+        "maxStableFrames": 1121,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "rank": 10,
+      "id": "m-1.095-1.092-0.913-s-26740510",
+      "seed": 26740510,
+      "masses": [
+        1.095,
+        1.092,
+        0.913
+      ],
+      "score": 24547,
+      "danceFrames": 24000,
+      "decayReason": "frame-limit",
+      "quality": {
+        "interestingFraction": 0.45,
+        "boundFraction": 0.999,
+        "longArcFraction": 0.552,
+        "pairChanges": 25,
+        "pairVariety": 0.614,
+        "planetClosePasses": 467,
+        "averageArea": 1.656,
+        "maxRadius": 78.69,
+        "maxPlanetRadius": 78.69,
+        "radiusPenalty": 0.18,
+        "maxStableFrames": 60,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "rank": 11,
+      "id": "m-1.583-0.947-0.571-s-274522552",
+      "seed": 274522552,
+      "masses": [
+        1.583,
+        0.947,
+        0.571
+      ],
+      "score": 24283,
+      "danceFrames": 24000,
+      "decayReason": "frame-limit",
+      "quality": {
+        "interestingFraction": 0.693,
+        "boundFraction": 0.996,
+        "longArcFraction": 0.185,
+        "pairChanges": 38,
+        "pairVariety": 0.8,
+        "planetClosePasses": 849,
+        "averageArea": 0.357,
+        "maxRadius": 160.79,
+        "maxPlanetRadius": 160.79,
+        "radiusPenalty": 0.18,
+        "maxStableFrames": 164,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "rank": 12,
+      "id": "m-1.433-0.960-0.707-s-3978244402",
+      "seed": 3978244402,
+      "masses": [
+        1.433,
+        0.96,
+        0.707
+      ],
+      "score": 23659,
+      "danceFrames": 24000,
+      "decayReason": "frame-limit",
+      "quality": {
+        "interestingFraction": 0.326,
+        "boundFraction": 0.998,
+        "longArcFraction": 0.769,
+        "pairChanges": 27,
+        "pairVariety": 0.643,
+        "planetClosePasses": 2045,
+        "averageArea": 2.761,
+        "maxRadius": 94.57,
+        "maxPlanetRadius": 94.57,
+        "radiusPenalty": 0.18,
+        "maxStableFrames": 887,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "rank": 13,
+      "id": "m-1.581-0.868-0.650-s-1055899343",
+      "seed": 1055899343,
+      "masses": [
+        1.581,
+        0.868,
+        0.65
+      ],
+      "score": 23478,
+      "danceFrames": 24000,
+      "decayReason": "frame-limit",
+      "quality": {
+        "interestingFraction": 0.468,
+        "boundFraction": 1,
+        "longArcFraction": 0.23,
+        "pairChanges": 58,
+        "pairVariety": 1,
+        "planetClosePasses": 553,
+        "averageArea": 2.115,
+        "maxRadius": 96.72,
+        "maxPlanetRadius": 96.72,
+        "radiusPenalty": 0.18,
+        "maxStableFrames": 72,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "rank": 14,
+      "id": "m-1.687-0.725-0.688-s-3116784765",
+      "seed": 3116784765,
+      "masses": [
+        1.687,
+        0.725,
+        0.688
+      ],
+      "score": 23206,
+      "danceFrames": 24000,
+      "decayReason": "frame-limit",
+      "quality": {
+        "interestingFraction": 0.337,
+        "boundFraction": 0.987,
+        "longArcFraction": 0.61,
+        "pairChanges": 9,
+        "pairVariety": 0.386,
+        "planetClosePasses": 6297,
+        "averageArea": 1.087,
+        "maxRadius": 121.5,
+        "maxPlanetRadius": 121.5,
+        "radiusPenalty": 0.18,
+        "maxStableFrames": 957,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          0,
+          99
+        ]
+      }
+    },
+    {
+      "rank": 15,
+      "id": "m-1.693-0.728-0.679-s-4190238685",
+      "seed": 4190238685,
+      "masses": [
+        1.693,
+        0.728,
+        0.679
+      ],
+      "score": 23047,
+      "danceFrames": 19802,
+      "decayReason": "planet-escape",
+      "quality": {
+        "interestingFraction": 0.433,
+        "boundFraction": 0.968,
+        "longArcFraction": 0.707,
+        "pairChanges": 9,
+        "pairVariety": 0.386,
+        "planetClosePasses": 459,
+        "averageArea": 0.984,
+        "maxRadius": 24.17,
+        "maxPlanetRadius": 24.17,
+        "radiusPenalty": 0,
+        "maxStableFrames": 182,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          0,
+          541
+        ]
+      }
+    },
+    {
+      "rank": 16,
+      "id": "m-1.128-1.067-0.905-s-2924347273",
+      "seed": 2924347273,
+      "masses": [
+        1.128,
+        1.067,
+        0.905
+      ],
+      "score": 22859,
+      "danceFrames": 24000,
+      "decayReason": "frame-limit",
+      "quality": {
+        "interestingFraction": 0.071,
+        "boundFraction": 1,
+        "longArcFraction": 0.278,
+        "pairChanges": 4,
+        "pairVariety": 0.314,
+        "planetClosePasses": 24000,
+        "averageArea": 4.436,
+        "maxRadius": 53.68,
+        "maxPlanetRadius": 53.68,
+        "radiusPenalty": 0.065,
+        "maxStableFrames": 948,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "rank": 17,
+      "id": "m-1.453-1.014-0.632-s-640352904",
+      "seed": 640352904,
+      "masses": [
+        1.453,
+        1.014,
+        0.632
+      ],
+      "score": 22240,
+      "danceFrames": 24000,
+      "decayReason": "frame-limit",
+      "quality": {
+        "interestingFraction": 0.26,
+        "boundFraction": 1,
+        "longArcFraction": 0.448,
+        "pairChanges": 19,
+        "pairVariety": 0.529,
+        "planetClosePasses": 987,
+        "averageArea": 1.192,
+        "maxRadius": 94.88,
+        "maxPlanetRadius": 94.88,
+        "radiusPenalty": 0.18,
+        "maxStableFrames": 1460,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "rank": 18,
+      "id": "m-1.172-1.049-0.879-s-1353641671",
+      "seed": 1353641671,
+      "masses": [
+        1.172,
+        1.049,
+        0.879
+      ],
+      "score": 22208,
+      "danceFrames": 17701,
+      "decayReason": "planet-escape",
+      "quality": {
+        "interestingFraction": 0.652,
+        "boundFraction": 0.958,
+        "longArcFraction": 0.492,
+        "pairChanges": 21,
+        "pairVariety": 0.557,
+        "planetClosePasses": 943,
+        "averageArea": 0.655,
+        "maxRadius": 31.33,
+        "maxPlanetRadius": 31.33,
+        "radiusPenalty": 0,
+        "maxStableFrames": 51,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          0,
+          541
+        ]
+      }
+    },
+    {
+      "rank": 19,
+      "id": "m-1.413-0.845-0.842-s-1591389360",
+      "seed": 1591389360,
+      "masses": [
+        1.413,
+        0.845,
+        0.842
+      ],
+      "score": 21983,
+      "danceFrames": 18564,
+      "decayReason": "planet-escape",
+      "quality": {
+        "interestingFraction": 0.523,
+        "boundFraction": 0.963,
+        "longArcFraction": 0.415,
+        "pairChanges": 27,
+        "pairVariety": 0.643,
+        "planetClosePasses": 917,
+        "averageArea": 0.514,
+        "maxRadius": 43.79,
+        "maxPlanetRadius": 43.79,
+        "radiusPenalty": 0.01,
+        "maxStableFrames": 315,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          0,
+          541
+        ]
+      }
+    },
+    {
+      "rank": 20,
+      "id": "m-1.593-0.899-0.608-s-1887811026",
+      "seed": 1887811026,
+      "masses": [
+        1.593,
+        0.899,
+        0.608
+      ],
+      "score": 21946,
+      "danceFrames": 24000,
+      "decayReason": "frame-limit",
+      "quality": {
+        "interestingFraction": 0.186,
+        "boundFraction": 0.997,
+        "longArcFraction": 0.675,
+        "pairChanges": 13,
+        "pairVariety": 0.443,
+        "planetClosePasses": 286,
+        "averageArea": 2.077,
+        "maxRadius": 152.38,
+        "maxPlanetRadius": 152.38,
+        "radiusPenalty": 0.18,
+        "maxStableFrames": 42,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "rank": 21,
+      "id": "m-1.100-1.017-0.983-s-1664033093",
+      "seed": 1664033093,
+      "masses": [
+        1.1,
+        1.017,
+        0.983
+      ],
+      "score": 21938,
+      "danceFrames": 22025,
+      "decayReason": "stable-binary",
+      "quality": {
+        "interestingFraction": 0.44,
+        "boundFraction": 0.992,
+        "longArcFraction": 0.455,
+        "pairChanges": 26,
+        "pairVariety": 0.629,
+        "planetClosePasses": 397,
+        "averageArea": 0.615,
+        "maxRadius": 158.7,
+        "maxPlanetRadius": 158.7,
+        "radiusPenalty": 0.18,
+        "maxStableFrames": 1801,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          0,
+          44
+        ]
+      }
+    },
+    {
+      "rank": 22,
+      "id": "m-1.632-0.740-0.728-s-1827929225",
+      "seed": 1827929225,
+      "masses": [
+        1.632,
+        0.74,
+        0.728
+      ],
+      "score": 21929,
+      "danceFrames": 24000,
+      "decayReason": "frame-limit",
+      "quality": {
+        "interestingFraction": 0.093,
+        "boundFraction": 1,
+        "longArcFraction": 0.184,
+        "pairChanges": 12,
+        "pairVariety": 0.429,
+        "planetClosePasses": 727,
+        "averageArea": 4.111,
+        "maxRadius": 48.55,
+        "maxPlanetRadius": 34.46,
+        "radiusPenalty": 0.036,
+        "maxStableFrames": 58,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "rank": 23,
+      "id": "m-1.647-0.728-0.725-s-2405865344",
+      "seed": 2405865344,
+      "masses": [
+        1.647,
+        0.728,
+        0.725
+      ],
+      "score": 21883,
+      "danceFrames": 24000,
+      "decayReason": "frame-limit",
+      "quality": {
+        "interestingFraction": 0.462,
+        "boundFraction": 0.997,
+        "longArcFraction": 0.216,
+        "pairChanges": 18,
+        "pairVariety": 0.514,
+        "planetClosePasses": 996,
+        "averageArea": 0.44,
+        "maxRadius": 138.47,
+        "maxPlanetRadius": 138.47,
+        "radiusPenalty": 0.18,
+        "maxStableFrames": 498,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "rank": 24,
+      "id": "m-1.351-0.908-0.841-s-1966900011",
+      "seed": 1966900011,
+      "masses": [
+        1.351,
+        0.908,
+        0.841
+      ],
+      "score": 21783,
+      "danceFrames": 17986,
+      "decayReason": "planet-escape",
+      "quality": {
+        "interestingFraction": 0.485,
+        "boundFraction": 0.964,
+        "longArcFraction": 0.565,
+        "pairChanges": 23,
+        "pairVariety": 0.586,
+        "planetClosePasses": 2320,
+        "averageArea": 0.726,
+        "maxRadius": 34.89,
+        "maxPlanetRadius": 34.89,
+        "radiusPenalty": 0,
+        "maxStableFrames": 59,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          0,
+          541
+        ]
+      }
+    },
+    {
+      "rank": 25,
+      "id": "m-1.264-1.200-0.636-s-185335428",
+      "seed": 185335428,
+      "masses": [
+        1.264,
+        1.2,
+        0.636
+      ],
+      "score": 21548,
+      "danceFrames": 24000,
+      "decayReason": "frame-limit",
+      "quality": {
+        "interestingFraction": 0.159,
+        "boundFraction": 0.998,
+        "longArcFraction": 0.479,
+        "pairChanges": 11,
+        "pairVariety": 0.414,
+        "planetClosePasses": 1514,
+        "averageArea": 3.539,
+        "maxRadius": 76.9,
+        "maxPlanetRadius": 73.5,
+        "radiusPenalty": 0.18,
+        "maxStableFrames": 52,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "rank": 26,
+      "id": "m-1.481-0.988-0.631-s-1637466302",
+      "seed": 1637466302,
+      "masses": [
+        1.481,
+        0.988,
+        0.631
+      ],
+      "score": 21261,
+      "danceFrames": 19743,
+      "decayReason": "stable-binary",
+      "quality": {
+        "interestingFraction": 0.592,
+        "boundFraction": 1,
+        "longArcFraction": 0.415,
+        "pairChanges": 51,
+        "pairVariety": 0.986,
+        "planetClosePasses": 942,
+        "averageArea": 0.557,
+        "maxRadius": 101.81,
+        "maxPlanetRadius": 101.81,
+        "radiusPenalty": 0.18,
+        "maxStableFrames": 1801,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "rank": 27,
+      "id": "m-1.350-1.000-0.750-s-1643779389",
+      "seed": 1643779389,
+      "masses": [
+        1.35,
+        1,
+        0.75
+      ],
+      "score": 21247,
+      "danceFrames": 17099,
+      "decayReason": "planet-escape",
+      "quality": {
+        "interestingFraction": 0.544,
+        "boundFraction": 0.962,
+        "longArcFraction": 0.483,
+        "pairChanges": 37,
+        "pairVariety": 0.786,
+        "planetClosePasses": 704,
+        "averageArea": 0.733,
+        "maxRadius": 38.51,
+        "maxPlanetRadius": 38.51,
+        "radiusPenalty": 0,
+        "maxStableFrames": 121,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          0,
+          541
+        ]
+      }
+    },
+    {
+      "rank": 28,
+      "id": "m-1.103-1.069-0.928-s-3910029972",
+      "seed": 3910029972,
+      "masses": [
+        1.103,
+        1.069,
+        0.928
+      ],
+      "score": 21100,
+      "danceFrames": 18365,
+      "decayReason": "planet-escape",
+      "quality": {
+        "interestingFraction": 0.403,
+        "boundFraction": 0.962,
+        "longArcFraction": 0.712,
+        "pairChanges": 8,
+        "pairVariety": 0.371,
+        "planetClosePasses": 1825,
+        "averageArea": 0.603,
+        "maxRadius": 19.81,
+        "maxPlanetRadius": 19.81,
+        "radiusPenalty": 0,
+        "maxStableFrames": 1395,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          0,
+          541
+        ]
+      }
+    },
+    {
+      "rank": 29,
+      "id": "m-1.763-0.801-0.536-s-2052998890",
+      "seed": 2052998890,
+      "masses": [
+        1.763,
+        0.801,
+        0.536
+      ],
+      "score": 21091,
+      "danceFrames": 18583,
+      "decayReason": "star-escape",
+      "quality": {
+        "interestingFraction": 0.521,
+        "boundFraction": 0.967,
+        "longArcFraction": 0.167,
+        "pairChanges": 44,
+        "pairVariety": 0.886,
+        "planetClosePasses": 1795,
+        "averageArea": 0.52,
+        "maxRadius": 38.6,
+        "maxPlanetRadius": 38.6,
+        "radiusPenalty": 0,
+        "maxStableFrames": 619,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          541,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "rank": 30,
+      "id": "m-1.500-1.017-0.582-s-3791557957",
+      "seed": 3791557957,
+      "masses": [
+        1.5,
+        1.017,
+        0.582
+      ],
+      "score": 21038,
+      "danceFrames": 24000,
+      "decayReason": "frame-limit",
+      "quality": {
+        "interestingFraction": 0.153,
+        "boundFraction": 0.995,
+        "longArcFraction": 0.271,
+        "pairChanges": 11,
+        "pairVariety": 0.414,
+        "planetClosePasses": 24000,
+        "averageArea": 6.492,
+        "maxRadius": 100.37,
+        "maxPlanetRadius": 100.37,
+        "radiusPenalty": 0.18,
+        "maxStableFrames": 40,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "rank": 31,
+      "id": "m-1.574-0.868-0.658-s-165286748",
+      "seed": 165286748,
+      "masses": [
+        1.574,
+        0.868,
+        0.658
+      ],
+      "score": 20825,
+      "danceFrames": 19917,
+      "decayReason": "star-escape",
+      "quality": {
+        "interestingFraction": 0.225,
+        "boundFraction": 0.972,
+        "longArcFraction": 0.727,
+        "pairChanges": 7,
+        "pairVariety": 0.357,
+        "planetClosePasses": 1787,
+        "averageArea": 2.46,
+        "maxRadius": 51.31,
+        "maxPlanetRadius": 51.31,
+        "radiusPenalty": 0.052,
+        "maxStableFrames": 39,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          541,
+          0
+        ]
+      }
+    },
+    {
+      "rank": 32,
+      "id": "m-1.264-1.108-0.728-s-341949050",
+      "seed": 341949050,
+      "masses": [
+        1.264,
+        1.108,
+        0.728
+      ],
+      "score": 20753,
+      "danceFrames": 21651,
+      "decayReason": "star-escape",
+      "quality": {
+        "interestingFraction": 0.267,
+        "boundFraction": 0.971,
+        "longArcFraction": 0.639,
+        "pairChanges": 27,
+        "pairVariety": 0.643,
+        "planetClosePasses": 545,
+        "averageArea": 1.202,
+        "maxRadius": 113.07,
+        "maxPlanetRadius": 113.07,
+        "radiusPenalty": 0.18,
+        "maxStableFrames": 690,
+        "maxCompactFrames": 0,
+        "maxEscapeFrames": [
+          0,
+          0,
+          541,
+          0
+        ]
+      }
+    }
+  ]
+}
