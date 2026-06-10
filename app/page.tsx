@@ -4687,6 +4687,81 @@ const CSS = String.raw`
   max-width: 93vw;
   image-rendering: auto;
 }
+.jsh-threebody-stage {
+  position: relative;
+  line-height: 0;
+}
+.jsh-threebody-stage .jsh-sim-canvas {
+  display: block;
+}
+.jsh-threebody-alert {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: min(320px, calc(100% - 36px));
+  padding: 8px 12px;
+  transform: translateX(-50%);
+  background: color-mix(in srgb, var(--jsh-bg) 88%, transparent);
+  border: 1px solid var(--jsh-amber-soft);
+  border-radius: 4px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  color: var(--jsh-amber);
+  line-height: 1.3;
+  text-align: center;
+  pointer-events: none;
+}
+.jsh-threebody-alert span {
+  font-size: 12px;
+}
+.jsh-threebody-alert small {
+  color: var(--jsh-muted);
+  font-size: 11px;
+}
+.jsh-threebody-end {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  background: color-mix(in srgb, var(--jsh-bg) 82%, transparent);
+  border: 1px solid var(--jsh-rule-2);
+  color: var(--jsh-muted);
+  text-align: center;
+  line-height: 1.4;
+  pointer-events: auto;
+}
+.jsh-threebody-end p {
+  max-width: min(420px, 82%);
+  margin: 0;
+}
+.jsh-threebody-end-title {
+  color: var(--jsh-amber);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+.jsh-threebody-run {
+  margin-top: 4px;
+  font: inherit;
+  color: var(--jsh-bg);
+  background: var(--jsh-amber);
+  border: 1px solid var(--jsh-amber-soft);
+  border-radius: 3px;
+  padding: 5px 14px;
+  cursor: pointer;
+}
+.jsh-threebody-run:hover,
+.jsh-threebody-run:focus-visible {
+  background: var(--jsh-fg);
+  outline: none;
+}
 .jsh-game-overlay .jsh-game-body { padding: clamp(10px, 2.2vh, 24px); }
 .jsh-game-exit-note {
   margin: 0;

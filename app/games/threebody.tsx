@@ -15,8 +15,8 @@
    • chaos — three equal masses flung at random, net momentum zeroed. The bare
      problem, with nothing to hide behind: no two runs ever match.
 
-  The camera tracks the center of mass and auto-zooms to keep the dance framed,
-  even when a body is thrown across the room. No score — it's a toy.
+  The camera eases around the live body bounds and auto-zooms to keep the dance
+  framed, even when a body is thrown across the room. No score — it's a toy.
 */
 
 import { useEffect, useRef, useState } from "react"
@@ -29,18 +29,121 @@ import {
   PRESETS,
   SPEEDS,
   TRAIL,
-  cameraTarget,
+  centerOfMass,
   presetBodies,
   randomSeed,
+  specificEnergy,
   step,
   type Body,
   type Preset,
 } from "./threebody-core"
 
+const ESCAPE_CONFIRM_FRAMES = 90
+const ESCAPE_END_DELAY_MS = 7500
+const ESCAPE_END_DELAY_SECONDS = ESCAPE_END_DELAY_MS / 1000
+const CAMERA_PADDING = 0.18
+const CAMERA_GUARD_PADDING = 0.055
+const CAMERA_MAX_SCALE = 330
+const CAMERA_CENTER_EASE = 0.032
+const CAMERA_EXPAND_EASE = 0.045
+const CAMERA_CONTRACT_EASE = 0.01
+const CAMERA_VIEW_EASE = 0.055
+const CAMERA_ZOOM_OUT_EASE = 0.045
+const CAMERA_ZOOM_IN_EASE = 0.012
+
+type EscapeNotice = {
+  bodyIndex: number
+  bodyName: string
+  energy: number
+  radialVelocity: number
+  distance: number
+  detectedAt: number
+  endAt: number
+}
+
+type CameraFrame = {
+  cx: number
+  cy: number
+  width: number
+  height: number
+}
+
 function catalogBodies(index: number): Body[] {
   if (TRISOLARIS_SEEDS.length === 0) return presetBodies("trisolaris", { seed: randomSeed() })
   const c = TRISOLARIS_SEEDS[index % TRISOLARIS_SEEDS.length]
-  return presetBodies("trisolaris", { seed: c.seed, masses: c.masses })
+  return presetBodies("trisolaris", { seed: c.seed, masses: c.masses, setup: c.setup })
+}
+
+function bodyName(bodies: readonly Body[], index: number): string {
+  if (bodies[index]?.role === "planet") return "planet"
+  let star = 0
+  for (let i = 0; i <= index; i++) {
+    if (bodies[i]?.role !== "planet") star++
+  }
+  return `star ${star}`
+}
+
+function framingBounds(bodies: readonly Body[]): CameraFrame {
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+  for (const b of bodies) {
+    if (!Number.isFinite(b.x + b.y)) continue
+    minX = Math.min(minX, b.x)
+    minY = Math.min(minY, b.y)
+    maxX = Math.max(maxX, b.x)
+    maxY = Math.max(maxY, b.y)
+  }
+  if (!Number.isFinite(minX + minY + maxX + maxY)) {
+    return { cx: 0, cy: 0, width: 2, height: 2 }
+  }
+  const width = Math.max(maxX - minX, 1.8)
+  const height = Math.max(maxY - minY, 1.8)
+  return {
+    cx: (minX + maxX) / 2,
+    cy: (minY + maxY) / 2,
+    width,
+    height,
+  }
+}
+
+function smoothFrame(previous: CameraFrame | null, next: CameraFrame): CameraFrame {
+  if (!previous) return next
+  const widthEase = next.width > previous.width ? CAMERA_EXPAND_EASE : CAMERA_CONTRACT_EASE
+  const heightEase = next.height > previous.height ? CAMERA_EXPAND_EASE : CAMERA_CONTRACT_EASE
+  return {
+    cx: previous.cx + (next.cx - previous.cx) * CAMERA_CENTER_EASE,
+    cy: previous.cy + (next.cy - previous.cy) * CAMERA_CENTER_EASE,
+    width: previous.width + (next.width - previous.width) * widthEase,
+    height: previous.height + (next.height - previous.height) * heightEase,
+  }
+}
+
+function scaleForFrame(frame: CameraFrame, width: number, height: number, dpr: number, padding: number) {
+  const pad = Math.min(width, height) * padding
+  return Math.min(
+    (width - pad * 2) / Math.max(frame.width, 1e-6),
+    (height - pad * 2) / Math.max(frame.height, 1e-6),
+    CAMERA_MAX_SCALE * dpr,
+  )
+}
+
+function escapeSample(bodies: readonly Body[], index: number) {
+  const c = centerOfMass(bodies)
+  const b = bodies[index]
+  const dx = b.x - c.x
+  const dy = b.y - c.y
+  const distance = Math.hypot(dx, dy)
+  const radialVelocity = ((b.vx - c.vx) * dx + (b.vy - c.vy) * dy) / Math.max(distance, 1e-6)
+  const energy = specificEnergy(bodies, index)
+  const far = b.role === "planet" ? 3.4 : 2.9
+  return {
+    distance,
+    energy,
+    radialVelocity,
+    escaping: distance > far && energy > 0.006 && radialVelocity > 0.012,
+  }
 }
 
 export default function ThreeBody() {
@@ -52,12 +155,16 @@ export default function ThreeBody() {
   const presetRef = useRef<Preset>("trisolaris")
   const catalogIndexRef = useRef(1)
   const bodiesRef = useRef<Body[]>(catalogBodies(0))
+  const escapeFramesRef = useRef<number[]>(bodiesRef.current.map(() => 0))
+  const escapeNoticeRef = useRef<EscapeNotice | null>(null)
+  const endStateRef = useRef<EscapeNotice | null>(null)
   // one trail per body (4 for trisolaris, 3 for chaos) — derived so the counts
   // never fall out of sync with the body list
   const trailRef = useRef<Array<Array<{ x: number; y: number }>>>(
     bodiesRef.current.map(() => []),
   )
   const viewRef = useRef({ cx: 0, cy: 0, scale: 220 })
+  const cameraFrameRef = useRef<CameraFrame | null>(null)
   const snapRef = useRef(true) // snap the camera (no easing) on the next frame
   const pwRef = useRef(0)
   const phRef = useRef(0)
@@ -66,15 +173,24 @@ export default function ThreeBody() {
   const [paused, setPaused] = useState(false)
   const [trails, setTrails] = useState(true)
   const [speed, setSpeed] = useState<number>(SPEEDS[DEFAULT_SPEED].label)
+  const [escapeNotice, setEscapeNotice] = useState<EscapeNotice | null>(null)
+  const [endState, setEndState] = useState<EscapeNotice | null>(null)
 
   const seed = (p: Preset) => {
     presetRef.current = p
     bodiesRef.current =
       p === "trisolaris" ? catalogBodies(catalogIndexRef.current++) : presetBodies(p, { seed: randomSeed() })
     trailRef.current = bodiesRef.current.map(() => [])
+    escapeFramesRef.current = bodiesRef.current.map(() => 0)
+    escapeNoticeRef.current = null
+    endStateRef.current = null
+    cameraFrameRef.current = null
     snapRef.current = true
+    setEscapeNotice(null)
+    setEndState(null)
     setPreset(p)
   }
+  const restart = () => seed(presetRef.current)
 
   const onKey = (e: React.KeyboardEvent) => {
     const k = e.key.toLowerCase()
@@ -84,7 +200,7 @@ export default function ThreeBody() {
       setPaused(pausedRef.current)
     } else if (k === "r") {
       e.preventDefault()
-      seed(presetRef.current)
+      restart()
     } else if (k === "1") {
       seed("trisolaris")
     } else if (k === "2") {
@@ -142,27 +258,24 @@ export default function ThreeBody() {
       ctx.fillStyle = c.bg
       ctx.fillRect(0, 0, PW, PH)
 
-      // follow the bound core, not the global center of mass, so escapers leave
-      // the frame instead of shoving the survivors off-screen. Span is clamped
-      // so a tight pair doesn't zoom to infinity and a loose dance still fits.
-      const cam = cameraTarget(bodies)
-      // frame the core (a few core-radii across) with margin; clamped so a tight
-      // pair doesn't fill the screen and a wide bound dance still fits
-      const span = Math.min(Math.max(cam.core * 3.4, 1.7), 12)
-      const targetScale = Math.min(PW, PH) / (span * 1.18)
+      const rawFrame = framingBounds(bodies)
+      const frame = smoothFrame(cameraFrameRef.current, rawFrame)
+      cameraFrameRef.current = frame
+      const smoothScale = scaleForFrame(frame, PW, PH, dpr, CAMERA_PADDING)
+      const guardScale = scaleForFrame(rawFrame, PW, PH, dpr, CAMERA_GUARD_PADDING)
+      const targetScale = Math.min(smoothScale, guardScale)
       const v = viewRef.current
       if (snapRef.current) {
-        v.cx = cam.cx
-        v.cy = cam.cy
+        cameraFrameRef.current = rawFrame
+        v.cx = frame.cx
+        v.cy = frame.cy
         v.scale = targetScale
         snapRef.current = false
       } else {
-        // track the core's position tightly — after an ejection the survivors
-        // recoil and drift at constant velocity, so a slow follow would lag
-        // them toward the edge — but ease the zoom gently to avoid jitter
-        v.cx += (cam.cx - v.cx) * 0.12
-        v.cy += (cam.cy - v.cy) * 0.12
-        v.scale += (targetScale - v.scale) * 0.05
+        const zoomEase = targetScale < v.scale ? CAMERA_ZOOM_OUT_EASE : CAMERA_ZOOM_IN_EASE
+        v.cx += (frame.cx - v.cx) * CAMERA_VIEW_EASE
+        v.cy += (frame.cy - v.cy) * CAMERA_VIEW_EASE
+        v.scale += (targetScale - v.scale) * zoomEase
       }
       const sx = (wx: number) => PW / 2 + (wx - v.cx) * v.scale
       const sy = (wy: number) => PH / 2 - (wy - v.cy) * v.scale
@@ -206,51 +319,6 @@ export default function ThreeBody() {
         ctx.fill()
       }
       ctx.shadowBlur = 0
-
-      // edge arrows: any body the framing let off-screen (an escaper) gets a
-      // little marker at the rim pointing toward it, so you always know where
-      // the missing bodies went — like an off-screen character indicator.
-      for (let i = 0; i < bodies.length; i++) {
-        const px = sx(bodies[i].x)
-        const py = sy(bodies[i].y)
-        if (px >= 0 && px <= PW && py >= 0 && py <= PH) continue
-        const dx = px - PW / 2
-        const dy = py - PH / 2
-        const margin = 20 * dpr
-        const t = Math.min(
-          (PW / 2 - margin) / (Math.abs(dx) || 1e-6),
-          (PH / 2 - margin) / (Math.abs(dy) || 1e-6),
-        )
-        const ex = PW / 2 + dx * t
-        const ey = PH / 2 + dy * t
-        const sz = 7 * dpr
-        ctx.save()
-        ctx.translate(ex, ey)
-        ctx.rotate(Math.atan2(dy, dx))
-        ctx.globalAlpha = 0.9
-        ctx.fillStyle = bodyColor[i]
-        ctx.beginPath()
-        ctx.moveTo(sz, 0)
-        ctx.lineTo(-sz * 0.8, sz * 0.72)
-        ctx.lineTo(-sz * 0.8, -sz * 0.72)
-        ctx.closePath()
-        ctx.fill()
-        ctx.restore()
-        // its distance from what we're framing, so you can read receding vs
-        // returning at a glance (it climbs as the body escapes)
-        const dist = Math.hypot(bodies[i].x - v.cx, bodies[i].y - v.cy)
-        const label = dist >= 100 ? String(Math.round(dist)) : dist.toFixed(1)
-        const len = Math.hypot(dx, dy) || 1
-        const inward = 15 * dpr
-        ctx.globalAlpha = 0.7
-        ctx.fillStyle = bodyColor[i]
-        ctx.font = `${10 * dpr}px ui-monospace, monospace`
-        ctx.textAlign = "center"
-        ctx.textBaseline = "middle"
-        ctx.fillText(label, ex - (dx / len) * inward, ey - (dy / len) * inward)
-        ctx.textAlign = "left"
-        ctx.textBaseline = "alphabetic"
-      }
       ctx.globalAlpha = 1
 
       if (pausedRef.current) {
@@ -262,12 +330,43 @@ export default function ThreeBody() {
       }
     }
 
+    const detectEscape = (now: number) => {
+      if (escapeNoticeRef.current || endStateRef.current) return
+      const bodies = bodiesRef.current
+      if (escapeFramesRef.current.length !== bodies.length) {
+        escapeFramesRef.current = bodies.map(() => 0)
+      }
+      for (let i = 0; i < bodies.length; i++) {
+        const sample = escapeSample(bodies, i)
+        if (sample.escaping) {
+          escapeFramesRef.current[i]++
+        } else {
+          escapeFramesRef.current[i] = Math.max(0, escapeFramesRef.current[i] - 2)
+        }
+        if (escapeFramesRef.current[i] >= ESCAPE_CONFIRM_FRAMES) {
+          const notice = {
+            bodyIndex: i,
+            bodyName: bodyName(bodies, i),
+            energy: sample.energy,
+            radialVelocity: sample.radialVelocity,
+            distance: sample.distance,
+            detectedAt: now,
+            endAt: now + ESCAPE_END_DELAY_MS,
+          }
+          escapeNoticeRef.current = notice
+          setEscapeNotice(notice)
+          return
+        }
+      }
+    }
+
     const loop = () => {
       rafRef.current = requestAnimationFrame(loop)
       const bodies = bodiesRef.current
+      const now = performance.now()
       // keep simulating even when the window/tab loses focus (only an explicit
       // pause stops it; the browser still throttles rAF in a fully hidden tab)
-      if (!pausedRef.current) {
+      if (!pausedRef.current && !endStateRef.current) {
         const steps = Math.max(1, Math.round(BASE_SUBSTEPS * SPEEDS[speedRef.current].multiplier))
         for (let i = 0; i < steps; i++) step(bodies, DT)
         if (trailsRef.current) {
@@ -276,6 +375,11 @@ export default function ThreeBody() {
             tr.push({ x: bodies[i].x, y: bodies[i].y })
             if (tr.length > TRAIL) tr.shift()
           }
+        }
+        detectEscape(now)
+        if (escapeNoticeRef.current && now >= escapeNoticeRef.current.endAt) {
+          endStateRef.current = escapeNoticeRef.current
+          setEndState(escapeNoticeRef.current)
         }
       }
       draw()
@@ -294,6 +398,8 @@ export default function ThreeBody() {
       status={
         <>
           {preset} · {speed}×{paused ? " · paused" : ""}
+          {escapeNotice && !endState ? " · escape detected" : ""}
+          {endState ? " · ended" : ""}
         </>
       }
       hint={
@@ -304,11 +410,45 @@ export default function ThreeBody() {
       }
       onKey={onKey}
     >
-      <canvas
-        ref={canvasRef}
-        className="jsh-game-canvas jsh-sim-canvas"
-        aria-label="three-body gravitational simulation"
-      />
+      <div className="jsh-threebody-stage">
+        <canvas
+          ref={canvasRef}
+          className="jsh-game-canvas jsh-sim-canvas"
+          aria-label="three-body gravitational simulation"
+        />
+        {escapeNotice && !endState && (
+          <div className="jsh-threebody-alert" role="status" aria-live="polite">
+            <span>escape trajectory detected</span>
+            <small>{escapeNotice.bodyName} is leaving; ending shortly</small>
+          </div>
+        )}
+        {endState && (
+          <div
+            className="jsh-threebody-end"
+            role="dialog"
+            aria-modal="true"
+            aria-live="assertive"
+            aria-label="simulation ended"
+          >
+            <p className="jsh-threebody-end-title">simulation ended</p>
+            <p>
+              {endState.bodyName} reached escape velocity and left the system after{" "}
+              {ESCAPE_END_DELAY_SECONDS.toFixed(1)} seconds on an outward trajectory.
+            </p>
+            <button
+              type="button"
+              className="jsh-threebody-run"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation()
+                restart()
+              }}
+            >
+              run again
+            </button>
+          </div>
+        )}
+      </div>
     </GameFrame>
   )
 }

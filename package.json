@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "threebody:search": "bun scripts/threebody-search.mjs",
-    "threebody:overnight": "bun scripts/threebody-search.mjs --checkpoint .codex/threebody-search/overnight.jsonl --catalog app/games/threebody-catalog.json --frames 100000 --seconds 28800 --candidates 0 --top 100 --progressEvery 100",
+    "threebody:overnight": "bun scripts/threebody-search.mjs --checkpoint .codex/threebody-search/overnight-v5.jsonl --catalog .codex/threebody-search/overnight-v5-catalog.json --catalogModule .codex/threebody-search/overnight-v5-catalog.ts --frames 100000 --seconds 28800 --candidates 0 --top 80 --workers auto --progressEvery 100",
+    "threebody:promote": "bun scripts/threebody-search.mjs --checkpoint .codex/threebody-search/overnight-v5.jsonl --catalog app/games/threebody-catalog.json --catalogModule app/games/threebody-catalog.ts --frames 100000 --candidates 0 --top 80",
     "threebody:verify": "bun scripts/threebody-search.mjs --verify-catalog",
     "start": "next start",
     "lint": "next lint"

@@ -35,6 +35,7 @@ yarn-error.log*
 
 # local long-running simulation search checkpoints
 .codex/threebody-search/
+.codex/server/
 
 # typescript
 *.tsbuildinfo
