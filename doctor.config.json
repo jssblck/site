@@ -1,0 +1,10 @@
+{
+  "$schema": "https://react.doctor/schema/config.json",
+  "blocking": "warning",
+  "noScore": true,
+  "warnings": true,
+  "adoptExistingLintConfig": true,
+  "ignore": {
+    "files": [".codex/**", ".next/**", "node_modules/**", "package-lock.json"]
+  }
+}

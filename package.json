@@ -10,7 +10,9 @@
     "threebody:promote": "bun scripts/threebody-search.mjs --checkpoint .codex/threebody-search/overnight-v5.jsonl --catalog app/games/threebody-catalog.json --catalogModule app/games/threebody-catalog.ts --frames 100000 --candidates 0 --top 80",
     "threebody:verify": "bun scripts/threebody-search.mjs --verify-catalog",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "oxlint .",
+    "doctor": "react-doctor --no-score --blocking warning",
+    "check": "npm run lint && npm run doctor && npm exec -- tsc --noEmit"
   },
   "dependencies": {
     "@vercel/analytics": "^1.5.0",
@@ -18,10 +20,14 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
+  "type": "module",
   "devDependencies": {
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "oxlint": "^1.69.0",
+    "oxlint-plugin-react-doctor": "^0.5.1",
+    "react-doctor": "^0.5.1",
     "typescript": "^5"
   }
 }
