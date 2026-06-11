@@ -12,6 +12,7 @@ library, no CSS framework. Amber phosphor on near-black; no glow, no gradients.
 ```bash
 npm install
 npm run dev      # http://localhost:3000
+npm run check    # oxlint + React Doctor + TypeScript
 ```
 
 ## Build
@@ -20,6 +21,12 @@ npm run dev      # http://localhost:3000
 npm run build
 npm start
 ```
+
+## Commit gate
+
+This checkout uses `.githooks/pre-commit` as its Git hooks path. The pre-commit
+hook runs `npm run check` and blocks commits until oxlint, React Doctor, and
+TypeScript all pass.
 
 ## Stack
 
