@@ -9,6 +9,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { GameFrame } from "./_frame"
+import { useLazyRef } from "./_hooks"
 
 const COLS = 48
 const ROWS = 34
@@ -40,8 +41,8 @@ export default function Life() {
   const accRef = useRef(0)
   const activeRef = useRef(true)
 
-  const cellsRef = useRef<Uint8Array>(new Uint8Array(COLS * ROWS))
-  const nextRef = useRef<Uint8Array>(new Uint8Array(COLS * ROWS))
+  const cellsRef = useLazyRef(() => new Uint8Array(COLS * ROWS))
+  const nextRef = useLazyRef(() => new Uint8Array(COLS * ROWS))
   const runningRef = useRef(true)
   const rateRef = useRef(12) // generations per second
   const paintRef = useRef<{ down: boolean; val: number }>({ down: false, val: 1 })
@@ -238,18 +239,8 @@ export default function Life() {
   return (
     <GameFrame
       title="life"
-      status={
-        <>
-          gen <b>{gen}</b> · pop <b>{pop}</b> · {rate}/s ·{" "}
-          <b>{running ? "▶ running" : "⏸ paused"}</b>
-        </>
-      }
-      hint={
-        <>
-          draw with mouse · <b>space</b> play/pause · <b>→</b> step · <b>r</b> seed ·{" "}
-          <b>g</b> glider · <b>c</b> clear · <b>esc</b> quit
-        </>
-      }
+      status={`gen ${gen} · pop ${pop} · ${rate}/s · ${running ? "▶ running" : "⏸ paused"}`}
+      hint="draw with mouse · space play/pause · → step · r seed · g glider · c clear · esc quit"
       onKey={onKey}
       onActive={(a) => {
         activeRef.current = a

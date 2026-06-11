@@ -41,6 +41,28 @@ type State = {
   over: 0 | 1 | 2 // 0 playing, 1 player won, 2 cpu won
 }
 
+const serve = (g: State, dir: number) => {
+  g.ballX = W / 2
+  g.ballY = H / 2
+  g.vx = 0
+  g.vy = 0
+  g.serveDir = dir
+  g.serveIn = 50
+  g.rally = 0
+}
+
+const saveBest = (g: State, setBest: (best: number) => void) => {
+  if (g.rally > g.best) {
+    g.best = g.rally
+    setBest(g.best)
+    try {
+      localStorage.setItem("jsh-pong-best", String(g.best))
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 export default function Pong() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rafRef = useRef(0)
@@ -70,16 +92,6 @@ export default function Pong() {
     started: true,
     over: 0,
   })
-
-  const serve = (g: State, dir: number) => {
-    g.ballX = W / 2
-    g.ballY = H / 2
-    g.vx = 0
-    g.vy = 0
-    g.serveDir = dir
-    g.serveIn = 50
-    g.rally = 0
-  }
 
   const reset = () => {
     const g = s.current
@@ -138,18 +150,6 @@ export default function Pong() {
       else if (k === "arrowdown" || k === "s" || k === "j") g.down = false
     }
     window.addEventListener("keyup", onKeyUp)
-
-    const saveBest = (g: State) => {
-      if (g.rally > g.best) {
-        g.best = g.rally
-        setBest(g.best)
-        try {
-          localStorage.setItem("jsh-pong-best", String(g.best))
-        } catch {
-          /* ignore */
-        }
-      }
-    }
 
     const update = () => {
       const g = s.current
@@ -221,7 +221,7 @@ export default function Pong() {
 
       // scoring
       if (g.ballX < -BALL) {
-        saveBest(g)
+        saveBest(g, setBest)
         g.cpuScore++
         setCpuScore(g.cpuScore)
         if (g.cpuScore >= WIN) {
@@ -229,7 +229,7 @@ export default function Pong() {
           setOver(2)
         } else serve(g, -1)
       } else if (g.ballX > W + BALL) {
-        saveBest(g)
+        saveBest(g, setBest)
         g.pScore++
         setPScore(g.pScore)
         if (g.pScore >= WIN) {
@@ -313,22 +313,8 @@ export default function Pong() {
   return (
     <GameFrame
       title="pong"
-      status={
-        <>
-          you <b>{pScore}</b> · cpu <b>{cpuScore}</b> · longest rally <b>{best}</b>
-        </>
-      }
-      hint={
-        over ? (
-          <>
-            {over === 1 ? "you win" : "cpu wins"} · <b>space</b> rematch · <b>esc</b> quit
-          </>
-        ) : (
-          <>
-            <b>↑</b> <b>↓</b> move · first to 11 · <b>esc</b> quit
-          </>
-        )
-      }
+      status={`you ${pScore} · cpu ${cpuScore} · longest rally ${best}`}
+      hint={over ? `${over === 1 ? "you win" : "cpu wins"} · space rematch · esc quit` : "↑ ↓ move · first to 11 · esc quit"}
       onKey={onKey}
       onActive={(a) => {
         activeRef.current = a

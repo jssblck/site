@@ -145,7 +145,7 @@ function readJsonl(filePath) {
         console.warn(`${filePath}:${index + 1}: ignored incomplete trailing JSONL record`)
         return []
       }
-      throw new Error(`${filePath}:${index + 1}: invalid JSONL: ${error.message}`)
+      throw new Error(`${filePath}:${index + 1}: invalid JSONL: ${error.message}`, { cause: error })
     }
   })
 }
@@ -566,7 +566,7 @@ export function scoreCandidate(candidate, options = {}) {
 function sampleMasses(rng, index) {
   if (index % 5 === 0) return [...DEFAULT_TRISOLARIS_MASSES]
   const total = DEFAULT_TRISOLARIS_MASSES.reduce((a, b) => a + b, 0)
-  const masses = DEFAULT_TRISOLARIS_MASSES.map((m) => m * Math.exp((rng() * 2 - 1) * 0.46)).sort((a, b) => b - a)
+  const masses = DEFAULT_TRISOLARIS_MASSES.map((m) => m * Math.exp((rng() * 2 - 1) * 0.46)).toSorted((a, b) => b - a)
   const scale = total / masses.reduce((a, b) => a + b, 0)
   return masses.map((m) => roundMass(m * scale))
 }
@@ -664,7 +664,7 @@ function nextCandidate(rng, index, seen) {
 }
 
 function sortRecords(records) {
-  return [...records].sort((a, b) => b.score - a.score || b.danceFrames - a.danceFrames)
+  return [...records].toSorted((a, b) => b.score - a.score || b.danceFrames - a.danceFrames)
 }
 
 function formatMassTuple(masses) {
@@ -740,7 +740,7 @@ function writeCatalog(filePath, records, options) {
     massGroups.set(key, current)
   }
   const massSummary = [...massGroups.values()]
-    .sort((a, b) => b.bestScore - a.bestScore)
+    .toSorted((a, b) => b.bestScore - a.bestScore)
     .slice(0, 12)
 
   writeFileAtomic(

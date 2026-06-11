@@ -29,8 +29,8 @@ export type TrisolarisSeed = {
 }
 
 export const PRESETS: Preset[] = ["trisolaris", "chaos"]
-export const G = 1
-export const SOFT2 = 0.0009 // softening squared; prevents divide-by-zero on close passes
+const G = 1
+const SOFT2 = 0.0009 // softening squared; prevents divide-by-zero on close passes
 export const DT = 0.0016 // integration step, in world time
 export const BASE_SUBSTEPS = 14 // physics steps per frame before the display-speed multiplier
 export const SPEEDS = [
@@ -60,10 +60,6 @@ function randomCentered(rng: Rng): number {
   return rng() - 0.5
 }
 
-export function cloneBodies(bodies: readonly Body[]): Body[] {
-  return bodies.map((b) => ({ ...b }))
-}
-
 export function centerOfMass(bodies: readonly Body[]): { x: number; y: number; vx: number; vy: number } {
   let m = 0
   let x = 0
@@ -83,7 +79,7 @@ export function centerOfMass(bodies: readonly Body[]): { x: number; y: number; v
 
 // Subtract the center-of-mass velocity so the whole system does not drift off
 // screen; the camera can then hold the center of mass still.
-export function zeroMomentum(bodies: Body[]): Body[] {
+function zeroMomentum(bodies: Body[]): Body[] {
   const c = centerOfMass(bodies)
   for (const b of bodies) {
     b.vx -= c.vx
@@ -178,7 +174,7 @@ export function presetBodies(
 
 // Pairwise gravitational acceleration, with softening. Newton's third law lets
 // us do each pair once.
-export function accel(bodies: readonly Body[]): Array<{ ax: number; ay: number }> {
+function accel(bodies: readonly Body[]): Array<{ ax: number; ay: number }> {
   const acc = bodies.map(() => ({ ax: 0, ay: 0 }))
   for (let i = 0; i < bodies.length; i++) {
     for (let j = i + 1; j < bodies.length; j++) {

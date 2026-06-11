@@ -8,7 +8,8 @@
 */
 
 import { useEffect, useRef, useState } from "react"
-import { GameFrame, themeColors } from "./_frame"
+import { GameFrame } from "./_frame"
+import { themeColors } from "./_theme"
 
 const W = 460
 const H = 320
@@ -83,6 +84,26 @@ function makeAsteroid(x: number, y: number, tier: number): Ast {
   }
 }
 
+const saveBest = (g: State) => {
+  try {
+    localStorage.setItem("jsh-asteroids-best", String(g.best))
+  } catch {
+    /* ignore */
+  }
+}
+
+const spawnAwayFromShip = (g: State, tier: number) => {
+  let x = 0
+  let y = 0
+  let tries = 0
+  do {
+    x = Math.random() * W
+    y = Math.random() * H
+    tries++
+  } while (tries < 30 && Math.hypot(x - g.shipX, y - g.shipY) < 110)
+  g.asteroids.push(makeAsteroid(x, y, tier))
+}
+
 export default function Asteroids() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rafRef = useRef(0)
@@ -116,26 +137,6 @@ export default function Asteroids() {
     best: 0,
     over: false,
   })
-
-  const saveBest = (g: State) => {
-    try {
-      localStorage.setItem("jsh-asteroids-best", String(g.best))
-    } catch {
-      /* ignore */
-    }
-  }
-
-  const spawnAwayFromShip = (g: State, tier: number) => {
-    let x = 0
-    let y = 0
-    let tries = 0
-    do {
-      x = Math.random() * W
-      y = Math.random() * H
-      tries++
-    } while (tries < 30 && Math.hypot(x - g.shipX, y - g.shipY) < 110)
-    g.asteroids.push(makeAsteroid(x, y, tier))
-  }
 
   const nextWave = (g: State) => {
     g.level++
@@ -444,23 +445,8 @@ export default function Asteroids() {
   return (
     <GameFrame
       title="asteroids"
-      status={
-        <>
-          score <b>{score}</b> · ships <b>{lives}</b> · wave <b>{level}</b> · best{" "}
-          <b>{best}</b>
-        </>
-      }
-      hint={
-        over ? (
-          <>
-            game over · <b>space</b> to fly again · <b>esc</b> to quit
-          </>
-        ) : (
-          <>
-            ← → turn · <b>↑</b> thrust · <b>space</b> fire · <b>esc</b> quit
-          </>
-        )
-      }
+      status={`score ${score} · ships ${lives} · wave ${level} · best ${best}`}
+      hint={over ? "game over · space to fly again · esc to quit" : "← → turn · ↑ thrust · space fire · esc quit"}
       onKey={onKey}
       onActive={(a) => {
         activeRef.current = a

@@ -36,6 +36,12 @@ type State = {
   best: number
 }
 
+const newPipe = (x: number): Pipe => ({
+  x,
+  gapY: 50 + Math.random() * (GROUND_Y - GAP - 100),
+  passed: false,
+})
+
 const hitRect = (
   cx: number,
   cy: number,
@@ -72,12 +78,6 @@ export default function Flappy() {
     over: false,
     score: 0,
     best: 0,
-  })
-
-  const newPipe = (x: number): Pipe => ({
-    x,
-    gapY: 50 + Math.random() * (GROUND_Y - GAP - 100),
-    passed: false,
   })
 
   const reset = () => {
@@ -276,22 +276,8 @@ export default function Flappy() {
   return (
     <GameFrame
       title="flappy"
-      status={
-        <>
-          score <b>{score}</b> · best <b>{best}</b>
-        </>
-      }
-      hint={
-        over ? (
-          <>
-            game over · <b>space</b> to retry · <b>esc</b> to quit
-          </>
-        ) : (
-          <>
-            <b>space</b> / <b>↑</b> / click to flap · <b>esc</b> quit
-          </>
-        )
-      }
+      status={`score ${score} · best ${best}`}
+      hint={over ? "game over · space to retry · esc to quit" : "space / ↑ / click to flap · esc quit"}
       onKey={onKey}
       onActive={(a) => {
         activeRef.current = a

@@ -34,7 +34,7 @@ const neighbors = (idx: number): number[] => {
 }
 
 function genBoard(safe: number): { mines: boolean[]; counts: number[] } {
-  const mines = new Array(TOTAL).fill(false)
+  const mines = Array.from({ length: TOTAL }, () => false)
   const banned = new Set([safe, ...neighbors(safe)])
   const slots: number[] = []
   for (let i = 0; i < TOTAL; i++) if (!banned.has(i)) slots.push(i)
@@ -43,7 +43,7 @@ function genBoard(safe: number): { mines: boolean[]; counts: number[] } {
     mines[slots[j]] = true
     slots.splice(j, 1)
   }
-  const counts = new Array(TOTAL).fill(0)
+  const counts = Array.from({ length: TOTAL }, () => 0)
   for (let i = 0; i < TOTAL; i++) {
     if (mines[i]) continue
     counts[i] = neighbors(i).filter((n) => mines[n]).length
@@ -65,10 +65,10 @@ const NUM_COLOR = [
 ]
 
 export default function Minesweeper() {
-  const [mines, setMines] = useState<boolean[]>(() => new Array(TOTAL).fill(false))
-  const [counts, setCounts] = useState<number[]>(() => new Array(TOTAL).fill(0))
-  const [revealed, setRevealed] = useState<boolean[]>(() => new Array(TOTAL).fill(false))
-  const [flagged, setFlagged] = useState<boolean[]>(() => new Array(TOTAL).fill(false))
+  const [mines, setMines] = useState<boolean[]>(() => Array.from({ length: TOTAL }, () => false))
+  const [counts, setCounts] = useState<number[]>(() => Array.from({ length: TOTAL }, () => 0))
+  const [revealed, setRevealed] = useState<boolean[]>(() => Array.from({ length: TOTAL }, () => false))
+  const [flagged, setFlagged] = useState<boolean[]>(() => Array.from({ length: TOTAL }, () => false))
   const [status, setStatus] = useState<Status>("ready")
   const [cursor, setCursor] = useState(Math.floor(TOTAL / 2) + COLS / 2)
   const [time, setTime] = useState(0)
@@ -91,10 +91,10 @@ export default function Minesweeper() {
   }, [status])
 
   const reset = useCallback(() => {
-    setMines(new Array(TOTAL).fill(false))
-    setCounts(new Array(TOTAL).fill(0))
-    setRevealed(new Array(TOTAL).fill(false))
-    setFlagged(new Array(TOTAL).fill(false))
+    setMines(Array.from({ length: TOTAL }, () => false))
+    setCounts(Array.from({ length: TOTAL }, () => 0))
+    setRevealed(Array.from({ length: TOTAL }, () => false))
+    setFlagged(Array.from({ length: TOTAL }, () => false))
     setStatus("ready")
     setTime(0)
   }, [])
@@ -210,7 +210,9 @@ export default function Minesweeper() {
       fontVariantNumeric: "tabular-nums",
       cursor: status === "won" || status === "lost" ? "default" : "pointer",
       userSelect: "none",
+      padding: 0,
       boxSizing: "border-box",
+      fontFamily: "inherit",
       outline: i === cursor ? "2px solid var(--jsh-amber)" : "none",
       outlineOffset: -2,
     }
@@ -233,34 +235,11 @@ export default function Minesweeper() {
   return (
     <GameFrame
       title="minesweeper"
-      status={
-        <>
-          mines <b>{Math.max(0, MINES - flagCount)}</b> · time <b>{time}s</b> · best{" "}
-          <b>{best || "—"}</b>
-          {status === "won" ? (
-            <>
-              {" "}
-              · <b>cleared!</b>
-            </>
-          ) : status === "lost" ? (
-            <>
-              {" "}
-              · <b>boom</b>
-            </>
-          ) : null}
-        </>
-      }
+      status={`mines ${Math.max(0, MINES - flagCount)} · time ${time}s · best ${best || "—"}${status === "won" ? " · cleared!" : status === "lost" ? " · boom" : ""}`}
       hint={
-        status === "won" || status === "lost" ? (
-          <>
-            {status === "won" ? "swept clean" : "boom"} · <b>space</b> to retry ·{" "}
-            <b>esc</b> to quit
-          </>
-        ) : (
-          <>
-            click reveal · <b>right-click</b>/<b>f</b> flag · arrows move · <b>esc</b> quit
-          </>
-        )
+        status === "won" || status === "lost"
+          ? `${status === "won" ? "swept clean" : "boom"} · space to retry · esc to quit`
+          : "click reveal · right-click/f flag · arrows move · esc quit"
       }
       onKey={onKey}
     >
@@ -269,7 +248,8 @@ export default function Minesweeper() {
         onContextMenu={(e) => e.preventDefault()}
       >
         {Array.from({ length: TOTAL }, (_, i) => (
-          <div
+          <button
+            type="button"
             key={i}
             style={cellStyle(i)}
             onMouseDown={(e) => e.preventDefault()}
@@ -292,7 +272,7 @@ export default function Minesweeper() {
                     ? counts[i]
                     : ""
                 : ""}
-          </div>
+          </button>
         ))}
       </div>
     </GameFrame>

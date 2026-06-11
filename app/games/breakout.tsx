@@ -41,7 +41,7 @@ type State = {
 const brickW = (W - BRICK_GAP) / COLS - BRICK_GAP
 
 function freshBricks(): boolean[] {
-  return new Array(COLS * ROWS).fill(true)
+  return Array.from({ length: COLS * ROWS }, () => true)
 }
 
 export default function Breakout() {
@@ -292,22 +292,8 @@ export default function Breakout() {
   return (
     <GameFrame
       title="breakout"
-      status={
-        <>
-          score <b>{score}</b> · lives <b>{lives}</b> · best <b>{best}</b>
-        </>
-      }
-      hint={
-        over ? (
-          <>
-            game over · <b>space</b> to retry · <b>esc</b> to quit
-          </>
-        ) : (
-          <>
-            ← → or mouse to move · <b>space</b> to launch · <b>esc</b> quit
-          </>
-        )
-      }
+      status={`score ${score} · lives ${lives} · best ${best}`}
+      hint={over ? "game over · space to retry · esc to quit" : "← → or mouse to move · space to launch · esc quit"}
       onKey={onKey}
       onActive={(a) => {
         if (!a) {

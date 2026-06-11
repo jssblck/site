@@ -17,6 +17,7 @@ const WORDS =
     .split(" ")
 
 type Cell = "correct" | "present" | "absent" | "empty"
+type RowView = { id: string; letters: string[]; states: Cell[] }
 
 function score(guess: string, answer: string): Cell[] {
   const res: Cell[] = ["absent", "absent", "absent", "absent", "absent"]
@@ -90,6 +91,7 @@ const keyStyle = (state: Cell | undefined): React.CSSProperties => {
 }
 
 const ROWS = ["qwertyuiop", "asdfghjkl", "zxcvbnm"]
+const CELL_KEYS = ["one", "two", "three", "four", "five"] as const
 const rank: Record<Cell, number> = { empty: 0, absent: 1, present: 2, correct: 3 }
 
 export default function Wordle() {
@@ -207,31 +209,27 @@ export default function Wordle() {
   }
 
   // build the 6 rows for display
-  const rowsView: Array<{ letters: string[]; states: Cell[] }> = []
+  const rowsView: RowView[] = []
   for (let r = 0; r < 6; r++) {
     if (r < guesses.length) {
-      rowsView.push({ letters: guesses[r].split(""), states: score(guesses[r], answer) })
+      rowsView.push({ id: `guess:${r}:${guesses[r]}`, letters: guesses[r].split(""), states: score(guesses[r], answer) })
     } else if (r === guesses.length && status === "playing") {
       const letters = current.padEnd(5).split("")
-      rowsView.push({ letters, states: new Array(5).fill("empty") })
+      rowsView.push({ id: `current:${r}`, letters, states: Array.from({ length: 5 }, () => "empty") })
     } else {
-      rowsView.push({ letters: new Array(5).fill(""), states: new Array(5).fill("empty") })
+      rowsView.push({
+        id: `empty:${r}`,
+        letters: Array.from({ length: 5 }, () => ""),
+        states: Array.from({ length: 5 }, () => "empty"),
+      })
     }
   }
 
   return (
     <GameFrame
       title="wordle"
-      status={
-        <>
-          streak <b>{streak}</b> · best <b>{best}</b>
-        </>
-      }
-      hint={
-        <>
-          type a word · <b>enter</b> submit · <b>⌫</b> delete · <b>esc</b> quit
-        </>
-      }
+      status={`streak ${streak} · best ${best}`}
+      hint="type a word · enter submit · ⌫ delete · esc quit"
       onKey={onKey}
     >
       <div
@@ -246,10 +244,10 @@ export default function Wordle() {
         <div
           style={{ display: "grid", gap: 6, animation: shake ? "jsh-shake 0.36s" : undefined }}
         >
-          {rowsView.map((row, r) => (
-            <div key={r} style={{ display: "grid", gridTemplateColumns: "repeat(5, 52px)", gap: 6 }}>
+          {rowsView.map((row) => (
+            <div key={row.id} style={{ display: "grid", gridTemplateColumns: "repeat(5, 52px)", gap: 6 }}>
               {row.letters.map((ch, i) => (
-                <div key={i} style={tileStyle(row.states[i], !!ch.trim())}>
+                <div key={`${row.id}:${CELL_KEYS[i]}`} style={tileStyle(row.states[i], !!ch.trim())}>
                   {ch.trim()}
                 </div>
               ))}

@@ -114,5 +114,5 @@ export default function MatrixRain() {
     }
   }, [])
 
-  return <canvas ref={canvasRef} className="jsh-matrix-rain" aria-hidden="true" />
+  return <canvas ref={canvasRef} className="jsh-matrix-rain" aria-label="matrix rain background" />
 }

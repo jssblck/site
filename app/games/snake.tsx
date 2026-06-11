@@ -7,7 +7,8 @@
 */
 
 import { useEffect, useRef, useState } from "react"
-import { GameFrame, themeColors } from "./_frame"
+import { GameFrame } from "./_frame"
+import { themeColors } from "./_theme"
 
 const COLS = 24
 const ROWS = 16
@@ -221,25 +222,13 @@ export default function Snake() {
   return (
     <GameFrame
       title="snake"
-      status={
-        <>
-          score <b>{score}</b> · best <b>{best}</b>
-        </>
-      }
+      status={`score ${score} · best ${best}`}
       hint={
-        over ? (
-          <>
-            game over · <b>space</b> to retry · <b>esc</b> to quit
-          </>
-        ) : started ? (
-          <>
-            arrows / wasd / hjkl to steer · <b>esc</b> to quit
-          </>
-        ) : (
-          <>
-            arrows / wasd / hjkl · <b>space</b> to start
-          </>
-        )
+        over
+          ? "game over · space to retry · esc to quit"
+          : started
+            ? "arrows / wasd / hjkl to steer · esc to quit"
+            : "arrows / wasd / hjkl · space to start"
       }
       onKey={onKey}
       onActive={(a) => {

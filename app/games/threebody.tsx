@@ -20,7 +20,9 @@
 */
 
 import { useEffect, useRef, useState } from "react"
-import { GameFrame, themeColors } from "./_frame"
+import { GameFrame } from "./_frame"
+import { useLazyRef } from "./_hooks"
+import { themeColors } from "./_theme"
 import { TRISOLARIS_SEEDS } from "./threebody-catalog"
 import {
   BASE_SUBSTEPS,
@@ -154,13 +156,13 @@ export default function ThreeBody() {
   const speedRef = useRef(DEFAULT_SPEED)
   const presetRef = useRef<Preset>("trisolaris")
   const catalogIndexRef = useRef(1)
-  const bodiesRef = useRef<Body[]>(catalogBodies(0))
-  const escapeFramesRef = useRef<number[]>(bodiesRef.current.map(() => 0))
+  const bodiesRef = useLazyRef<Body[]>(() => catalogBodies(0))
+  const escapeFramesRef = useLazyRef<number[]>(() => bodiesRef.current.map(() => 0))
   const escapeNoticeRef = useRef<EscapeNotice | null>(null)
   const endStateRef = useRef<EscapeNotice | null>(null)
   // one trail per body (4 for trisolaris, 3 for chaos) — derived so the counts
   // never fall out of sync with the body list
-  const trailRef = useRef<Array<Array<{ x: number; y: number }>>>(
+  const trailRef = useLazyRef<Array<Array<{ x: number; y: number }>>>(() =>
     bodiesRef.current.map(() => []),
   )
   const viewRef = useRef({ cx: 0, cy: 0, scale: 220 })
@@ -171,7 +173,6 @@ export default function ThreeBody() {
 
   const [preset, setPreset] = useState<Preset>("trisolaris")
   const [paused, setPaused] = useState(false)
-  const [trails, setTrails] = useState(true)
   const [speed, setSpeed] = useState<number>(SPEEDS[DEFAULT_SPEED].label)
   const [escapeNotice, setEscapeNotice] = useState<EscapeNotice | null>(null)
   const [endState, setEndState] = useState<EscapeNotice | null>(null)
@@ -222,7 +223,6 @@ export default function ThreeBody() {
     } else if (k === "t") {
       e.preventDefault()
       trailsRef.current = !trailsRef.current
-      setTrails(trailsRef.current)
       if (!trailsRef.current) trailRef.current = bodiesRef.current.map(() => [])
     }
   }
@@ -395,19 +395,8 @@ export default function ThreeBody() {
   return (
     <GameFrame
       title="three-body"
-      status={
-        <>
-          {preset} · {speed}×{paused ? " · paused" : ""}
-          {escapeNotice && !endState ? " · escape detected" : ""}
-          {endState ? " · ended" : ""}
-        </>
-      }
-      hint={
-        <>
-          <b>space</b> pause · <b>r</b> reseed · <b>1</b>/<b>2</b> trisolaris / chaos ·{" "}
-          <b>[ ]</b> speed · <b>t</b> trails · <b>esc</b> quit
-        </>
-      }
+      status={`${preset} · ${speed}×${paused ? " · paused" : ""}${escapeNotice && !endState ? " · escape detected" : ""}${endState ? " · ended" : ""}`}
+      hint="space pause · r reseed · 1/2 trisolaris / chaos · [ ] speed · t trails · esc quit"
       onKey={onKey}
     >
       <div className="jsh-threebody-stage">
@@ -417,15 +406,15 @@ export default function ThreeBody() {
           aria-label="three-body gravitational simulation"
         />
         {escapeNotice && !endState && (
-          <div className="jsh-threebody-alert" role="status" aria-live="polite">
+          <output className="jsh-threebody-alert" aria-live="polite">
             <span>escape trajectory detected</span>
             <small>{escapeNotice.bodyName} is leaving; ending shortly</small>
-          </div>
+          </output>
         )}
         {endState && (
-          <div
+          <dialog
+            open
             className="jsh-threebody-end"
-            role="dialog"
             aria-modal="true"
             aria-live="assertive"
             aria-label="simulation ended"
@@ -446,7 +435,7 @@ export default function ThreeBody() {
             >
               run again
             </button>
-          </div>
+          </dialog>
         )}
       </div>
     </GameFrame>

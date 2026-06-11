@@ -13,10 +13,13 @@ const SIZE = 4
 type Board = number[]
 type Dir = "left" | "right" | "up" | "down"
 
-const empty = (): Board => new Array(SIZE * SIZE).fill(0)
+const empty = (): Board => Array.from({ length: SIZE * SIZE }, () => 0)
 
 function spawn(b: Board): Board {
-  const slots = b.map((v, i) => (v === 0 ? i : -1)).filter((i) => i >= 0)
+  const slots: number[] = []
+  for (let i = 0; i < b.length; i++) {
+    if (b[i] === 0) slots.push(i)
+  }
   if (!slots.length) return b
   const i = slots[Math.floor(Math.random() * slots.length)]
   const nb = b.slice()
@@ -72,6 +75,19 @@ function move(b: Board, dir: Dir): { board: Board; gained: number; moved: boolea
 const canMove = (b: Board) =>
   b.some((v) => v === 0) ||
   (["left", "right", "up", "down"] as Dir[]).some((d) => move(b, d).moved)
+
+const tileStyle = (v: number): React.CSSProperties => {
+  if (v === 0) {
+    return { background: "var(--jsh-surface)", border: "1px solid var(--jsh-rule)" }
+  }
+  const pct = Math.min(16 + Math.log2(v) * 9, 92)
+  return {
+    background: `color-mix(in srgb, var(--jsh-amber) ${pct}%, var(--jsh-bg-2))`,
+    border: "1px solid var(--jsh-amber-soft)",
+    color: pct > 52 ? "var(--jsh-bg)" : "var(--jsh-fg)",
+    fontWeight: 600,
+  }
+}
 
 export default function Game2048() {
   const [board, setBoard] = useState<Board>(() => spawn(spawn(empty())))
@@ -143,44 +159,11 @@ export default function Game2048() {
     }
   }
 
-  const tileStyle = (v: number): React.CSSProperties => {
-    if (v === 0) {
-      return { background: "var(--jsh-surface)", border: "1px solid var(--jsh-rule)" }
-    }
-    const pct = Math.min(16 + Math.log2(v) * 9, 92)
-    return {
-      background: `color-mix(in srgb, var(--jsh-amber) ${pct}%, var(--jsh-bg-2))`,
-      border: "1px solid var(--jsh-amber-soft)",
-      color: pct > 52 ? "var(--jsh-bg)" : "var(--jsh-fg)",
-      fontWeight: 600,
-    }
-  }
-
   return (
     <GameFrame
       title="2048"
-      status={
-        <>
-          score <b>{score}</b> · best <b>{best}</b>
-          {won && !over ? (
-            <>
-              {" "}
-              · <b>2048!</b>
-            </>
-          ) : null}
-        </>
-      }
-      hint={
-        over ? (
-          <>
-            no moves left · <b>space</b> to retry · <b>esc</b> to quit
-          </>
-        ) : (
-          <>
-            arrows / wasd / hjkl to merge · <b>r</b> restart · <b>esc</b> quit
-          </>
-        )
-      }
+      status={`score ${score} · best ${best}${won && !over ? " · 2048!" : ""}`}
+      hint={over ? "no moves left · space to retry · esc to quit" : "arrows / wasd / hjkl to merge · r restart · esc quit"}
       onKey={onKey}
     >
       <div

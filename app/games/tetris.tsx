@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { GameFrame } from "./_frame"
+import { useLazyRef } from "./_hooks"
 
 const COLS = 10
 const ROWS = 20
@@ -31,7 +32,7 @@ const SCORE_FOR = [0, 100, 300, 500, 800]
 const rotateCW = (m: Matrix): Matrix =>
   m[0].map((_, c) => m.map((row) => row[c]).reverse())
 
-const emptyBoard = (): Cell[] => new Array(COLS * ROWS).fill(0)
+const emptyBoard = (): Cell[] => Array.from({ length: COLS * ROWS }, () => 0)
 
 type Piece = { m: Matrix; x: number; y: number }
 
@@ -48,8 +49,8 @@ export default function Tetris() {
   const [best, setBest] = useState(0)
   const [over, setOver] = useState(false)
 
-  const board = useRef<Cell[]>(emptyBoard())
-  const piece = useRef<Piece>(spawnPiece())
+  const board = useLazyRef<Cell[]>(emptyBoard)
+  const piece = useLazyRef<Piece>(spawnPiece)
   const scoreRef = useRef(0)
   const linesRef = useRef(0)
   const levelRef = useRef(1)
@@ -114,7 +115,7 @@ export default function Tetris() {
       }
       if (full) {
         board.current.splice(r * COLS, COLS)
-        board.current.unshift(...(new Array(COLS).fill(0) as Cell[]))
+        board.current.unshift(...Array.from({ length: COLS }, () => 0 as Cell))
         cleared++
         r++ // recheck the same row index after shift
       }
@@ -283,23 +284,8 @@ export default function Tetris() {
   return (
     <GameFrame
       title="tetris"
-      status={
-        <>
-          score <b>{score}</b> · lines <b>{lines}</b> · lvl <b>{level}</b> · best{" "}
-          <b>{best}</b>
-        </>
-      }
-      hint={
-        over ? (
-          <>
-            game over · <b>space</b> to retry · <b>esc</b> to quit
-          </>
-        ) : (
-          <>
-            ← → move · <b>↑</b> rotate · <b>↓</b> soft · <b>space</b> hard drop
-          </>
-        )
-      }
+      status={`score ${score} · lines ${lines} · lvl ${level} · best ${best}`}
+      hint={over ? "game over · space to retry · esc to quit" : "← → move · ↑ rotate · ↓ soft · space hard drop"}
       onKey={onKey}
     >
       <canvas

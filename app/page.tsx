@@ -16,15 +16,54 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react"
 import type { JSX, KeyboardEvent as ReactKeyboardEvent } from "react"
 import { IBM_Plex_Mono, Martian_Mono } from "next/font/google"
 import dynamic from "next/dynamic"
-import { GameExitContext } from "@/app/games/_frame"
+import { GameExitContext } from "@/app/games/_exit-context"
 import MatrixRain from "@/app/MatrixRain"
+
+const PACIFIC_TIME_FORMAT = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/Los_Angeles",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+})
+
+const PALETTE_ITEMS: Array<[string, string]> = [
+  ["whoami", "who is this"],
+  ["ls", "browse files"],
+  ["experience", "full history"],
+  ["skills", "skill files"],
+  ["resume", "the whole thing"],
+  ["contact", "say hi"],
+  ["help", "everything"],
+]
+
+const HELP_ROWS: Array<[string, string]> = [
+  ["help", "this list"],
+  ["man <cmd>", "read the manual — e.g. man ls"],
+  ["ls", "list the current directory"],
+  ["cd <dir>", "change directory — e.g. cd skills, cd .."],
+  ["pwd", "print where you are"],
+  ["whoami", "the short version"],
+  ["cat <name>", "read a file — e.g. cat attune, cat readme"],
+  ["skills", "skill files — like the ones you give an agent"],
+  ["projects", "the things I've built"],
+  ["resume", "the whole résumé, printed"],
+  ["tree", "the filesystem, at a glance"],
+  ["writing", "blog posts & interviews"],
+  ["contact", "github · linkedin · email"],
+  ["open <target>", "open a link — e.g. open github, open hurry"],
+  ["theme <name>", "amber · green · paper"],
+  ["history", "what you have run"],
+  ["achievements", "what you've unlocked"],
+  ["games", "yes, there are games"],
+  ["clear", "wipe the screen (⌃L)"],
+]
 
 // Industrial mono for the REPL body. Static weights — predictable rhythm.
 const plex = IBM_Plex_Mono({
@@ -1262,9 +1301,14 @@ class ShellFs {
     let node: FsNode = this.root
     for (const name of segs) {
       if (node.kind !== "dir") return null
-      const next: FsNode | undefined =
-        node.children.find((c) => c.name === name) ??
-        node.children.find((c) => fileBase(c.name) === name)
+      let next: FsNode | undefined
+      for (const child of node.children) {
+        if (child.name === name) {
+          next = child
+          break
+        }
+        if (!next && fileBase(child.name) === name) next = child
+      }
       if (!next) return null
       node = next
     }
@@ -1274,7 +1318,10 @@ class ShellFs {
   // ~/skills inside home, /etc elsewhere, ~ at home, / at root.
   pathLabel(segs: readonly string[]): string {
     const h = this.home
-    const underHome = segs.length >= h.length && h.every((s, i) => segs[i] === s)
+    let underHome = segs.length >= h.length
+    for (let i = 0; underHome && i < h.length; i++) {
+      underHome = segs[i] === h[i]
+    }
     if (underHome) {
       const rest = segs.slice(h.length)
       return rest.length ? "~/" + rest.join("/") : "~"
@@ -1382,12 +1429,12 @@ function GameOverlay({ name, onExit }: { name: string; onExit: () => void }) {
 
   return (
     <GameExitContext.Provider value={onExit}>
-      <div
+      <dialog
+        open
         className="jsh-game-overlay"
-        role="dialog"
         aria-modal="true"
         aria-label={`${name} — fullscreen game`}
-        onClick={(e) => {
+        onPointerDown={(e) => {
           if (e.target === e.currentTarget) onExit()
         }}
       >
@@ -1401,7 +1448,7 @@ function GameOverlay({ name, onExit }: { name: string; onExit: () => void }) {
             press <b>Esc</b> to exit
           </p>
         </div>
-      </div>
+      </dialog>
     </GameExitContext.Provider>
   )
 }
@@ -1779,7 +1826,8 @@ export default function Shell() {
   themeRef.current = theme
   const achievementsRef = useRef<string[]>(achievements)
   achievementsRef.current = achievements
-  const usedThemesRef = useRef<Set<string>>(new Set())
+  const usedThemesRef = useRef<Set<string> | null>(null)
+  if (usedThemesRef.current === null) usedThemesRef.current = new Set()
   const cmdCountRef = useRef(0)
   const guestRef = useRef(guest)
   guestRef.current = guest
@@ -1835,9 +1883,10 @@ export default function Shell() {
       }
       const a = ACHIEVEMENTS.find((x) => x.id === id)
       if (a) pushText(<AchievementToast a={a} />)
-      const others = ACHIEVEMENTS.filter((x) => x.id !== "completionist").map(
-        (x) => x.id,
-      )
+      const others: string[] = []
+      for (const achievement of ACHIEVEMENTS) {
+        if (achievement.id !== "completionist") others.push(achievement.id)
+      }
       if (id !== "completionist" && others.every((o) => next.includes(o))) {
         window.setTimeout(() => unlockRef.current("completionist"), 450)
       }
@@ -1905,13 +1954,7 @@ export default function Shell() {
     const tick = () => {
       try {
         setClock(
-          new Intl.DateTimeFormat("en-US", {
-            timeZone: "America/Los_Angeles",
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-            hour12: false,
-          }).format(new Date()),
+          PACIFIC_TIME_FORMAT.format(new Date()),
         )
       } catch {
         /* Intl/timeZone unsupported — skip the clock */
@@ -2157,7 +2200,8 @@ export default function Shell() {
       }
       const apply = (nx: Theme) => {
         setTheme(nx)
-        const used = usedThemesRef.current
+        const used = usedThemesRef.current ?? new Set<string>()
+        usedThemesRef.current = used
         used.add(nx)
         try {
           window.localStorage.setItem("jsh-themes-used", JSON.stringify([...used]))
@@ -2767,7 +2811,7 @@ export default function Shell() {
   /* ----------------------------- VIEW ----------------------------- */
 
   const promptStr = `${guest}@${HOST}:${SHELL.pathLabel(cwd)}$`
-  const reveal = useMemo(() => (reduced ? "" : "jsh-reveal"), [reduced])
+  const reveal = reduced ? "" : "jsh-reveal"
 
   return (
     <RunContext.Provider value={dispatch}>
@@ -2817,7 +2861,7 @@ export default function Shell() {
           <div
             className="jsh-scroll"
             ref={scrollRef}
-            onClick={focusPrompt}
+            onPointerDown={focusPrompt}
             role="log"
             aria-label="session transcript"
             aria-live="polite"
@@ -3020,18 +3064,9 @@ function NeofetchCard() {
 function PaletteRow() {
   const run = useRun()
   const preview = usePreview()
-  const items: Array<[string, string]> = [
-    ["whoami", "who is this"],
-    ["ls", "browse files"],
-    ["experience", "full history"],
-    ["skills", "skill files"],
-    ["resume", "the whole thing"],
-    ["contact", "say hi"],
-    ["help", "everything"],
-  ]
   return (
-    <div className="jsh-palette" role="group" aria-label="suggested commands">
-      {items.map(([cmd, hint]) => (
+    <address className="jsh-palette" aria-label="suggested commands">
+      {PALETTE_ITEMS.map(([cmd, hint]) => (
         <button
           key={cmd}
           type="button"
@@ -3047,7 +3082,7 @@ function PaletteRow() {
           <span className="jsh-pill-hint">{hint}</span>
         </button>
       ))}
-    </div>
+    </address>
   )
 }
 
@@ -3088,32 +3123,11 @@ function ManBlock({ cmd, page }: { cmd: string; page: ManEntry }) {
 }
 
 function HelpBlock({ run }: { run: (c: string) => void }) {
-  const rows: Array<[string, string]> = [
-    ["help", "this list"],
-    ["man <cmd>", "read the manual — e.g. man ls"],
-    ["ls", "list the current directory"],
-    ["cd <dir>", "change directory — e.g. cd skills, cd .."],
-    ["pwd", "print where you are"],
-    ["whoami", "the short version"],
-    ["cat <name>", "read a file — e.g. cat attune, cat readme"],
-    ["skills", "skill files — like the ones you give an agent"],
-    ["projects", "the things I've built"],
-    ["resume", "the whole résumé, printed"],
-    ["tree", "the filesystem, at a glance"],
-    ["writing", "blog posts & interviews"],
-    ["contact", "github · linkedin · email"],
-    ["open <target>", "open a link — e.g. open github, open hurry"],
-    ["theme <name>", "amber · green · paper"],
-    ["history", "what you have run"],
-    ["achievements", "what you've unlocked"],
-    ["games", "yes, there are games"],
-    ["clear", "wipe the screen (⌃L)"],
-  ]
   return (
     <div className="jsh-help">
       <p className="jsh-out jsh-muted">available commands — click any to run:</p>
       <ul className="jsh-helpgrid">
-        {rows.map(([c, d]) => {
+        {HELP_ROWS.map(([c, d]) => {
           const base = c.split(" ")[0]
           return (
             <li key={c}>
@@ -3311,7 +3325,6 @@ function JobBlock({ job, expanded }: { job: Job; expanded?: boolean }) {
   return (
     <article
       className={`jsh-job ${expanded ? "jsh-job-open" : ""}`}
-      tabIndex={0}
       aria-label={`${job.org} — ${job.role}`}
     >
       <header className="jsh-job-head">
@@ -3328,8 +3341,8 @@ function JobBlock({ job, expanded }: { job: Job; expanded?: boolean }) {
       <p className="jsh-job-blurb">{job.blurb}</p>
       <div className="jsh-job-detail">
         <ul className="jsh-job-bullets">
-          {job.bullets.map((b, i) => (
-            <li key={i}>
+          {job.bullets.map((b) => (
+            <li key={`${job.id}:${b}`}>
               <span className="jsh-bullet-mark" aria-hidden="true">
                 ›
               </span>
@@ -3447,8 +3460,8 @@ function ResumeBlock({ run }: { run: (c: string) => void }) {
             </span>
           </div>
           <ul className="jsh-resume-bullets">
-            {j.bullets.map((b, i) => (
-              <li key={i}>
+            {j.bullets.map((b) => (
+              <li key={`${j.id}:${b}`}>
                 <span className="jsh-bullet-mark" aria-hidden="true">
                   ›
                 </span>
@@ -3499,8 +3512,8 @@ function TreeBlock({
       </p>
       <p className="jsh-tree-root">{label}</p>
       <ul className="jsh-tree-list">
-        {rows.map((r, i) => (
-          <li key={i} className="jsh-tree-row">
+        {rows.map((r) => (
+          <li key={`${r.prefix}:${r.name}`} className="jsh-tree-row">
             <span className="jsh-tree-l">
               <span className="jsh-tree-branch" aria-hidden="true">
                 {r.prefix}
@@ -3542,7 +3555,7 @@ function HistoryBlock({
     <div className="jsh-history">
       <ol className="jsh-hist-list">
         {items.map((c, i) => (
-          <li key={i}>
+          <li key={`${i + 1}:${c}`}>
             <span className="jsh-hist-n jsh-faint jsh-tnum">{i + 1}</span>
             <Cmd run={run}>{c}</Cmd>
           </li>
@@ -3874,12 +3887,7 @@ function delay(step: number): React.CSSProperties {
  * ------------------------------------------------------------------ */
 
 function StyleBlock() {
-  return (
-    <style
-      // eslint-disable-next-line react/no-danger
-      dangerouslySetInnerHTML={{ __html: CSS }}
-    />
-  )
+  return <style>{CSS}</style>
 }
 
 // Real HTML comments for the source-divers. JSX {/* */} comments don't survive
@@ -3892,17 +3900,12 @@ const SOURCE_EGGS = [
   "yes, the konami code does something. ↑↑↓↓←→←→ b a. so does `coffee`.",
   "if you're reading this in devtools, you're exactly the kind of person I'd want to work with. say hi: me@jessica.black",
 ]
-  .map((c) => `<!-- ${c} -->`)
-  .join("\n")
 
 function SourceEggs() {
   return (
-    <div
-      hidden
-      aria-hidden="true"
-      // eslint-disable-next-line react/no-danger
-      dangerouslySetInnerHTML={{ __html: SOURCE_EGGS }}
-    />
+    <div hidden aria-hidden="true">
+      {SOURCE_EGGS.join("\n")}
+    </div>
   )
 }
 
