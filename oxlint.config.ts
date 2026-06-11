@@ -42,6 +42,7 @@ export default defineConfig({
     ...projectRuleOverrides,
   },
   ignorePatterns: [
+    ".agents/**",
     ".codex/**",
     ".next/**",
     "node_modules/**",
