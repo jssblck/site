@@ -8,7 +8,7 @@
   own canvas/board inside and read keys via onKey.
 */
 
-import { useContext, useEffect, useRef } from "react"
+import { use, useEffect, useRef } from "react"
 import { GameExitContext } from "./_exit-context"
 
 export function GameFrame({
@@ -29,7 +29,7 @@ export function GameFrame({
   children: React.ReactNode
 }) {
   const ref = useRef<HTMLDivElement>(null)
-  const closeOverlay = useContext(GameExitContext)
+  const closeOverlay = use(GameExitContext)
   useEffect(() => {
     ref.current?.focus({ preventScroll: true })
   }, [])

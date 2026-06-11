@@ -13,8 +13,8 @@
 
 import {
   createContext,
+  use,
   useCallback,
-  useContext,
   useEffect,
   useRef,
   useState,
@@ -874,20 +874,20 @@ const MANPAGES: Record<string, ManEntry> = {
 // dispatcher as a normal prop from the boot path. We hand it down via context.
 const RunContext = createContext<(cmd: string) => void>(() => {})
 function useRun(): (cmd: string) => void {
-  return useContext(RunContext)
+  return use(RunContext)
 }
 
 // The visitor's guest handle, shared with transcript-embedded blocks.
 const GuestContext = createContext<string>("guest")
 function useGuest(): string {
-  return useContext(GuestContext)
+  return use(GuestContext)
 }
 
 // Hovering/focusing a command "ghosts" it into the prompt. Components call this
 // with the command string on enter, and null on leave.
 const PreviewContext = createContext<(cmd: string | null) => void>(() => {})
 function usePreview(): (cmd: string | null) => void {
-  return useContext(PreviewContext)
+  return use(PreviewContext)
 }
 
 function Ext({ href, children }: { href: string; children: React.ReactNode }) {
