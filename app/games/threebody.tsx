@@ -19,7 +19,7 @@
   framed, even when a body is thrown across the room. No score — it's a toy.
 */
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useReducer, useRef } from "react"
 import { GameFrame } from "./_frame"
 import { useLazyRef } from "./_hooks"
 import { themeColors } from "./_theme"
@@ -68,6 +68,29 @@ type CameraFrame = {
   cy: number
   width: number
   height: number
+}
+
+type ThreeBodyUiState = {
+  preset: Preset
+  paused: boolean
+  speed: number
+  escapeNotice: EscapeNotice | null
+  endState: EscapeNotice | null
+}
+
+const initialThreeBodyUi: ThreeBodyUiState = {
+  preset: "trisolaris",
+  paused: false,
+  speed: SPEEDS[DEFAULT_SPEED].label,
+  escapeNotice: null,
+  endState: null,
+}
+
+function threeBodyUiReducer(
+  state: ThreeBodyUiState,
+  patch: Partial<ThreeBodyUiState>,
+): ThreeBodyUiState {
+  return { ...state, ...patch }
 }
 
 function catalogBodies(index: number): Body[] {
@@ -171,11 +194,7 @@ export default function ThreeBody() {
   const pwRef = useRef(0)
   const phRef = useRef(0)
 
-  const [preset, setPreset] = useState<Preset>("trisolaris")
-  const [paused, setPaused] = useState(false)
-  const [speed, setSpeed] = useState<number>(SPEEDS[DEFAULT_SPEED].label)
-  const [escapeNotice, setEscapeNotice] = useState<EscapeNotice | null>(null)
-  const [endState, setEndState] = useState<EscapeNotice | null>(null)
+  const [ui, setUi] = useReducer(threeBodyUiReducer, initialThreeBodyUi)
 
   const seed = (p: Preset) => {
     presetRef.current = p
@@ -187,9 +206,7 @@ export default function ThreeBody() {
     endStateRef.current = null
     cameraFrameRef.current = null
     snapRef.current = true
-    setEscapeNotice(null)
-    setEndState(null)
-    setPreset(p)
+    setUi({ escapeNotice: null, endState: null, preset: p })
   }
   const restart = () => seed(presetRef.current)
 
@@ -198,7 +215,7 @@ export default function ThreeBody() {
     if (k === " ") {
       e.preventDefault()
       pausedRef.current = !pausedRef.current
-      setPaused(pausedRef.current)
+      setUi({ paused: pausedRef.current })
     } else if (k === "r") {
       e.preventDefault()
       restart()
@@ -215,11 +232,11 @@ export default function ThreeBody() {
     } else if (k === "[" || k === "-" || k === "arrowdown") {
       e.preventDefault()
       speedRef.current = Math.max(0, speedRef.current - 1)
-      setSpeed(SPEEDS[speedRef.current].label)
+      setUi({ speed: SPEEDS[speedRef.current].label })
     } else if (k === "]" || k === "+" || k === "=" || k === "arrowup") {
       e.preventDefault()
       speedRef.current = Math.min(SPEEDS.length - 1, speedRef.current + 1)
-      setSpeed(SPEEDS[speedRef.current].label)
+      setUi({ speed: SPEEDS[speedRef.current].label })
     } else if (k === "t") {
       e.preventDefault()
       trailsRef.current = !trailsRef.current
@@ -354,7 +371,7 @@ export default function ThreeBody() {
             endAt: now + ESCAPE_END_DELAY_MS,
           }
           escapeNoticeRef.current = notice
-          setEscapeNotice(notice)
+          setUi({ escapeNotice: notice })
           return
         }
       }
@@ -379,7 +396,7 @@ export default function ThreeBody() {
         detectEscape(now)
         if (escapeNoticeRef.current && now >= escapeNoticeRef.current.endAt) {
           endStateRef.current = escapeNoticeRef.current
-          setEndState(escapeNoticeRef.current)
+          setUi({ endState: escapeNoticeRef.current })
         }
       }
       draw()
@@ -389,13 +406,12 @@ export default function ThreeBody() {
       cancelAnimationFrame(rafRef.current)
       ro.disconnect()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [bodiesRef, escapeFramesRef, trailRef])
 
   return (
     <GameFrame
       title="three-body"
-      status={`${preset} · ${speed}×${paused ? " · paused" : ""}${escapeNotice && !endState ? " · escape detected" : ""}${endState ? " · ended" : ""}`}
+      status={`${ui.preset} · ${ui.speed}×${ui.paused ? " · paused" : ""}${ui.escapeNotice && !ui.endState ? " · escape detected" : ""}${ui.endState ? " · ended" : ""}`}
       hint="space pause · r reseed · 1/2 trisolaris / chaos · [ ] speed · t trails · esc quit"
       onKey={onKey}
     >
@@ -405,13 +421,13 @@ export default function ThreeBody() {
           className="jsh-game-canvas jsh-sim-canvas"
           aria-label="three-body gravitational simulation"
         />
-        {escapeNotice && !endState && (
+        {ui.escapeNotice && !ui.endState && (
           <output className="jsh-threebody-alert" aria-live="polite">
             <span>escape trajectory detected</span>
-            <small>{escapeNotice.bodyName} is leaving; ending shortly</small>
+            <small>{ui.escapeNotice.bodyName} is leaving; ending shortly</small>
           </output>
         )}
-        {endState && (
+        {ui.endState && (
           <dialog
             open
             className="jsh-threebody-end"
@@ -421,7 +437,7 @@ export default function ThreeBody() {
           >
             <p className="jsh-threebody-end-title">simulation ended</p>
             <p>
-              {endState.bodyName} reached escape velocity and left the system after{" "}
+              {ui.endState.bodyName} reached escape velocity and left the system after{" "}
               {ESCAPE_END_DELAY_SECONDS.toFixed(1)} seconds on an outward trajectory.
             </p>
             <button

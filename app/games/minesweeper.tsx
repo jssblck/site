@@ -7,7 +7,8 @@
   every safe cell to win; best time persists.
 */
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useEffect, useReducer, useRef } from "react"
+import { useStoredNumber } from "@/app/_client-state"
 import { GameFrame } from "./_frame"
 
 const COLS = 12
@@ -17,6 +18,20 @@ const MINES = 24
 const CELL = 30
 
 type Status = "ready" | "playing" | "won" | "lost"
+type MinesState = {
+  mines: boolean[]
+  counts: number[]
+  revealed: boolean[]
+  flagged: boolean[]
+  status: Status
+  cursor: number
+  time: number
+}
+type MinesAction =
+  | { type: "replace"; state: MinesState }
+  | { type: "reset" }
+  | { type: "tick" }
+  | { type: "move"; cursor: number }
 
 const neighbors = (idx: number): number[] => {
   const r = Math.floor(idx / COLS)
@@ -64,111 +79,117 @@ const NUM_COLOR = [
   "var(--jsh-err)",
 ]
 
-export default function Minesweeper() {
-  const [mines, setMines] = useState<boolean[]>(() => Array.from({ length: TOTAL }, () => false))
-  const [counts, setCounts] = useState<number[]>(() => Array.from({ length: TOTAL }, () => 0))
-  const [revealed, setRevealed] = useState<boolean[]>(() => Array.from({ length: TOTAL }, () => false))
-  const [flagged, setFlagged] = useState<boolean[]>(() => Array.from({ length: TOTAL }, () => false))
-  const [status, setStatus] = useState<Status>("ready")
-  const [cursor, setCursor] = useState(Math.floor(TOTAL / 2) + COLS / 2)
-  const [time, setTime] = useState(0)
-  const [best, setBest] = useState(0)
-  const statusRef = useRef<Status>("ready")
-  statusRef.current = status
+const emptyFlags = () => Array.from({ length: TOTAL }, () => false)
+const emptyCounts = () => Array.from({ length: TOTAL }, () => 0)
+const initialMinesState = (): MinesState => ({
+  mines: emptyFlags(),
+  counts: emptyCounts(),
+  revealed: emptyFlags(),
+  flagged: emptyFlags(),
+  status: "ready",
+  cursor: Math.floor(TOTAL / 2) + COLS / 2,
+  time: 0,
+})
 
-  useEffect(() => {
-    try {
-      setBest(Number(localStorage.getItem("jsh-mines-best") || "0"))
-    } catch {
-      /* ignore */
+function minesReducer(state: MinesState, action: MinesAction): MinesState {
+  switch (action.type) {
+    case "replace":
+      return action.state
+    case "reset":
+      return initialMinesState()
+    case "tick":
+      return state.status === "playing" ? { ...state, time: state.time + 1 } : state
+    case "move":
+      return { ...state, cursor: action.cursor }
+  }
+}
+
+function revealNext(state: MinesState, idx: number): MinesState {
+  if (state.status === "won" || state.status === "lost") return state
+  if (state.flagged[idx] || state.revealed[idx]) return state
+
+  let mines = state.mines
+  let counts = state.counts
+  let status = state.status
+  if (status === "ready") {
+    const board = genBoard(idx)
+    mines = board.mines
+    counts = board.counts
+    status = "playing"
+  }
+
+  if (mines[idx]) {
+    const revealed = state.revealed.slice()
+    for (let i = 0; i < TOTAL; i++) if (mines[i]) revealed[i] = true
+    return { ...state, mines, counts, revealed, status: "lost" }
+  }
+
+  const revealed = state.revealed.slice()
+  const stack = [idx]
+  while (stack.length) {
+    const k = stack.pop() as number
+    if (revealed[k] || state.flagged[k]) continue
+    revealed[k] = true
+    if (counts[k] === 0) {
+      for (const n of neighbors(k)) {
+        if (!revealed[n] && !mines[n] && !state.flagged[n]) stack.push(n)
+      }
     }
-  }, [])
+  }
+
+  const cleared = revealed.filter(Boolean).length
+  return {
+    ...state,
+    mines,
+    counts,
+    revealed,
+    status: cleared === TOTAL - MINES ? "won" : status,
+  }
+}
+
+function toggleFlagNext(state: MinesState, idx: number): MinesState {
+  if (state.status === "won" || state.status === "lost") return state
+  if (state.revealed[idx]) return state
+  const flagged = state.flagged.slice()
+  flagged[idx] = !flagged[idx]
+  return { ...state, flagged }
+}
+
+export default function Minesweeper() {
+  const [state, dispatch] = useReducer(minesReducer, undefined, initialMinesState)
+  const [best, setBest] = useStoredNumber("jsh-mines-best", 0)
+  const stateRef = useRef(state)
+  stateRef.current = state
 
   useEffect(() => {
-    if (status !== "playing") return
-    const id = window.setInterval(() => setTime((t) => t + 1), 1000)
+    if (state.status !== "playing") return
+    const id = window.setInterval(() => dispatch({ type: "tick" }), 1000)
     return () => window.clearInterval(id)
-  }, [status])
+  }, [state.status])
 
-  const reset = useCallback(() => {
-    setMines(Array.from({ length: TOTAL }, () => false))
-    setCounts(Array.from({ length: TOTAL }, () => 0))
-    setRevealed(Array.from({ length: TOTAL }, () => false))
-    setFlagged(Array.from({ length: TOTAL }, () => false))
-    setStatus("ready")
-    setTime(0)
-  }, [])
+  const reset = () => dispatch({ type: "reset" })
 
-  const reveal = useCallback(
-    (idx: number) => {
-      if (statusRef.current === "won" || statusRef.current === "lost") return
-      if (flagged[idx] || revealed[idx]) return
+  const reveal = (idx: number) => {
+    const current = stateRef.current
+    const next = revealNext(current, idx)
+    if (next === current) return
+    dispatch({ type: "replace", state: next })
+    if (current.status !== "won" && next.status === "won") {
+      const finalTime = next.time
+      const nextBest = best === 0 ? finalTime : Math.min(best, finalTime)
+      setBest(nextBest)
+    }
+  }
 
-      let m = mines
-      let c = counts
-      if (statusRef.current === "ready") {
-        const board = genBoard(idx)
-        m = board.mines
-        c = board.counts
-        setMines(m)
-        setCounts(c)
-        setStatus("playing")
-      }
-
-      if (m[idx]) {
-        const rev = revealed.slice()
-        for (let i = 0; i < TOTAL; i++) if (m[i]) rev[i] = true
-        setRevealed(rev)
-        setStatus("lost")
-        return
-      }
-
-      const rev = revealed.slice()
-      const stack = [idx]
-      while (stack.length) {
-        const k = stack.pop() as number
-        if (rev[k] || flagged[k]) continue
-        rev[k] = true
-        if (c[k] === 0) {
-          for (const n of neighbors(k)) if (!rev[n] && !m[n] && !flagged[n]) stack.push(n)
-        }
-      }
-      setRevealed(rev)
-
-      const cleared = rev.filter(Boolean).length
-      if (cleared === TOTAL - MINES) {
-        setStatus("won")
-        const finalT = time
-        setBest((b) => {
-          const val = b === 0 ? finalT : Math.min(b, finalT)
-          try {
-            localStorage.setItem("jsh-mines-best", String(val))
-          } catch {
-            /* ignore */
-          }
-          return val
-        })
-      }
-    },
-    [mines, counts, revealed, flagged, time],
-  )
-
-  const toggleFlag = useCallback(
-    (idx: number) => {
-      if (statusRef.current === "won" || statusRef.current === "lost") return
-      if (revealed[idx]) return
-      setFlagged((f) => {
-        const nf = f.slice()
-        nf[idx] = !nf[idx]
-        return nf
-      })
-    },
-    [revealed],
-  )
+  const toggleFlag = (idx: number) => {
+    const current = stateRef.current
+    const next = toggleFlagNext(current, idx)
+    if (next !== current) dispatch({ type: "replace", state: next })
+  }
 
   const onKey = (e: React.KeyboardEvent) => {
     const k = e.key.toLowerCase()
-    if (status === "won" || status === "lost") {
+    if (state.status === "won" || state.status === "lost") {
       if (k === " " || k === "enter") {
         e.preventDefault()
         reset()
@@ -177,28 +198,34 @@ export default function Minesweeper() {
     }
     if (k === "arrowleft" || k === "h") {
       e.preventDefault()
-      setCursor((i) => (i % COLS === 0 ? i : i - 1))
+      dispatch({ type: "move", cursor: state.cursor % COLS === 0 ? state.cursor : state.cursor - 1 })
     } else if (k === "arrowright" || k === "l") {
       e.preventDefault()
-      setCursor((i) => (i % COLS === COLS - 1 ? i : i + 1))
+      dispatch({
+        type: "move",
+        cursor: state.cursor % COLS === COLS - 1 ? state.cursor : state.cursor + 1,
+      })
     } else if (k === "arrowup" || k === "k") {
       e.preventDefault()
-      setCursor((i) => (i < COLS ? i : i - COLS))
+      dispatch({ type: "move", cursor: state.cursor < COLS ? state.cursor : state.cursor - COLS })
     } else if (k === "arrowdown" || k === "j") {
       e.preventDefault()
-      setCursor((i) => (i >= TOTAL - COLS ? i : i + COLS))
+      dispatch({
+        type: "move",
+        cursor: state.cursor >= TOTAL - COLS ? state.cursor : state.cursor + COLS,
+      })
     } else if (k === " " || k === "enter") {
       e.preventDefault()
-      reveal(cursor)
+      reveal(state.cursor)
     } else if (k === "f") {
       e.preventDefault()
-      toggleFlag(cursor)
+      toggleFlag(state.cursor)
     }
   }
 
-  const flagCount = flagged.filter(Boolean).length
+  const flagCount = state.flagged.filter(Boolean).length
   const cellStyle = (i: number): React.CSSProperties => {
-    const isRev = revealed[i]
+    const isRev = state.revealed[i]
     const base: React.CSSProperties = {
       width: CELL,
       height: CELL,
@@ -208,12 +235,12 @@ export default function Minesweeper() {
       fontSize: 15,
       fontWeight: 700,
       fontVariantNumeric: "tabular-nums",
-      cursor: status === "won" || status === "lost" ? "default" : "pointer",
+      cursor: state.status === "won" || state.status === "lost" ? "default" : "pointer",
       userSelect: "none",
       padding: 0,
       boxSizing: "border-box",
       fontFamily: "inherit",
-      outline: i === cursor ? "2px solid var(--jsh-amber)" : "none",
+      outline: i === state.cursor ? "2px solid var(--jsh-amber)" : "none",
       outlineOffset: -2,
     }
     if (isRev) {
@@ -221,7 +248,7 @@ export default function Minesweeper() {
         ...base,
         background: "var(--jsh-bg-2)",
         border: "1px solid var(--jsh-rule-2)",
-        color: mines[i] ? "var(--jsh-err)" : NUM_COLOR[counts[i]] || "transparent",
+        color: state.mines[i] ? "var(--jsh-err)" : NUM_COLOR[state.counts[i]] || "transparent",
       }
     }
     return {
@@ -235,10 +262,10 @@ export default function Minesweeper() {
   return (
     <GameFrame
       title="minesweeper"
-      status={`mines ${Math.max(0, MINES - flagCount)} · time ${time}s · best ${best || "—"}${status === "won" ? " · cleared!" : status === "lost" ? " · boom" : ""}`}
+      status={`mines ${Math.max(0, MINES - flagCount)} · time ${state.time}s · best ${best || "—"}${state.status === "won" ? " · cleared!" : state.status === "lost" ? " · boom" : ""}`}
       hint={
-        status === "won" || status === "lost"
-          ? `${status === "won" ? "swept clean" : "boom"} · space to retry · esc to quit`
+        state.status === "won" || state.status === "lost"
+          ? `${state.status === "won" ? "swept clean" : "boom"} · space to retry · esc to quit`
           : "click reveal · right-click/f flag · arrows move · esc quit"
       }
       onKey={onKey}
@@ -254,22 +281,22 @@ export default function Minesweeper() {
             style={cellStyle(i)}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
-              setCursor(i)
+              dispatch({ type: "move", cursor: i })
               reveal(i)
             }}
             onContextMenu={(e) => {
               e.preventDefault()
-              setCursor(i)
+              dispatch({ type: "move", cursor: i })
               toggleFlag(i)
             }}
           >
-            {flagged[i] && !revealed[i]
+            {state.flagged[i] && !state.revealed[i]
               ? "⚑"
-              : revealed[i]
-                ? mines[i]
+              : state.revealed[i]
+                ? state.mines[i]
                   ? "✸"
-                  : counts[i] > 0
-                    ? counts[i]
+                  : state.counts[i] > 0
+                    ? state.counts[i]
                     : ""
                 : ""}
           </button>

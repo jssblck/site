@@ -8,16 +8,34 @@
   is clickable. Win streak persists.
 */
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useReducer, useRef } from "react"
+import { useStoredNumber } from "@/app/_client-state"
 import { GameFrame } from "./_frame"
 
 // Common five-letter words — the answer pool and the accepted-guess dictionary.
 const WORDS =
   "about above abuse actor acute admit adopt adult after again agent agree ahead alarm album alert alike alive allow alone along alter among anger angle angry apart apple apply arena argue arise array aside asset audio audit avoid award aware badly baker bases basic beach began begin begun being below bench billy birth black blame blank blast blind block blood board boost booth bound brain brand brave bread break breed brief bring broad broke brown build built buyer cable carry catch cause chain chair chaos charm chart chase cheap check chest chief child china chose civil claim class clean clear click climb clock close cloud coach coast could count court cover crack craft crash crazy cream crime cross crowd crown crude curve cycle daily dance dated dealt death debut delay depth doing doubt dozen draft drama drank dream dress drill drink drive drove dying eager early earth eight elite empty enemy enjoy enter entry equal error event every exact exist extra faith false fault favor fence fewer fiber field fifth fifty fight final first fixed flame flash fleet floor fluid focus force forth forty forum found frame frank fraud fresh front fruit fully funny giant given glass globe glory grace grade grain grand grant grass grave great green greet gross group grown guard guess guest guide happy harsh heart heavy hello hence horse hotel house human ideal image index inner input issue joint judge known label large laser later laugh layer learn lease least leave legal level light limit linen links lived liver loads logic loose lover lower lucky lunch lying magic major maker march match maybe mayor meant medal media metal might minor minus mixed model money month moral motor mount mouse mouth movie music needs nerve never newly night noble noise north noted novel nurse occur ocean offer often order other ought paint panel paper party peace phase phone photo piano piece pilot pitch place plain plane plant plate point pound power press price pride prime print prior prize probe proof proud prove queen quick quiet quite radio raise range rapid ratio reach ready realm rebel refer relax reply rider ridge right rigid risky river rival roman rough round route royal rural scale scene scope score sense serve seven shade shall shape share sharp sheet shelf shell shift shine shirt shock shoot shore short shown sight silly since sixth sixty sized skill sleep slide small smart smile smoke solid solve sorry sound south space spare speak speed spend spent spice spite split spoke sport staff stage stair stake stand stark start state steam steel steep steer stick still stock stone stood store storm story strip stuck study stuff style sugar suite super sweet table taken taste taxes teach teeth terms theft their theme there these thick thing think third those three threw throw thumb tiger tight timer title today token topic total touch tower trace track trade trail train treat trend trial tribe trick tried tries truck truly trust truth twice twist tying ultra uncle under undue union unite unity until upper upset urban usage usual valid value video virus visit vital vocal voice waste watch water wheel where which while white whole whose woman world worry worse worst worth would wound write wrong wrote yield young youth"
     .split(" ")
+const WORD_SET = new Set(WORDS)
 
 type Cell = "correct" | "present" | "absent" | "empty"
 type RowView = { id: string; letters: string[]; states: Cell[] }
+type WordleStatus = "playing" | "won" | "lost"
+type WordleState = {
+  answer: string
+  guesses: string[]
+  current: string
+  status: WordleStatus
+  msg: string
+  shake: boolean
+}
+type WordleAction =
+  | { type: "new" }
+  | { type: "flash"; msg: string }
+  | { type: "clear-shake" }
+  | { type: "type"; key: string }
+  | { type: "back" }
+  | { type: "submit"; guess: string; status: WordleStatus; msg: string }
 
 function score(guess: string, answer: string): Cell[] {
   const res: Cell[] = ["absent", "absent", "absent", "absent", "absent"]
@@ -94,42 +112,56 @@ const ROWS = ["qwertyuiop", "asdfghjkl", "zxcvbnm"]
 const CELL_KEYS = ["one", "two", "three", "four", "five"] as const
 const rank: Record<Cell, number> = { empty: 0, absent: 1, present: 2, correct: 3 }
 
+const randomAnswer = () => WORDS[Math.floor(Math.random() * WORDS.length)]
+const initialWordleState = (): WordleState => ({
+  answer: randomAnswer(),
+  guesses: [],
+  current: "",
+  status: "playing",
+  msg: "",
+  shake: false,
+})
+
+function wordleReducer(state: WordleState, action: WordleAction): WordleState {
+  switch (action.type) {
+    case "new":
+      return initialWordleState()
+    case "flash":
+      return { ...state, msg: action.msg, shake: true }
+    case "clear-shake":
+      return { ...state, shake: false }
+    case "type":
+      return state.current.length < 5
+        ? { ...state, current: state.current + action.key }
+        : state
+    case "back":
+      return { ...state, current: state.current.slice(0, -1) }
+    case "submit":
+      return {
+        ...state,
+        guesses: [...state.guesses, action.guess],
+        current: "",
+        status: action.status,
+        msg: action.msg,
+      }
+  }
+}
+
 export default function Wordle() {
-  const [answer, setAnswer] = useState("")
-  const [guesses, setGuesses] = useState<string[]>([])
-  const [current, setCurrent] = useState("")
-  const [status, setStatus] = useState<"playing" | "won" | "lost">("playing")
-  const [msg, setMsg] = useState("")
-  const [shake, setShake] = useState(false)
-  const [streak, setStreak] = useState(0)
-  const [best, setBest] = useState(0)
-  const bestRef = useRef(0)
-  const streakRef = useRef(0)
-
-  const newGame = useCallback(() => {
-    setAnswer(WORDS[Math.floor(Math.random() * WORDS.length)])
-    setGuesses([])
-    setCurrent("")
-    setStatus("playing")
-    setMsg("")
-  }, [])
-
-  useEffect(() => {
-    try {
-      streakRef.current = Number(localStorage.getItem("jsh-wordle-streak") || "0")
-      bestRef.current = Number(localStorage.getItem("jsh-wordle-best") || "0")
-      setStreak(streakRef.current)
-      setBest(bestRef.current)
-    } catch {
-      /* ignore */
-    }
-    newGame()
-  }, [newGame])
+  const [state, dispatch] = useReducer(wordleReducer, undefined, initialWordleState)
+  const [streak, setStreak] = useStoredNumber("jsh-wordle-streak", 0)
+  const [best, setBest] = useStoredNumber("jsh-wordle-best", 0)
+  const stateRef = useRef(state)
+  stateRef.current = state
+  const streakRef = useRef(streak)
+  streakRef.current = streak
+  const bestRef = useRef(best)
+  bestRef.current = best
 
   // live letter knowledge for the on-screen keyboard
   const letterState: Record<string, Cell> = {}
-  for (const g of guesses) {
-    const sc = score(g, answer)
+  for (const g of state.guesses) {
+    const sc = score(g, state.answer)
     for (let i = 0; i < 5; i++) {
       const ch = g[i]
       if (rank[sc[i]] > rank[letterState[ch] ?? "empty"]) letterState[ch] = sc[i]
@@ -137,62 +169,55 @@ export default function Wordle() {
   }
 
   const flash = (m: string) => {
-    setMsg(m)
-    setShake(true)
-    window.setTimeout(() => setShake(false), 360)
+    dispatch({ type: "flash", msg: m })
+    window.setTimeout(() => dispatch({ type: "clear-shake" }), 360)
   }
 
-  const submit = useCallback(
-    (g: string) => {
-      if (g.length !== 5) return flash("five letters")
-      if (!WORDS.includes(g)) return flash("not in word list")
-      const next = [...guesses, g]
-      setGuesses(next)
-      setCurrent("")
-      setMsg("")
-      if (g === answer) {
-        setStatus("won")
-        const ns = streakRef.current + 1
-        streakRef.current = ns
-        setStreak(ns)
-        if (ns > bestRef.current) {
-          bestRef.current = ns
-          setBest(ns)
-        }
-        try {
-          localStorage.setItem("jsh-wordle-streak", String(ns))
-          localStorage.setItem("jsh-wordle-best", String(bestRef.current))
-        } catch {
-          /* ignore */
-        }
-        setMsg(`solved in ${next.length} · enter to play again`)
-      } else if (next.length >= 6) {
-        setStatus("lost")
-        streakRef.current = 0
-        setStreak(0)
-        try {
-          localStorage.setItem("jsh-wordle-streak", "0")
-        } catch {
-          /* ignore */
-        }
-        setMsg(`it was ${answer.toUpperCase()} · enter to retry`)
+  const submit = (guess: string) => {
+    const current = stateRef.current
+    if (guess.length !== 5) return flash("five letters")
+    if (!WORD_SET.has(guess)) return flash("not in word list")
+    const guessCount = current.guesses.length + 1
+    if (guess === current.answer) {
+      const nextStreak = streakRef.current + 1
+      streakRef.current = nextStreak
+      setStreak(nextStreak)
+      if (nextStreak > bestRef.current) {
+        bestRef.current = nextStreak
+        setBest(nextStreak)
       }
-    },
-    [guesses, answer],
-  )
+      dispatch({
+        type: "submit",
+        guess,
+        status: "won",
+        msg: `solved in ${guessCount} · enter to play again`,
+      })
+      return
+    }
+    if (guessCount >= 6) {
+      streakRef.current = 0
+      setStreak(0)
+      dispatch({
+        type: "submit",
+        guess,
+        status: "lost",
+        msg: `it was ${current.answer.toUpperCase()} · enter to retry`,
+      })
+      return
+    }
+    dispatch({ type: "submit", guess, status: "playing", msg: "" })
+  }
 
-  const handle = useCallback(
-    (key: string) => {
-      if (status !== "playing") {
-        if (key === "enter") newGame()
-        return
-      }
-      if (key === "enter") submit(current)
-      else if (key === "back") setCurrent((c) => c.slice(0, -1))
-      else if (/^[a-z]$/.test(key)) setCurrent((c) => (c.length < 5 ? c + key : c))
-    },
-    [status, current, submit, newGame],
-  )
+  const handle = (key: string) => {
+    const current = stateRef.current
+    if (current.status !== "playing") {
+      if (key === "enter") dispatch({ type: "new" })
+      return
+    }
+    if (key === "enter") submit(current.current)
+    else if (key === "back") dispatch({ type: "back" })
+    else if (/^[a-z]$/.test(key)) dispatch({ type: "type", key })
+  }
 
   const onKey = (e: React.KeyboardEvent) => {
     const k = e.key
@@ -211,10 +236,14 @@ export default function Wordle() {
   // build the 6 rows for display
   const rowsView: RowView[] = []
   for (let r = 0; r < 6; r++) {
-    if (r < guesses.length) {
-      rowsView.push({ id: `guess:${r}:${guesses[r]}`, letters: guesses[r].split(""), states: score(guesses[r], answer) })
-    } else if (r === guesses.length && status === "playing") {
-      const letters = current.padEnd(5).split("")
+    if (r < state.guesses.length) {
+      rowsView.push({
+        id: `guess:${r}:${state.guesses[r]}`,
+        letters: state.guesses[r].split(""),
+        states: score(state.guesses[r], state.answer),
+      })
+    } else if (r === state.guesses.length && state.status === "playing") {
+      const letters = state.current.padEnd(5).split("")
       rowsView.push({ id: `current:${r}`, letters, states: Array.from({ length: 5 }, () => "empty") })
     } else {
       rowsView.push({
@@ -242,7 +271,7 @@ export default function Wordle() {
         }}
       >
         <div
-          style={{ display: "grid", gap: 6, animation: shake ? "jsh-shake 0.36s" : undefined }}
+          style={{ display: "grid", gap: 6, animation: state.shake ? "jsh-shake 0.36s" : undefined }}
         >
           {rowsView.map((row) => (
             <div key={row.id} style={{ display: "grid", gridTemplateColumns: "repeat(5, 52px)", gap: 6 }}>
@@ -255,7 +284,7 @@ export default function Wordle() {
           ))}
         </div>
 
-        <div style={{ minHeight: 16, fontSize: 12.5, color: "var(--jsh-muted)" }}>{msg}</div>
+        <div style={{ minHeight: 16, fontSize: 12.5, color: "var(--jsh-muted)" }}>{state.msg}</div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "center" }}>
           {ROWS.map((rowKeys, r) => (

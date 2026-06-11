@@ -34,6 +34,20 @@ function dropGlider(cells: Uint8Array, x: number, y: number) {
   }
 }
 
+function populationOf(cells: Uint8Array) {
+  let n = 0
+  for (let i = 0; i < cells.length; i++) n += cells[i]
+  return n
+}
+
+function seededCells(density = 0.22) {
+  const cells = new Uint8Array(COLS * ROWS)
+  for (let i = 0; i < cells.length; i++) cells[i] = Math.random() < density ? 1 : 0
+  dropGlider(cells, 4, 4)
+  dropGlider(cells, COLS - 10, ROWS - 10)
+  return cells
+}
+
 export default function Life() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rafRef = useRef(0)
@@ -41,31 +55,23 @@ export default function Life() {
   const accRef = useRef(0)
   const activeRef = useRef(true)
 
-  const cellsRef = useLazyRef(() => new Uint8Array(COLS * ROWS))
+  const cellsRef = useLazyRef(seededCells)
   const nextRef = useLazyRef(() => new Uint8Array(COLS * ROWS))
   const runningRef = useRef(true)
   const rateRef = useRef(12) // generations per second
   const paintRef = useRef<{ down: boolean; val: number }>({ down: false, val: 1 })
+  const stepRef = useRef<() => void>(() => {})
 
   const [running, setRunning] = useState(true)
   const [gen, setGen] = useState(0)
-  const [pop, setPop] = useState(0)
+  const [pop, setPop] = useState(() => populationOf(cellsRef.current))
   const [rate, setRate] = useState(12)
 
-  const population = () => {
-    let n = 0
-    const c = cellsRef.current
-    for (let i = 0; i < c.length; i++) n += c[i]
-    return n
-  }
-
   const seed = (density = 0.22) => {
-    const c = cellsRef.current
-    for (let i = 0; i < c.length; i++) c[i] = Math.random() < density ? 1 : 0
-    dropGlider(c, 4, 4)
-    dropGlider(c, COLS - 10, ROWS - 10)
+    cellsRef.current = seededCells(density)
+    nextRef.current.fill(0)
     setGen(0)
-    setPop(population())
+    setPop(populationOf(cellsRef.current))
   }
 
   const clear = () => {
@@ -98,13 +104,9 @@ export default function Life() {
     cellsRef.current = n
     nextRef.current = c
     setGen((g) => g + 1)
-    setPop(population)
+    setPop(populationOf(cellsRef.current))
   }
-
-  useEffect(() => {
-    seed()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  stepRef.current = step
 
   const onKey = (e: React.KeyboardEvent) => {
     const k = e.key.toLowerCase()
@@ -128,7 +130,7 @@ export default function Life() {
         Math.floor(Math.random() * COLS),
         Math.floor(Math.random() * ROWS),
       )
-      setPop(population())
+      setPop(populationOf(cellsRef.current))
     } else if (k === "arrowup") {
       e.preventDefault()
       rateRef.current = Math.min(30, rateRef.current + 2)
@@ -155,20 +157,20 @@ export default function Life() {
       if (cx < 0 || cx >= COLS || cy < 0 || cy >= ROWS) return -1
       return idx(cx, cy)
     }
-    const onDown = (e: MouseEvent) => {
+      const onDown = (e: MouseEvent) => {
       const i = cellAt(e.clientX, e.clientY)
       if (i < 0) return
       const val = cellsRef.current[i] ? 0 : 1
       paintRef.current = { down: true, val }
       cellsRef.current[i] = val
-      setPop(population())
+      setPop(populationOf(cellsRef.current))
     }
     const onMove = (e: MouseEvent) => {
       if (!paintRef.current.down) return
       const i = cellAt(e.clientX, e.clientY)
       if (i < 0) return
       cellsRef.current[i] = paintRef.current.val
-      setPop(population())
+      setPop(populationOf(cellsRef.current))
     }
     const onUp = () => {
       paintRef.current.down = false
@@ -220,7 +222,7 @@ export default function Life() {
         let steps = 0
         while (accRef.current >= stepMs && steps < 4) {
           accRef.current -= stepMs
-          step()
+          stepRef.current()
           steps++
         }
       }
@@ -233,8 +235,7 @@ export default function Life() {
       canvas.removeEventListener("mousemove", onMove)
       window.removeEventListener("mouseup", onUp)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [cellsRef])
 
   return (
     <GameFrame

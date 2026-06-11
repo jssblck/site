@@ -7,7 +7,9 @@
 */
 
 import { useEffect, useRef, useState } from "react"
+import { useStoredNumber } from "@/app/_client-state"
 import { GameFrame } from "./_frame"
+import { useLazyRef } from "./_hooks"
 import { themeColors } from "./_theme"
 
 const COLS = 24
@@ -20,19 +22,37 @@ const MIN_MS = 64
 
 type P = { x: number; y: number }
 
+const createSnake = (): P[] => [
+  { x: 8, y: 8 },
+  { x: 7, y: 8 },
+  { x: 6, y: 8 },
+]
+
+const randomFood = (body: readonly P[]): P => {
+  let f: P
+  do {
+    f = {
+      x: Math.floor(Math.random() * COLS),
+      y: Math.floor(Math.random() * ROWS),
+    }
+  } while (body.some((s) => s.x === f.x && s.y === f.y))
+  return f
+}
+
 export default function Snake() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [score, setScore] = useState(0)
-  const [best, setBest] = useState(0)
+  const [best, setBest] = useStoredNumber("jsh-snake-best", 0)
   const [over, setOver] = useState(false)
   const [started, setStarted] = useState(false)
 
-  const snake = useRef<P[]>([])
-  const dir = useRef<P>({ x: 1, y: 0 })
-  const nextDir = useRef<P>({ x: 1, y: 0 })
-  const food = useRef<P>({ x: 12, y: 8 })
+  const snake = useLazyRef<P[]>(createSnake)
+  const dir = useLazyRef<P>(() => ({ x: 1, y: 0 }))
+  const nextDir = useLazyRef<P>(() => ({ x: 1, y: 0 }))
+  const food = useLazyRef<P>(() => randomFood(snake.current))
   const scoreRef = useRef(0)
-  const bestRef = useRef(0)
+  const bestRef = useRef(best)
+  bestRef.current = best
   const speedRef = useRef(START_MS)
   const active = useRef(true)
   const startedRef = useRef(false)
@@ -40,24 +60,14 @@ export default function Snake() {
   const accRef = useRef(0)
   const lastRef = useRef(0)
   const rafRef = useRef(0)
+  const stepRef = useRef<() => void>(() => {})
 
   const placeFood = () => {
-    let f: P
-    do {
-      f = {
-        x: Math.floor(Math.random() * COLS),
-        y: Math.floor(Math.random() * ROWS),
-      }
-    } while (snake.current.some((s) => s.x === f.x && s.y === f.y))
-    food.current = f
+    food.current = randomFood(snake.current)
   }
 
   const reset = () => {
-    snake.current = [
-      { x: 8, y: 8 },
-      { x: 7, y: 8 },
-      { x: 6, y: 8 },
-    ]
+    snake.current = createSnake()
     dir.current = { x: 1, y: 0 }
     nextDir.current = { x: 1, y: 0 }
     placeFood()
@@ -69,17 +79,6 @@ export default function Snake() {
     accRef.current = 0
     lastRef.current = 0
   }
-
-  useEffect(() => {
-    try {
-      bestRef.current = Number(localStorage.getItem("jsh-snake-best") || "0")
-      setBest(bestRef.current)
-    } catch {
-      /* ignore */
-    }
-    reset()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   const step = () => {
     dir.current = nextDir.current
@@ -99,11 +98,6 @@ export default function Snake() {
       const b = Math.max(bestRef.current, scoreRef.current)
       bestRef.current = b
       setBest(b)
-      try {
-        localStorage.setItem("jsh-snake-best", String(b))
-      } catch {
-        /* ignore */
-      }
       return
     }
     s.unshift(head)
@@ -116,6 +110,7 @@ export default function Snake() {
       s.pop()
     }
   }
+  stepRef.current = step
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -166,15 +161,14 @@ export default function Snake() {
         let guard = 0
         while (accRef.current >= speedRef.current && guard++ < 8) {
           accRef.current -= speedRef.current
-          step()
+          stepRef.current()
         }
       }
       draw()
     }
     rafRef.current = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(rafRef.current)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [food, snake])
 
   const begin = () => {
     if (!startedRef.current && !overRef.current) {

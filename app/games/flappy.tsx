@@ -7,6 +7,7 @@
 */
 
 import { useEffect, useRef, useState } from "react"
+import { useStoredNumber } from "@/app/_client-state"
 import { GameFrame } from "./_frame"
 
 const W = 420
@@ -65,7 +66,7 @@ export default function Flappy() {
   const accRef = useRef(0)
   const activeRef = useRef(true)
   const [score, setScore] = useState(0)
-  const [best, setBest] = useState(0)
+  const [best, setBest] = useStoredNumber("jsh-flappy-best", 0)
   const [over, setOver] = useState(false)
 
   const s = useRef<State>({
@@ -106,14 +107,7 @@ export default function Flappy() {
     g.vy = FLAP
   }
 
-  useEffect(() => {
-    try {
-      s.current.best = Number(localStorage.getItem("jsh-flappy-best") || "0")
-      setBest(s.current.best)
-    } catch {
-      /* ignore */
-    }
-  }, [])
+  s.current.best = Math.max(s.current.best, best)
 
   const onKey = (e: React.KeyboardEvent) => {
     const k = e.key.toLowerCase()
@@ -154,11 +148,6 @@ export default function Flappy() {
           if (g.score > g.best) {
             g.best = g.score
             setBest(g.best)
-            try {
-              localStorage.setItem("jsh-flappy-best", String(g.best))
-            } catch {
-              /* ignore */
-            }
           }
         }
       }
@@ -271,7 +260,7 @@ export default function Flappy() {
     }
     rafRef.current = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(rafRef.current)
-  }, [])
+  }, [setBest])
 
   return (
     <GameFrame

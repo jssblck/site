@@ -6,7 +6,8 @@
   a fresh, slightly faster one drops in. Three lives; best score persists.
 */
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useReducer, useRef } from "react"
+import { useStoredNumber } from "@/app/_client-state"
 import { GameFrame } from "./_frame"
 
 const W = 440
@@ -39,18 +40,23 @@ type State = {
 }
 
 const brickW = (W - BRICK_GAP) / COLS - BRICK_GAP
+type Hud = { score: number; lives: number; over: boolean }
+const INITIAL_HUD: Hud = { score: 0, lives: 3, over: false }
 
 function freshBricks(): boolean[] {
   return Array.from({ length: COLS * ROWS }, () => true)
 }
 
+function hudReducer(_hud: Hud, next: Hud): Hud {
+  return next
+}
+
 export default function Breakout() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rafRef = useRef(0)
-  const [score, setScore] = useState(0)
-  const [lives, setLives] = useState(3)
-  const [best, setBest] = useState(0)
-  const [over, setOver] = useState(false)
+  const [hud, setHud] = useReducer(hudReducer, INITIAL_HUD)
+  const { score, lives, over } = hud
+  const [best, setBest] = useStoredNumber("jsh-breakout-best", 0)
 
   const s = useRef<State>({
     paddleX: W / 2 - PADDLE_W / 2,
@@ -101,19 +107,10 @@ export default function Breakout() {
     g.started = true
     g.paddleX = W / 2 - PADDLE_W / 2
     resetBall()
-    setScore(0)
-    setLives(3)
-    setOver(false)
+    setHud(INITIAL_HUD)
   }
 
-  useEffect(() => {
-    try {
-      s.current.best = Number(localStorage.getItem("jsh-breakout-best") || "0")
-      setBest(s.current.best)
-    } catch {
-      /* ignore */
-    }
-  }, [])
+  s.current.best = Math.max(s.current.best, best)
 
   const onKey = (e: React.KeyboardEvent) => {
     const k = e.key.toLowerCase()
@@ -244,17 +241,12 @@ export default function Breakout() {
             ) {
               g.bricks[i] = false
               g.score += 10
-              setScore(g.score)
+              setHud({ score: g.score, lives: g.lives, over: g.over })
               // bounce vertically (good enough)
               g.vy = -g.vy
               if (g.score > g.best) {
                 g.best = g.score
                 setBest(g.best)
-                try {
-                  localStorage.setItem("jsh-breakout-best", String(g.best))
-                } catch {
-                  /* ignore */
-                }
               }
               break
             }
@@ -268,13 +260,12 @@ export default function Breakout() {
           // dropped
           if (g.ballY > H + 10) {
             g.lives -= 1
-            setLives(g.lives)
             if (g.lives <= 0) {
               g.over = true
-              setOver(true)
             } else {
               resetBall()
             }
+            setHud({ score: g.score, lives: g.lives, over: g.over })
           }
         }
       }
@@ -287,7 +278,7 @@ export default function Breakout() {
       canvas.removeEventListener("mousemove", onMouse)
       window.removeEventListener("keyup", onKeyUpWin)
     }
-  }, [])
+  }, [setBest])
 
   return (
     <GameFrame

@@ -1,22 +1,10 @@
 import { NEXTJS_RULES, RECOMMENDED_RULES } from "oxlint-plugin-react-doctor";
 import { defineConfig } from "oxlint";
 
-const projectRuleOverrides = {
-  "react-doctor/exhaustive-deps": "off",
-  "react-doctor/no-derived-state": "off",
-  "react-doctor/no-effect-chain": "off",
-  "react-doctor/no-event-handler": "off",
-  "react-doctor/no-giant-component": "off",
-  "react-doctor/no-initialize-state": "off",
-  "react-doctor/no-inline-exhaustive-style": "off",
-  "react-doctor/no-prevent-default": "off",
-  "react-doctor/prefer-use-sync-external-store": "off",
-  "react-doctor/prefer-useReducer": "off",
-  "react-doctor/rendering-hydration-no-flicker": "off",
-  "react-doctor/rerender-state-only-in-handlers": "off",
-  "react-doctor/nextjs-missing-metadata": "off",
-  "unicorn/consistent-function-scoping": "off",
-  "unicorn/require-post-message-target-origin": "off",
+const ruleOverrides = {
+  // React Doctor only enables this check when React Compiler is configured.
+  // Oxlint loads the plugin statically, so keep this compiler-only rule gated.
+  "react-doctor/react-compiler-no-manual-memoization": "off",
 } as const;
 
 export default defineConfig({
@@ -37,23 +25,29 @@ export default defineConfig({
   rules: {
     ...RECOMMENDED_RULES,
     ...NEXTJS_RULES,
-    "react-doctor/no-react19-deprecated-apis": "off",
-    "react-doctor/react-compiler-no-manual-memoization": "off",
-    ...projectRuleOverrides,
+    ...ruleOverrides,
   },
+  overrides: [
+    {
+      files: ["app/*image.tsx"],
+      rules: {
+        // Next.js image routes require metadata exports next to the component.
+        "react-doctor/only-export-components": "off",
+      },
+    },
+    {
+      files: ["scripts/threebody-search.mjs"],
+      rules: {
+        // This script uses Node worker_threads postMessage, not browser postMessage.
+        "unicorn/require-post-message-target-origin": "off",
+      },
+    },
+  ],
   ignorePatterns: [
     ".agents/**",
     ".codex/**",
     ".next/**",
     "node_modules/**",
     "package-lock.json",
-  ],
-  overrides: [
-    {
-      files: ["app/*image.tsx"],
-      rules: {
-        "react-doctor/only-export-components": "off",
-      },
-    },
   ],
 });

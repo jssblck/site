@@ -7,7 +7,8 @@
   the live piece in the bright one. Best score persists.
 */
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { useStoredNumber } from "@/app/_client-state"
 import { GameFrame } from "./_frame"
 import { useLazyRef } from "./_hooks"
 
@@ -46,7 +47,7 @@ export default function Tetris() {
   const [score, setScore] = useState(0)
   const [lines, setLines] = useState(0)
   const [level, setLevel] = useState(1)
-  const [best, setBest] = useState(0)
+  const [best, setBest] = useStoredNumber("jsh-tetris-best", 0)
   const [over, setOver] = useState(false)
 
   const board = useLazyRef<Cell[]>(emptyBoard)
@@ -54,13 +55,15 @@ export default function Tetris() {
   const scoreRef = useRef(0)
   const linesRef = useRef(0)
   const levelRef = useRef(1)
-  const bestRef = useRef(0)
+  const bestRef = useRef(best)
+  bestRef.current = best
   const overRef = useRef(false)
   const dropAccRef = useRef(0)
   const lastRef = useRef(0)
   const rafRef = useRef(0)
+  const softDropRef = useRef<() => void>(() => {})
 
-  const collides = useCallback((m: Matrix, x: number, y: number) => {
+  const collides = (m: Matrix, x: number, y: number) => {
     for (let r = 0; r < m.length; r++) {
       for (let c = 0; c < m[r].length; c++) {
         if (!m[r][c]) continue
@@ -71,9 +74,9 @@ export default function Tetris() {
       }
     }
     return false
-  }, [])
+  }
 
-  const reset = useCallback(() => {
+  const reset = () => {
     board.current = emptyBoard()
     piece.current = spawnPiece()
     scoreRef.current = 0
@@ -85,18 +88,9 @@ export default function Tetris() {
     setLines(0)
     setLevel(1)
     setOver(false)
-  }, [])
+  }
 
-  useEffect(() => {
-    try {
-      bestRef.current = Number(localStorage.getItem("jsh-tetris-best") || "0")
-      setBest(bestRef.current)
-    } catch {
-      /* ignore */
-    }
-  }, [])
-
-  const lock = useCallback(() => {
+  const lock = () => {
     const p = piece.current
     for (let r = 0; r < p.m.length; r++) {
       for (let c = 0; c < p.m[r].length; c++) {
@@ -130,11 +124,6 @@ export default function Tetris() {
       if (scoreRef.current > bestRef.current) {
         bestRef.current = scoreRef.current
         setBest(scoreRef.current)
-        try {
-          localStorage.setItem("jsh-tetris-best", String(scoreRef.current))
-        } catch {
-          /* ignore */
-        }
       }
     }
     const next = spawnPiece()
@@ -144,26 +133,24 @@ export default function Tetris() {
     } else {
       piece.current = next
     }
-  }, [collides])
+  }
 
-  const softDrop = useCallback(() => {
+  const softDrop = () => {
     const p = piece.current
     if (!collides(p.m, p.x, p.y + 1)) {
       p.y += 1
     } else {
       lock()
     }
-  }, [collides, lock])
+  }
+  softDropRef.current = softDrop
 
-  const move = useCallback(
-    (dx: number) => {
-      const p = piece.current
-      if (!collides(p.m, p.x + dx, p.y)) p.x += dx
-    },
-    [collides],
-  )
+  const move = (dx: number) => {
+    const p = piece.current
+    if (!collides(p.m, p.x + dx, p.y)) p.x += dx
+  }
 
-  const rotate = useCallback(() => {
+  const rotate = () => {
     const p = piece.current
     const rm = rotateCW(p.m)
     for (const kick of [0, -1, 1, -2, 2]) {
@@ -173,44 +160,41 @@ export default function Tetris() {
         return
       }
     }
-  }, [collides])
+  }
 
-  const hardDrop = useCallback(() => {
+  const hardDrop = () => {
     const p = piece.current
     while (!collides(p.m, p.x, p.y + 1)) p.y += 1
     lock()
-  }, [collides, lock])
+  }
 
-  const onKey = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (overRef.current) {
-        if (e.key === " " || e.key === "Enter") {
-          e.preventDefault()
-          reset()
-        }
-        return
+  const onKey = (e: React.KeyboardEvent) => {
+    if (overRef.current) {
+      if (e.key === " " || e.key === "Enter") {
+        e.preventDefault()
+        reset()
       }
-      const k = e.key.toLowerCase()
-      if (k === "arrowleft" || k === "a" || k === "h") {
-        e.preventDefault()
-        move(-1)
-      } else if (k === "arrowright" || k === "d" || k === "l") {
-        e.preventDefault()
-        move(1)
-      } else if (k === "arrowdown" || k === "s" || k === "j") {
-        e.preventDefault()
-        softDrop()
-        dropAccRef.current = 0
-      } else if (k === "arrowup" || k === "w" || k === "k" || k === "x") {
-        e.preventDefault()
-        rotate()
-      } else if (k === " ") {
-        e.preventDefault()
-        hardDrop()
-      }
-    },
-    [move, softDrop, rotate, hardDrop, reset],
-  )
+      return
+    }
+    const k = e.key.toLowerCase()
+    if (k === "arrowleft" || k === "a" || k === "h") {
+      e.preventDefault()
+      move(-1)
+    } else if (k === "arrowright" || k === "d" || k === "l") {
+      e.preventDefault()
+      move(1)
+    } else if (k === "arrowdown" || k === "s" || k === "j") {
+      e.preventDefault()
+      softDrop()
+      dropAccRef.current = 0
+    } else if (k === "arrowup" || k === "w" || k === "k" || k === "x") {
+      e.preventDefault()
+      rotate()
+    } else if (k === " ") {
+      e.preventDefault()
+      hardDrop()
+    }
+  }
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -272,14 +256,14 @@ export default function Tetris() {
         dropAccRef.current += dt
         while (dropAccRef.current >= interval) {
           dropAccRef.current -= interval
-          softDrop()
+          softDropRef.current()
         }
       }
       draw()
     }
     rafRef.current = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(rafRef.current)
-  }, [softDrop])
+  }, [board, piece])
 
   return (
     <GameFrame

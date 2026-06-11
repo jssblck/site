@@ -8,8 +8,10 @@
 */
 
 import { useEffect, useRef } from "react"
+import type { CSSProperties } from "react"
 import Link from "next/link"
 import { IBM_Plex_Mono } from "next/font/google"
+import { readStoredNumber, writeStoredNumber } from "@/app/_client-state"
 
 const plex = IBM_Plex_Mono({
   subsets: ["latin"],
@@ -28,6 +30,78 @@ const ERR = "#d98a6a"
 const W = 640
 const H = 160
 const GROUND = 128
+
+const TREX_CANVAS_STYLE: CSSProperties = {
+  display: "block",
+  width: "min(640px, 100%)",
+  height: "auto",
+  border: `1px solid ${RULE}`,
+  borderRadius: 4,
+  background: BG,
+  imageRendering: "pixelated",
+  cursor: "pointer",
+}
+
+const NOT_FOUND_MAIN_STYLE: CSSProperties = {
+  minHeight: "100dvh",
+  background: BG,
+  color: FG,
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 18,
+  padding: 24,
+}
+
+const NOT_FOUND_HEADER_STYLE: CSSProperties = {
+  width: "min(640px, 100%)",
+}
+
+const NOT_FOUND_PROMPT_STYLE: CSSProperties = {
+  margin: 0,
+  fontSize: 13,
+  color: MUTED,
+}
+
+const NOT_FOUND_ERROR_STYLE: CSSProperties = {
+  margin: "4px 0 0",
+  fontSize: 13,
+  color: ERR,
+}
+
+const NOT_FOUND_H1_STYLE: CSSProperties = {
+  margin: "16px 0 0",
+  fontSize: "clamp(46px, 13vw, 96px)",
+  letterSpacing: 0,
+  lineHeight: 1,
+  fontWeight: 600,
+}
+
+const NOT_FOUND_COPY_STYLE: CSSProperties = {
+  margin: "6px 0 0",
+  color: MUTED,
+  fontSize: 14,
+}
+
+const NOT_FOUND_LINK_ROW_STYLE: CSSProperties = {
+  width: "min(640px, 100%)",
+  fontSize: 14,
+}
+
+const NOT_FOUND_LINK_STYLE: CSSProperties = {
+  color: AMBER,
+  textDecoration: "none",
+  borderBottom: `1px solid ${SOFT}`,
+}
+
+const NOT_FOUND_SOFT_STYLE: CSSProperties = {
+  color: SOFT,
+}
+
+const NOT_FOUND_MUTED_STYLE: CSSProperties = {
+  color: MUTED,
+}
 
 type Ob = { x: number; w: number; h: number }
 type State = {
@@ -84,13 +158,7 @@ function TRex() {
     if (g.dinoY <= 0.5) g.vy = 10.5
   }
 
-  useEffect(() => {
-    try {
-      s.current.best = Number(localStorage.getItem("jsh-trex-best") || "0")
-    } catch {
-      /* ignore */
-    }
-  }, [])
+  s.current.best = Math.max(s.current.best, readStoredNumber("jsh-trex-best", 0))
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -220,11 +288,7 @@ function TRex() {
           ) {
             g.over = true
             g.best = Math.max(g.best, g.score)
-            try {
-              localStorage.setItem("jsh-trex-best", String(g.best))
-            } catch {
-              /* ignore */
-            }
+            writeStoredNumber("jsh-trex-best", g.best)
             break
           }
         }
@@ -243,16 +307,7 @@ function TRex() {
       height={H}
       onClick={jump}
       aria-label="T-Rex runner — press space to jump"
-      style={{
-        display: "block",
-        width: "min(640px, 100%)",
-        height: "auto",
-        border: `1px solid ${RULE}`,
-        borderRadius: 4,
-        background: BG,
-        imageRendering: "pixelated",
-        cursor: "pointer",
-      }}
+      style={TREX_CANVAS_STYLE}
     />
   )
 }
@@ -261,55 +316,33 @@ export default function NotFound() {
   return (
     <main
       className={plex.className}
-      style={{
-        minHeight: "100dvh",
-        background: BG,
-        color: FG,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 18,
-        padding: 24,
-      }}
+      style={NOT_FOUND_MAIN_STYLE}
     >
-      <div style={{ width: "min(640px, 100%)" }}>
-        <p style={{ margin: 0, fontSize: 13, color: MUTED }}>
-          <span style={{ color: SOFT }}>visitor@jessica.black</span>:~$ cd /the/page/you/wanted
+      <div style={NOT_FOUND_HEADER_STYLE}>
+        <p style={NOT_FOUND_PROMPT_STYLE}>
+          <span style={NOT_FOUND_SOFT_STYLE}>visitor@jessica.black</span>:~$ cd /the/page/you/wanted
         </p>
-        <p style={{ margin: "4px 0 0", fontSize: 13, color: ERR }}>
+        <p style={NOT_FOUND_ERROR_STYLE}>
           cd: no such file or directory
         </p>
-        <h1
-          style={{
-            margin: "16px 0 0",
-            fontSize: "clamp(46px, 13vw, 96px)",
-            letterSpacing: "-3px",
-            lineHeight: 1,
-            fontWeight: 600,
-          }}
-        >
+        <h1 style={NOT_FOUND_H1_STYLE}>
           404
         </h1>
-        <p style={{ margin: "6px 0 0", color: MUTED, fontSize: 14 }}>
+        <p style={NOT_FOUND_COPY_STYLE}>
           this page 404&apos;d. the dino, however, runs on.
         </p>
       </div>
 
       <TRex />
 
-      <div style={{ width: "min(640px, 100%)", fontSize: 14 }}>
+      <div style={NOT_FOUND_LINK_ROW_STYLE}>
         <Link
           href="/"
-          style={{
-            color: AMBER,
-            textDecoration: "none",
-            borderBottom: `1px solid ${SOFT}`,
-          }}
+          style={NOT_FOUND_LINK_STYLE}
         >
           cd ~
         </Link>
-        <span style={{ color: MUTED }}> &nbsp;·&nbsp; back to jessica.black</span>
+        <span style={NOT_FOUND_MUTED_STYLE}> &nbsp;·&nbsp; back to jessica.black</span>
       </div>
     </main>
   )

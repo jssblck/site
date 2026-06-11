@@ -7,8 +7,10 @@
   field and a bigger wave drifts in. Three ships; best score persists.
 */
 
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { useStoredNumber } from "@/app/_client-state"
 import { GameFrame } from "./_frame"
+import { useLazyRef } from "./_hooks"
 import { themeColors } from "./_theme"
 
 const W = 460
@@ -84,14 +86,6 @@ function makeAsteroid(x: number, y: number, tier: number): Ast {
   }
 }
 
-const saveBest = (g: State) => {
-  try {
-    localStorage.setItem("jsh-asteroids-best", String(g.best))
-  } catch {
-    /* ignore */
-  }
-}
-
 const spawnAwayFromShip = (g: State, tier: number) => {
   let x = 0
   let y = 0
@@ -104,19 +98,15 @@ const spawnAwayFromShip = (g: State, tier: number) => {
   g.asteroids.push(makeAsteroid(x, y, tier))
 }
 
-export default function Asteroids() {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const rafRef = useRef(0)
-  const lastRef = useRef(0)
-  const accRef = useRef(0)
-  const activeRef = useRef(true)
-  const [score, setScore] = useState(0)
-  const [lives, setLives] = useState(3)
-  const [level, setLevel] = useState(1)
-  const [best, setBest] = useState(0)
-  const [over, setOver] = useState(false)
+function addWave(g: State) {
+  g.level++
+  const count = 3 + g.level
+  for (let i = 0; i < count; i++) spawnAwayFromShip(g, 0)
+  g.invuln = Math.max(g.invuln, 60)
+}
 
-  const s = useRef<State>({
+function createAsteroidsState(): State {
+  const state: State = {
     shipX: W / 2,
     shipY: H / 2,
     vx: 0,
@@ -136,24 +126,38 @@ export default function Asteroids() {
     score: 0,
     best: 0,
     over: false,
-  })
-
-  const nextWave = (g: State) => {
-    g.level++
-    setLevel(g.level)
-    const count = 3 + g.level
-    for (let i = 0; i < count; i++) spawnAwayFromShip(g, 0)
-    g.invuln = Math.max(g.invuln, 60)
   }
+  addWave(state)
+  return state
+}
 
-  const loseLife = (g: State) => {
+function useAsteroidsEngine() {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const rafRef = useRef(0)
+  const lastRef = useRef(0)
+  const accRef = useRef(0)
+  const activeRef = useRef(true)
+  const [score, setScore] = useState(0)
+  const [lives, setLives] = useState(3)
+  const [level, setLevel] = useState(1)
+  const [best, setBest] = useStoredNumber("jsh-asteroids-best", 0)
+  const [over, setOver] = useState(false)
+
+  const s = useLazyRef<State>(createAsteroidsState)
+
+  const nextWave = useCallback((g: State) => {
+    addWave(g)
+    setLevel(g.level)
+  }, [])
+
+  const loseLife = useCallback((g: State) => {
     g.lives--
     setLives(g.lives)
     g.bullets = []
     if (g.lives <= 0) {
       g.over = true
       setOver(true)
-      saveBest(g)
+      setBest(g.best)
       return
     }
     g.shipX = W / 2
@@ -162,25 +166,24 @@ export default function Asteroids() {
     g.vy = 0
     g.heading = -Math.PI / 2
     g.invuln = INVULN
-  }
+  }, [setBest])
 
-  const splitAsteroid = (g: State, idx: number) => {
+  const splitAsteroid = useCallback((g: State, idx: number) => {
     const a = g.asteroids[idx]
     g.score += SCORE[a.tier]
     setScore(g.score)
     if (g.score > g.best) {
       g.best = g.score
       setBest(g.best)
-      saveBest(g)
     }
     g.asteroids.splice(idx, 1)
     if (a.tier < 2) {
       g.asteroids.push(makeAsteroid(a.x, a.y, a.tier + 1))
       g.asteroids.push(makeAsteroid(a.x, a.y, a.tier + 1))
     }
-  }
+  }, [setBest])
 
-  const reset = () => {
+  const reset = useCallback(() => {
     const g = s.current
     g.shipX = W / 2
     g.shipY = H / 2
@@ -199,9 +202,9 @@ export default function Asteroids() {
     setLives(3)
     setOver(false)
     nextWave(g)
-  }
+  }, [nextWave, s])
 
-  const onKey = (e: React.KeyboardEvent) => {
+  const onKey = useCallback((e: React.KeyboardEvent) => {
     const g = s.current
     const k = e.key.toLowerCase()
     if (g.over) {
@@ -224,18 +227,9 @@ export default function Asteroids() {
       e.preventDefault()
       g.firing = true
     }
-  }
+  }, [reset, s])
 
-  useEffect(() => {
-    try {
-      s.current.best = Number(localStorage.getItem("jsh-asteroids-best") || "0")
-      setBest(s.current.best)
-    } catch {
-      /* ignore */
-    }
-    nextWave(s.current)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  s.current.best = Math.max(s.current.best, best)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -439,22 +433,34 @@ export default function Asteroids() {
       cancelAnimationFrame(rafRef.current)
       window.removeEventListener("keyup", onKeyUp)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [loseLife, nextWave, s, splitAsteroid])
+
+  const onActive = useCallback((active: boolean) => {
+    activeRef.current = active
+    if (!active) {
+      const g = s.current
+      g.left = g.right = g.thrusting = g.firing = false
+    }
+  }, [s])
+
+  return { canvasRef, score, lives, level, best, over, onKey, onActive }
+}
+
+export default function Asteroids() {
+  const { canvasRef, score, lives, level, best, over, onKey, onActive } =
+    useAsteroidsEngine()
 
   return (
     <GameFrame
       title="asteroids"
       status={`score ${score} · ships ${lives} · wave ${level} · best ${best}`}
-      hint={over ? "game over · space to fly again · esc to quit" : "← → turn · ↑ thrust · space fire · esc quit"}
+      hint={
+        over
+          ? "game over · space to fly again · esc to quit"
+          : "← → turn · ↑ thrust · space fire · esc quit"
+      }
       onKey={onKey}
-      onActive={(a) => {
-        activeRef.current = a
-        if (!a) {
-          const g = s.current
-          g.left = g.right = g.thrusting = g.firing = false
-        }
-      }}
+      onActive={onActive}
     >
       <canvas
         ref={canvasRef}

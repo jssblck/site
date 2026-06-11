@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og"
+import type { CSSProperties } from "react"
 
 /*
   The share-link image. When jessica.black is dropped in Slack / LinkedIn /
@@ -17,6 +18,23 @@ const FG = "#e8e6df"
 const AMBER = "#e0a23a"
 const SOFT = "#b9893a"
 const MUTED = "#8a8780"
+
+const IMAGE_ROOT_STYLE: CSSProperties = {
+  width: "100%",
+  height: "100%",
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "space-between",
+  backgroundColor: BG,
+  color: FG,
+  padding: 72,
+  position: "relative",
+}
+
+const imageRootStyle = (fontFamily: string): CSSProperties => ({
+  ...IMAGE_ROOT_STYLE,
+  fontFamily,
+})
 
 async function loadFont(weight: number): Promise<ArrayBuffer | null> {
   // .woff (satori-supported; not woff2) from the fontsource CDN.
@@ -45,18 +63,7 @@ export default async function Image() {
   return new ImageResponse(
     (
       <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          backgroundColor: BG,
-          color: FG,
-          padding: 72,
-          fontFamily: fonts.length ? "Plex" : "monospace",
-          position: "relative",
-        }}
+        style={imageRootStyle(fonts.length ? "Plex" : "monospace")}
       >
         {/* faint scanline texture, like the terminal */}
         <div

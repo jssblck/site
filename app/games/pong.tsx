@@ -7,6 +7,7 @@
 */
 
 import { useEffect, useRef, useState } from "react"
+import { useStoredNumber } from "@/app/_client-state"
 import { GameFrame } from "./_frame"
 
 const W = 480
@@ -55,11 +56,6 @@ const saveBest = (g: State, setBest: (best: number) => void) => {
   if (g.rally > g.best) {
     g.best = g.rally
     setBest(g.best)
-    try {
-      localStorage.setItem("jsh-pong-best", String(g.best))
-    } catch {
-      /* ignore */
-    }
   }
 }
 
@@ -71,7 +67,7 @@ export default function Pong() {
   const activeRef = useRef(true)
   const [pScore, setPScore] = useState(0)
   const [cpuScore, setCpuScore] = useState(0)
-  const [best, setBest] = useState(0)
+  const [best, setBest] = useStoredNumber("jsh-pong-best", 0)
   const [over, setOver] = useState(0)
 
   const s = useRef<State>({
@@ -107,14 +103,7 @@ export default function Pong() {
     setOver(0)
   }
 
-  useEffect(() => {
-    try {
-      s.current.best = Number(localStorage.getItem("jsh-pong-best") || "0")
-      setBest(s.current.best)
-    } catch {
-      /* ignore */
-    }
-  }, [])
+  s.current.best = Math.max(s.current.best, best)
 
   const onKey = (e: React.KeyboardEvent) => {
     const g = s.current
@@ -308,7 +297,7 @@ export default function Pong() {
       cancelAnimationFrame(rafRef.current)
       window.removeEventListener("keyup", onKeyUp)
     }
-  }, [])
+  }, [setBest])
 
   return (
     <GameFrame

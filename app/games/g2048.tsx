@@ -6,7 +6,8 @@
   intense as the value climbs. Best score persists.
 */
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useRef, useState } from "react"
+import { useStoredNumber } from "@/app/_client-state"
 import { GameFrame } from "./_frame"
 
 const SIZE = 4
@@ -89,26 +90,42 @@ const tileStyle = (v: number): React.CSSProperties => {
   }
 }
 
+const BOARD_STYLE: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(4, 1fr)",
+  gap: 8,
+  width: 320,
+  maxWidth: "100%",
+}
+
+const TILE_BASE_STYLE: React.CSSProperties = {
+  aspectRatio: "1 / 1",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  borderRadius: 4,
+  fontVariantNumeric: "tabular-nums",
+  transition: "background 120ms ease, color 120ms ease",
+}
+
+const tileViewStyle = (v: number): React.CSSProperties => ({
+  ...TILE_BASE_STYLE,
+  fontSize: v >= 1024 ? 17 : 22,
+  ...tileStyle(v),
+})
+
 export default function Game2048() {
   const [board, setBoard] = useState<Board>(() => spawn(spawn(empty())))
   const [score, setScore] = useState(0)
-  const [best, setBest] = useState(0)
+  const [best, setBest] = useStoredNumber("jsh-2048-best", 0)
   const [won, setWon] = useState(false)
   const [over, setOver] = useState(false)
   const boardRef = useRef(board)
   boardRef.current = board
-  const bestRef = useRef(0)
+  const bestRef = useRef(best)
+  bestRef.current = best
   const overRef = useRef(false)
   overRef.current = over
-
-  useEffect(() => {
-    try {
-      bestRef.current = Number(localStorage.getItem("jsh-2048-best") || "0")
-      setBest(bestRef.current)
-    } catch {
-      /* ignore */
-    }
-  }, [])
 
   const reset = useCallback(() => {
     setBoard(spawn(spawn(empty())))
@@ -129,18 +146,13 @@ export default function Game2048() {
         if (ns > bestRef.current) {
           bestRef.current = ns
           setBest(ns)
-          try {
-            localStorage.setItem("jsh-2048-best", String(ns))
-          } catch {
-            /* ignore */
-          }
         }
         return ns
       })
     }
     if (withNew.includes(2048)) setWon(true)
     if (!canMove(withNew)) setOver(true)
-  }, [])
+  }, [setBest])
 
   const onKey = (e: React.KeyboardEvent) => {
     const k = e.key.toLowerCase()
@@ -166,30 +178,9 @@ export default function Game2048() {
       hint={over ? "no moves left · space to retry · esc to quit" : "arrows / wasd / hjkl to merge · r restart · esc quit"}
       onKey={onKey}
     >
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 8,
-          width: 320,
-          maxWidth: "100%",
-        }}
-      >
+      <div style={BOARD_STYLE}>
         {board.map((v, i) => (
-          <div
-            key={i}
-            style={{
-              aspectRatio: "1 / 1",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: 4,
-              fontSize: v >= 1024 ? 17 : 22,
-              fontVariantNumeric: "tabular-nums",
-              transition: "background 120ms ease, color 120ms ease",
-              ...tileStyle(v),
-            }}
-          >
+          <div key={i} style={tileViewStyle(v)}>
             {v !== 0 ? v : ""}
           </div>
         ))}
