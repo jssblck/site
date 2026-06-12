@@ -241,7 +241,7 @@ const WRITING: Writing[] = [
   {
     title: "Engineering blog",
     where: "fossa.com",
-    url: "https://fossa.com/blog/author/jessica/",
+    url: "https://fossa.com/blog/author/jessica-black/",
   },
   {
     title: '"Rust in Production" interview',
