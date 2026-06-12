@@ -1,11 +1,10 @@
 # jessica.black
 
-My personal site. It presents as a live shell session: it boots, settles, then
-takes commands. Type `help` — or just click around, since everything is reachable
-both ways.
+My personal site. It behaves like a live shell session: it boots, settles, then
+takes commands. `help` works; clicking works too.
 
-It's deliberately low-tech. One React component, hooks only — no terminal-emulator
-library, no CSS framework. Amber phosphor on near-black; no glow, no gradients.
+It's deliberately low-tech: one React component, hooks only, no terminal-emulator
+library, no CSS framework. Amber phosphor on near-black, no glow, no gradients.
 
 ## Develop
 
@@ -31,7 +30,7 @@ TypeScript all pass.
 ## Stack
 
 - [Next.js](https://nextjs.org) (App Router) + [TypeScript](https://www.typescriptlang.org)
-- React hooks for the REPL; component styles are inline — no framework
+- React hooks for the REPL; component styles are inline, no framework
 - Fonts: IBM Plex Mono (body) + Martian Mono (display), via `next/font`
 - [Vercel Analytics](https://vercel.com/analytics)
 

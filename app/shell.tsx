@@ -7,7 +7,7 @@
   emulator and no framework gymnastics; amber phosphor on near-black.
 
   -- you found the source. it borrow-checks. --
-  -- no framework was harmed. one file, hooks only, three themes. --
+  -- no framework was harmed. one file, hooks only, four themes. --
   -- yes, the history buffer works. try the up arrow. and the konami code. --
 */
 
@@ -64,19 +64,19 @@ const PALETTE_ITEMS: Array<[string, string]> = [
 
 const HELP_ROWS: Array<[string, string]> = [
   ["help", "this list"],
-  ["man <cmd>", "read the manual — e.g. man ls"],
+  ["man <cmd>", "read the manual, e.g. man ls"],
   ["ls", "list the current directory"],
-  ["cd <dir>", "change directory — e.g. cd skills, cd .."],
+  ["cd <dir>", "change directory, e.g. cd skills, cd .."],
   ["pwd", "print where you are"],
   ["whoami", "the short version"],
-  ["cat <name>", "read a file — e.g. cat attune, cat readme"],
-  ["skills", "skill files — like the ones you give an agent"],
+  ["cat <name>", "read a file, e.g. cat attune, cat readme"],
+  ["skills", "skill files, like the ones you give an agent"],
   ["projects", "the things I've built"],
   ["resume", "the whole résumé, printed"],
   ["tree", "the filesystem, at a glance"],
   ["writing", "blog posts & interviews"],
   ["contact", "github · linkedin · email"],
-  ["open <target>", "open a link — e.g. open github, open hurry"],
+  ["open <target>", "open a link, e.g. open github, open hurry"],
   ["theme <name>", "amber · green · paper"],
   ["history", "what you have run"],
   ["achievements", "what you've unlocked"],
@@ -125,12 +125,11 @@ const JOBS: Job[] = [
     start: "Jul 2025",
     end: "present",
     years: "2025—",
-    blurb:
-      "Applied-AI startup building developer tools for agentic software engineering.",
+    blurb: "Developer tools for AI coding agents and the people using them.",
     bullets: [
-      "Shipped production multi-agent orchestration systems — built the agent topology and coordination layers from scratch.",
-      "Hurry — a drop-in distributed build cache for Cargo. Nix-like content-addressed caching with deterministic reproducibility across CI, local, and team. Rust, open source.",
-      "Nudge — a lightweight guardrail system for AI coding agents using tree-sitter + regex rules via Claude Code hooks; moves coding conventions out of the prompt to reclaim context-window budget. Rust, open source.",
+      "Built and shipped production multi-agent orchestration: topology, coordination, and the handoffs between agents.",
+      "Hurry: a drop-in distributed build cache for Cargo, with content-addressed artifacts and reproducible results across CI, local machines, and teams. Rust, open source.",
+      "Nudge: guardrails for AI coding agents using tree-sitter and regex rules through Claude Code hooks. It keeps coding conventions in tools instead of prompt text. Rust, open source.",
     ],
     stack: "Rust · TypeScript",
   },
@@ -142,11 +141,11 @@ const JOBS: Job[] = [
     end: "Jul 2025",
     years: "2019—25",
     blurb:
-      "Tech lead for the Analysis Platform — a distributed system analyzing ~30k user projects and ~200k open-source projects every day.",
+      "Tech lead for the Analysis Platform, a distributed system analyzing ~30k user projects and ~200k open-source projects every day.",
     bullets: [
-      "Owned dependency analysis across 20+ language ecosystems — native toolchain integration plus custom parsers.",
-      "Hunted pipeline bottlenecks and optimized critical paths: rewrote to Rust where justified, optimized JS where not.",
-      "Designed the on-prem deployment architecture under strict customer infra constraints — no cloud elasticity to lean on.",
+      "Owned dependency analysis across 20+ language ecosystems: native toolchain integration plus custom parsers.",
+      "Tracked down pipeline bottlenecks: rewrote hot paths in Rust where that paid off, tuned the existing JS where it didn't.",
+      "Designed the on-prem deployment architecture under strict customer infra constraints, with no cloud elasticity to lean on.",
       "Led projects generating $4M+ in revenue; ran quarterly squads of 2–3 engineers end-to-end.",
     ],
     stack: "Rust · Haskell · Go · TypeScript · React",
@@ -185,7 +184,7 @@ const PROJECTS: Project[] = [
     name: "sandi",
     site: "https://sandi.jessica.black",
     badge: "live · private",
-    note: "household intelligence on Discord — memory, tools, taste of her own",
+    note: "household intelligence on Discord, with memory, tools, and personal context",
   },
   {
     name: "hurry",
@@ -309,58 +308,58 @@ const SKILLS: Skill[] = [
   {
     id: "rust",
     name: "rust",
-    description: "systems programming with a borrow checker for a conscience",
+    description: "systems programming where correctness stays visible",
     level: "native",
-    body: "Production Rust across Hurry (distributed build cache), Nudge (agent guardrails), Circe (container analysis), and hot-path rewrites of analysis pipelines at FOSSA. The borrow checker and I have an understanding.",
+    body: "Production Rust across Hurry (distributed build cache), Nudge (agent guardrails), Circe (container analysis), and hot-path rewrites of analysis pipelines at FOSSA. I like when the compiler helps keep the edges honest.",
   },
   {
     id: "distributed-systems",
     name: "distributed-systems",
     description: "correctness under partial failure",
     level: "native",
-    body: "Built and operated a platform analyzing ~200k projects a day, designed on-prem architecture with no cloud elasticity to hide behind, and shipped multi-agent coordination layers from scratch. Consensus is just disagreement with a deadline.",
+    body: "Built and operated a platform analyzing ~200k projects a day, designed on-prem architecture with no cloud elasticity to hide behind, and shipped multi-agent coordination layers from scratch. That work made retries, state boundaries, and failure modes hard to ignore.",
   },
   {
     id: "agentic-systems",
     name: "agentic-systems",
-    description: "multi-agent orchestration — topology, coordination, guardrails",
+    description: "multi-agent orchestration: topology, coordination, guardrails",
     level: "fluent",
-    body: "Founding work at Attune: agent topology and coordination from scratch, plus Nudge — tree-sitter + regex guardrails via Claude Code hooks that move conventions out of the prompt and back into the tooling.",
+    body: "Founding work at Attune: agent topology and coordination from scratch, plus Nudge, a tree-sitter and regex guardrail system via Claude Code hooks that moves conventions out of the prompt and back into the tooling.",
   },
   {
     id: "build-systems",
     name: "build-systems",
     description: "caches, reproducibility, determinism",
     level: "fluent",
-    body: "Hurry: a drop-in distributed, content-addressed build cache for Cargo with Nix-like reproducibility across CI, local, and team. The fastest build is the one you already did.",
+    body: "Hurry: a drop-in distributed, content-addressed build cache for Cargo. It keeps builds reproducible across CI, local machines, and teams. The fastest build is the one you already did.",
   },
   {
     id: "program-analysis",
     name: "program-analysis",
     description: "reading code at scale across 20+ ecosystems",
     level: "native",
-    body: "Owned dependency analysis across 20+ language ecosystems at FOSSA — native toolchain integration plus custom parsers feeding a 200k-project graph. I have met your package manager's edge cases.",
+    body: "Owned dependency analysis across 20+ language ecosystems at FOSSA: native toolchain integration plus custom parsers feeding a 200k-project graph. Package-manager edge cases are where the real work usually starts.",
   },
   {
     id: "haskell",
     name: "haskell",
-    description: "types as a design tool; laziness as a lifestyle",
+    description: "types as a design tool",
     level: "fluent",
-    body: "Haskell in production on the FOSSA CLI — a dependency-analysis tool spanning dozens of ecosystems. (yes. it is still compiling. it is fine.)",
+    body: "Haskell in production on the FOSSA CLI, a dependency-analysis tool spanning dozens of ecosystems. The type system paid for itself in the parts that had to stay correct.",
   },
   {
     id: "typescript",
     name: "typescript",
     description: "the other half of the stack, where agents meet humans",
     level: "fluent",
-    body: "TypeScript and React across analysis tooling and agent interfaces — the human-facing edge of otherwise very Rust-shaped systems. This very shell is one of them.",
+    body: "TypeScript and React across analysis tooling and agent interfaces, the human-facing edge of otherwise very Rust-shaped systems. This shell is the latest example.",
   },
   {
     id: "go",
     name: "go",
     description: "boring on purpose; ships",
     level: "fluent",
-    body: "Go for networked services and internal tooling at FOSSA and Reynolds & Reynolds — the language you reach for when it just needs to run, and keep running.",
+    body: "Go for networked services and internal tooling at FOSSA and Reynolds & Reynolds. It's still the language I reach for when the important thing is keeping a service boring.",
   },
 ]
 
@@ -830,7 +829,7 @@ const MANPAGES: Record<string, ManEntry> = {
   projects: {
     name: "projects — list the things I've built",
     synopsis: "projects",
-    desc: "Lists ~/projects with a one-line note each. Open-source ones (hurry, nudge, circe, mite, unempty, procession, …) link to their code; others, like sandi, link to their own home. Click one, or `open <name>`, to visit it.",
+    desc: "Lists ~/projects with a one-line note each. Open-source ones link to their code; others, like sandi, link to their own home. Click one, or `open <name>`, to visit it.",
     see: ["resume", "skills"],
   },
   resume: {
@@ -854,7 +853,7 @@ const MANPAGES: Record<string, ManEntry> = {
   threebody: {
     name: "threebody — simulate the three-body problem",
     synopsis: "threebody | 3bp",
-    desc: "A real-time gravity simulation, integrated with velocity Verlet. Two modes: trisolaris — the books' setup, three suns of unequal mass plus a small planet dragged among them (a real four-body system) — and a chaotic scramble of three equal masses. r reseeds (no two runs alike), space pauses, 1/2 switch, [ ] change speed, t toggles trails, esc quits.",
+    desc: "A real-time gravity simulation, integrated with velocity Verlet. Two modes: trisolaris, the books' setup with three unequal suns and a small planet, and a chaotic scramble of three equal masses. r reseeds, space pauses, 1/2 switch, [ ] change speed, t toggles trails, esc quits.",
     see: ["games", "neofetch"],
   },
   neofetch: {
@@ -895,7 +894,7 @@ const MANPAGES: Record<string, ManEntry> = {
   help: {
     name: "help — list commands",
     synopsis: "help",
-    desc: "The overview. Not everything is listed — a good terminal rewards curiosity.",
+    desc: "The overview. Not everything is listed; a good terminal rewards curiosity.",
     see: ["man", "games"],
   },
 }
@@ -2453,14 +2452,13 @@ function useShellController() {
           case "nano":
             return pushText(
               <p className="jsh-out jsh-muted">
-                nano? a gentle choice. this house runs vim, but you do you.
+                nano is fine. this shell has no editor open, though.
               </p>,
             )
           case "emacs":
             return pushText(
               <p className="jsh-out jsh-muted">
-                emacs: a fine operating system, lacking only a decent editor. (kidding.
-                mostly.)
+                emacs noted. this shell is staying smaller than that.
               </p>,
             )
           case "ping":
@@ -2483,7 +2481,7 @@ function useShellController() {
                 </p>
               ) : (
                 <p className="jsh-out jsh-muted">
-                  matrix mode disengaged. welcome back to the desert of the real.
+                  matrix mode disengaged. back to the regular shell.
                 </p>
               ),
             )
@@ -2506,7 +2504,7 @@ function useShellController() {
               unlockRef.current("nice-try")
               return pushText(
                 <p className="jsh-out jsh-muted">
-                  nice try. this site is content-addressed; it heals.{" "}
+                  nice try. the real filesystem is not attached to this toy shell.{" "}
                   <Cmd run={clickRef.current}>ls</Cmd>?
                 </p>,
               )
@@ -2830,7 +2828,7 @@ function ShellView({ controller }: { controller: ShellController }) {
 
         {/* one real, stable heading for SEO + assistive tech */}
         <h1 className="jsh-sr-only">
-          Jessica Black — Founding Engineer building AI agent systems in Rust and
+          Jessica Black, founding engineer building AI agent systems in Rust and
           TypeScript.
         </h1>
 
@@ -3007,9 +3005,8 @@ function WelcomeCard() {
     <div className="jsh-welcome">
       <NeofetchCard />
       <p className="jsh-w-line jsh-measure jsh-muted">
-        founding engineer building AI agent systems in Rust and TypeScript.
-        thirteen years shipping distributed systems, program-analysis engines,
-        and developer tools.
+        I build AI agent systems in Rust and TypeScript. Thirteen years in
+        distributed systems, program analysis, and developer tools.
       </p>
       <PaletteRow />
     </div>
@@ -3154,7 +3151,7 @@ function HelpBlock({ run }: { run: (c: string) => void }) {
       <p className="jsh-out jsh-muted jsh-help-foot">
         history: <kbd className="jsh-kbd">↑</kbd> <kbd className="jsh-kbd">↓</kbd> ·
         complete: <kbd className="jsh-kbd">Tab</kbd> · or never type at all — everything
-        is clickable. (not everything is listed — try what a terminal junkie would.)
+        is clickable. (not everything is listed; try what you would try in a real shell.)
       </p>
     </div>
   )
@@ -3454,9 +3451,9 @@ function ResumeBlock({ run }: { run: (c: string) => void }) {
         </span>
       </div>
       <p className="jsh-out jsh-measure">
-        Founding engineer building AI agent systems in Rust and TypeScript. 13 years
-        shipping distributed systems, program-analysis engines, and developer tools.
-        Deep fluency across Rust, Haskell, Go, and TypeScript.
+        I build AI agent systems in Rust and TypeScript. 13 years in distributed
+        systems, program analysis, and developer tools. Most at home in Rust;
+        fluent in Haskell, Go, and TypeScript.
       </p>
       <p className="jsh-resume-h">experience</p>
       {JOBS.map((j) => (
@@ -3600,7 +3597,7 @@ function ThemeList({
         ))}
       </ul>
       <p className="jsh-out jsh-muted jsh-theme-foot">
-        your choice is remembered. paper mode is for the recruiters who print things.
+        your choice is remembered. paper mode is for printing, sunlight, and tired eyes.
       </p>
     </div>
   )
@@ -3800,7 +3797,7 @@ function ContactBlock() {
         ))}
       </ul>
       <p className="jsh-out jsh-muted">
-        open to interesting problems — distributed systems, agent infrastructure,
+        good reasons to reach out: distributed systems, agent infrastructure, or
         anything with a borrow checker.
       </p>
     </div>
@@ -3814,11 +3811,12 @@ function WhoamiBlock({ run }: { run: (c: string) => void }) {
         <span className="jsh-em">Jessica Black</span> — founding engineer.
       </p>
       <p className="jsh-out jsh-measure">
-        I build AI agent systems in Rust and TypeScript. Thirteen years shipping
-        distributed systems, program-analysis engines, and developer tools — from a
-        200k-project dependency-analysis platform to multi-agent orchestration built
-        from scratch. I like hard problems with crisp correctness conditions:
-        consensus, build caches, dependency graphs, type systems.
+        I build AI agent systems in Rust and TypeScript. Most of my work has been
+        tools and infrastructure: dependency analysis at large scale, build caches,
+        guardrails for coding agents, and the coordination layers that make
+        distributed systems easier to reason about. I like hard problems with crisp
+        correctness conditions: consensus, reproducible builds, dependency graphs,
+        type systems.
       </p>
       <p className="jsh-out jsh-muted">
         currently <span className="jsh-em">@ Attune</span>. previously tech lead{" "}
@@ -3837,7 +3835,7 @@ function ReadmeBlock({ run }: { run: (c: string) => void }) {
         <span className="jsh-em"># jessica.black</span>
       </p>
       <p className="jsh-out jsh-measure">
-        A personal site that presents as a full-screen shell session — one React
+        A personal site that behaves like a full-screen shell session. One React
         file, hooks only. No terminal emulator, no framework gymnastics.
       </p>
       <p className="jsh-out jsh-muted">
@@ -3875,7 +3873,9 @@ function withRepoLinks(text: string): React.ReactNode {
     { word: "Hurry", url: "https://github.com/attunehq/hurry" },
     { word: "Nudge", url: "https://github.com/attunehq/nudge" },
   ]
-  const hit = named.find((n) => text.startsWith(n.word + " —"))
+  const hit = named.find(
+    (n) => text.startsWith(n.word + ":") || text.startsWith(n.word + " —"),
+  )
   if (!hit) return text
   const rest = text.slice(hit.word.length)
   return (

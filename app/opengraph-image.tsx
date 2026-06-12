@@ -9,7 +9,7 @@ import type { CSSProperties } from "react"
 */
 
 export const alt =
-  "Jessica Black — Founding Engineer building AI agent systems in Rust and TypeScript"
+  "Jessica Black, founding engineer building AI agent systems in Rust and TypeScript"
 export const size = { width: 1200, height: 630 }
 export const contentType = "image/png"
 
@@ -105,7 +105,7 @@ export default async function Image() {
           </div>
           <div style={{ display: "flex", width: 132, height: 4, backgroundColor: AMBER, marginTop: 30 }} />
           <div style={{ display: "flex", fontSize: 27, color: SOFT, marginTop: 24, fontWeight: 500 }}>
-            founding engineer · AI agent systems in Rust & TypeScript
+            AI agent systems in Rust & TypeScript
           </div>
         </div>
 
@@ -119,7 +119,7 @@ export default async function Image() {
             color: MUTED,
           }}
         >
-          <span>13 years · distributed systems · build tools</span>
+          <span>13 years · distributed systems · developer tools</span>
           <span style={{ color: AMBER, fontWeight: 700 }}>jessica.black</span>
         </div>
       </div>

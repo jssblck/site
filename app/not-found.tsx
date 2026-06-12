@@ -329,7 +329,7 @@ export default function NotFound() {
           404
         </h1>
         <p style={NOT_FOUND_COPY_STYLE}>
-          this page 404&apos;d. the dino, however, runs on.
+          this page 404&apos;d. the dino runs on.
         </p>
       </div>
 
