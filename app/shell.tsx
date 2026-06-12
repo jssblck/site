@@ -3,12 +3,8 @@
 /*
   jessica.black — "The Shell"
   A personal site that presents as a live, full-screen shell session: it boots,
-  settles, then takes commands. One file, React hooks only — no terminal
-  emulator and no framework gymnastics; amber phosphor on near-black.
-
-  -- you found the source. it borrow-checks. --
-  -- no framework was harmed. one file, hooks only, four themes. --
-  -- yes, the history buffer works. try the up arrow. and the konami code. --
+  settles, then takes commands. One client component, no terminal-emulator
+  library; amber phosphor on near-black.
 */
 
 import {
@@ -56,7 +52,7 @@ const PALETTE_ITEMS: Array<[string, string]> = [
   ["whoami", "who is this"],
   ["ls", "browse files"],
   ["experience", "full history"],
-  ["skills", "skill files"],
+  ["skills", "what I'm fluent in"],
   ["resume", "the whole thing"],
   ["contact", "say hi"],
   ["help", "everything"],
@@ -294,8 +290,9 @@ const getGuestSnapshot = () => {
 }
 const getServerGuestSnapshot = () => "guest"
 
-// Skills, modeled as SKILL.md files — the kind you hand an agent. Each is a real
-// little document with name / description / level frontmatter and a short body.
+// Skills, modeled the way agent skills are laid out on disk: one directory per
+// skill, each holding a SKILL.md with name / description / level frontmatter
+// and a short body.
 type Skill = {
   id: string
   name: string
@@ -805,7 +802,7 @@ const MANPAGES: Record<string, ManEntry> = {
   cat: {
     name: "cat — concatenate and print files",
     synopsis: "cat <file>",
-    desc: "Prints a file: about, readme.md, resume.txt, contact, ~/experience/*.md, ~/skills/*.skill.md. Bare names work too (`cat rust`). cat a directory and it'll point you at `ls` instead.",
+    desc: "Prints a file: about, readme.md, resume.txt, contact, ~/experience/*.md, ~/skills/*/SKILL.md. Bare names work too (`cat rust`). cat a directory and it'll point you at `ls` instead.",
     see: ["ls", "cd", "resume"],
   },
   tree: {
@@ -821,9 +818,9 @@ const MANPAGES: Record<string, ManEntry> = {
     see: ["neofetch", "cat"],
   },
   skills: {
-    name: "skills — list skill files",
+    name: "skills — list skills",
     synopsis: "skills",
-    desc: "Lists ~/skills/*.skill.md — the kind of capability files you'd hand an agent. cat one to read it.",
+    desc: "Lists ~/skills — one directory per skill, each holding a SKILL.md, laid out the way agent skills are. cat one to read it.",
     see: ["cat", "resume", "projects"],
   },
   projects: {
@@ -1072,7 +1069,7 @@ type RunCmd = (cmd: string) => void
 
 interface FsFileNode {
   kind: "file"
-  name: string // basename, with extension: "resume.txt", "rust.skill.md"
+  name: string // basename, with extension: "resume.txt", "SKILL.md"
   note?: string // right-gutter note in ls / tree
   cmd?: string // preferred command when the name is clicked (its alias); else `cat <path>`
   open?: string // external URL — a "link file" (a project or a post)
@@ -1094,10 +1091,9 @@ type FsNode = FsFileNode | FsDirNode
 // Home is /home/jess. Paths are stored as segment arrays from the root.
 const HOME_PATH = ["home", USER]
 
-// "rust.skill.md" → "rust", "resume.txt" → "resume", "about" → "about".
+// "resume.txt" → "resume", "about" → "about".
 // Used both for tab-friendly bare-name `cat` and for lenient path matching.
 function fileBase(name: string): string {
-  if (name.endsWith(".skill.md")) return name.slice(0, -".skill.md".length)
   const dot = name.lastIndexOf(".")
   return dot > 0 ? name.slice(0, dot) : name
 }
@@ -1128,12 +1124,22 @@ function buildHomeChildren(): FsNode[] {
     cmd: `cat ~/experience/${j.id}.md`,
     render: () => <JobBlock job={j} expanded />,
   }))
-  const skills: FsNode[] = SKILLS.map((s): FsFileNode => ({
-    kind: "file",
-    name: `${s.id}.skill.md`,
+  const skills: FsNode[] = SKILLS.map((s): FsDirNode => ({
+    kind: "dir",
+    name: s.id,
     note: s.description,
     cmd: `cat ~/skills/${s.id}`,
-    render: () => <SkillFileBlock skill={s} />,
+    treeMeta: s.description,
+    treeLeaf: true,
+    children: [
+      {
+        kind: "file",
+        name: "SKILL.md",
+        note: s.description,
+        cmd: `cat ~/skills/${s.id}`,
+        render: () => <SkillFileBlock skill={s} />,
+      },
+    ],
   }))
   const projects: FsNode[] = PROJECTS.map((p): FsFileNode => ({
     kind: "file",
@@ -1206,7 +1212,7 @@ function buildHomeChildren(): FsNode[] {
       cmd: "skills",
       children: skills,
       listing: (run) => <SkillsBlock run={run} />,
-      treeMeta: `${SKILLS.length} files`,
+      treeMeta: `${SKILLS.length} skills`,
       treeLeaf: true,
     },
     {
@@ -1286,10 +1292,17 @@ class ShellFs {
 
   // Flat index of file basenames (with and without extension) → absolute path,
   // so `cat readme`, `cat attune`, `cat rust` resolve from anywhere, the way a
-  // muscle-memory shortcut would. First writer wins; there are no collisions.
+  // muscle-memory shortcut would. A SKILL.md is indexed under its directory's
+  // name (`cat rust` → ~/skills/rust/SKILL.md), the way a skill is addressed.
+  // First writer wins; there are no collisions.
   private indexFiles(node: FsNode, segs: string[]) {
     const here = node.name ? [...segs, node.name] : [...segs]
     if (node.kind === "file") {
+      if (node.name === "SKILL.md") {
+        const dir = segs[segs.length - 1]
+        if (dir && !this.index.has(dir)) this.index.set(dir, here)
+        return
+      }
       if (!this.index.has(node.name)) this.index.set(node.name, here)
       const base = fileBase(node.name)
       if (!this.index.has(base)) this.index.set(base, here)
@@ -1328,8 +1341,8 @@ class ShellFs {
     return segs
   }
 
-  // Walk the tree to a node. The final segment matches by exact name first,
-  // then by extension-less base (so `cat skills/rust` finds rust.skill.md).
+  // Walk the tree to a node. Each segment matches by exact name first,
+  // then by extension-less base (so `cat experience/attune` finds attune.md).
   lookup(segs: readonly string[]): FsNode | null {
     let node: FsNode = this.root
     for (const name of segs) {
@@ -1383,13 +1396,20 @@ class ShellFs {
     const segs = this.resolve(cwd, path)
     let node = this.lookup(segs)
     // Bare name (no slash) that isn't on the resolved path? Fall back to the
-    // flat index: `cat rust` from ~ finds ~/skills/rust.skill.md.
+    // flat index: `cat rust` from ~ finds ~/skills/rust/SKILL.md.
     if (!node && !path.includes("/")) {
       const hit = this.index.get(path.toLowerCase())
       if (hit) node = this.lookup(hit)
     }
     if (!node) return { kind: "error", msg: `cat: ${path}: No such file or directory` }
-    if (node.kind === "dir") return { kind: "dir", name: path }
+    if (node.kind === "dir") {
+      // cat on a skill directory reads its SKILL.md, the way a skill loader does.
+      const skillFile = node.children.find(
+        (c): c is FsFileNode => c.kind === "file" && c.name === "SKILL.md",
+      )
+      if (skillFile) return { kind: "file", node: skillFile }
+      return { kind: "dir", name: path }
+    }
     return { kind: "file", node }
   }
 
@@ -2823,7 +2843,6 @@ function ShellView({ controller }: { controller: ShellController }) {
         data-matrix={matrixMode ? "1" : "0"}
       >
         <StyleBlock />
-        <SourceEggs />
         {matrixMode && <MatrixRain />}
 
         {/* one real, stable heading for SEO + assistive tech */}
@@ -3021,7 +3040,7 @@ function NeofetchCard() {
     ["role", "Founding Engineer @ Attune"],
     ["uptime", "13 years in production"],
     ["bugs in prod", <AnimatedCount key="bugs" />],
-    ["shell", "jsh 13.0 · hooks only"],
+    ["shell", "jsh 13.0"],
     ["stack", "Rust · Haskell · Go · TypeScript"],
     ["focus", "AI agents · distributed systems"],
     ["where", "Mountain View, CA"],
@@ -3379,7 +3398,7 @@ function SkillsBlock({ run }: { run: (c: string) => void }) {
         <span className="jsh-ok">$</span> ls ~/skills/
       </p>
       <p className="jsh-ls-total jsh-muted">
-        {SKILLS.length} skill files — the kind you hand an agent
+        {SKILLS.length} skills — one directory per skill, a SKILL.md in each
       </p>
       <ul className="jsh-sk-list">
         {SKILLS.map((s) => (
@@ -3392,17 +3411,16 @@ function SkillsBlock({ run }: { run: (c: string) => void }) {
               onMouseLeave={() => preview(null)}
               onFocus={() => preview(`cat ~/skills/${s.id}`)}
               onBlur={() => preview(null)}
-              title={`cat ~/skills/${s.id}.skill.md`}
+              title={`cat ~/skills/${s.id}/SKILL.md`}
             >
-              {s.id}.skill.md
+              {s.id}/
             </button>
             <span className="jsh-sk-desc">{s.description}</span>
           </li>
         ))}
       </ul>
       <p className="jsh-out jsh-muted jsh-ls-hint">
-        → <Cmd run={run}>cat ~/skills/rust</Cmd> to read one. each is a real SKILL.md —
-        name, description, body.
+        → <Cmd run={run}>cat ~/skills/rust</Cmd> to read one.
       </p>
     </div>
   )
@@ -3412,7 +3430,7 @@ function SkillFileBlock({ skill }: { skill: Skill }) {
   return (
     <div className="jsh-skillfile">
       <p className="jsh-out jsh-muted">
-        <span className="jsh-ok">$</span> cat ~/skills/{skill.id}.skill.md
+        <span className="jsh-ok">$</span> cat ~/skills/{skill.id}/SKILL.md
       </p>
       <div className="jsh-fm">
         <p className="jsh-fm-rule">---</p>
@@ -3835,18 +3853,12 @@ function ReadmeBlock({ run }: { run: (c: string) => void }) {
         <span className="jsh-em"># jessica.black</span>
       </p>
       <p className="jsh-out jsh-measure">
-        A personal site that behaves like a full-screen shell session. One React
-        file, hooks only. No terminal emulator, no framework gymnastics.
+        A personal site that behaves like a full-screen shell session.
       </p>
       <p className="jsh-out jsh-muted">
         Everything here is also reachable by clicking. Start with <Cmd run={run}>ls</Cmd>{" "}
-        or <Cmd run={run}>whoami</Cmd>. There is a <Cmd run={run}>theme</Cmd>,{" "}
-        <Cmd run={run}>games</Cmd>, a few hidden toys (fortune, cowsay, sl, a{" "}
-        <Cmd run={run}>threebody</Cmd> simulation), and a konami code.
-      </p>
-      <p className="jsh-out jsh-muted jsh-readme-fine">
-        {/* a wink for the source-divers */}
-        psst — there are comments in the source. they borrow-check.
+        or <Cmd run={run}>whoami</Cmd>. There is a <Cmd run={run}>theme</Cmd> and{" "}
+        <Cmd run={run}>games</Cmd>; not everything is listed.
       </p>
     </div>
   )
@@ -3897,25 +3909,6 @@ function delay(step: number): React.CSSProperties {
 
 function StyleBlock() {
   return <style>{CSS}</style>
-}
-
-// Real HTML comments for the source-divers. JSX {/* */} comments don't survive
-// to the DOM, so we inject genuine <!-- --> nodes via an invisible wrapper.
-const SOURCE_EGGS = [
-  "you found the source. it borrow-checks.",
-  "no framework was harmed. one file, hooks only, four themes.",
-  "the REPL is real — try the up arrow. the history buffer works.",
-  "psst — there are games (type `games`) and toys: fortune, cowsay, sl.",
-  "yes, the konami code does something. ↑↑↓↓←→←→ b a. so does `coffee`.",
-  "if you're reading this in devtools, you're exactly the kind of person I'd want to work with. say hi: me@jessica.black",
-]
-
-function SourceEggs() {
-  return (
-    <div hidden aria-hidden="true">
-      {SOURCE_EGGS.join("\n")}
-    </div>
-  )
 }
 
 const CSS = String.raw`
@@ -4919,7 +4912,6 @@ const CSS = String.raw`
 
 .jsh-err { color: var(--jsh-err); }
 .jsh-err-mark { color: var(--jsh-err); margin-right: 8px; }
-.jsh-readme-fine { margin-top: 8px; font-size: 11.5px; opacity: 0.8; }
 
 /* tabular numerals everywhere we show years/figures */
 .jsh-tnum { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }

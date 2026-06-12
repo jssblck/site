@@ -3,8 +3,8 @@
 My personal site. It behaves like a live shell session: it boots, settles, then
 takes commands. `help` works; clicking works too.
 
-It's deliberately low-tech: one React component, hooks only, no terminal-emulator
-library, no CSS framework. Amber phosphor on near-black, no glow, no gradients.
+It's deliberately low-tech: one React component, no terminal-emulator library,
+no CSS framework. Amber phosphor on near-black, no glow, no gradients.
 
 ## Develop
 
@@ -33,5 +33,3 @@ TypeScript all pass.
 - React hooks for the REPL; component styles are inline, no framework
 - Fonts: IBM Plex Mono (body) + Martian Mono (display), via `next/font`
 - [Vercel Analytics](https://vercel.com/analytics)
-
-<!-- yes, the history buffer works. try the up arrow. -->
