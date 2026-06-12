@@ -433,11 +433,12 @@ function buildBoot(): BootLine[] {
   const uuid = () => `${hex(8)}-${hex(4)}-${hex(4)}-${hex(4)}-${hex(12)}`
 
   const kver = `6.${num(6, 12)}.${num(1, 12)}-arch1-1`
+  const ncpus = 16
 
   /* -------------------- early kernel ring buffer ------------------- */
   const header: BootLine[] = [
     km(`Linux version ${kver} (linux@archlinux) (gcc (GCC) ${num(13, 15)}.${num(1, 3)}.1, GNU ld (GNU Binutils) 2.4${num(0, 3)}.0) #1 SMP PREEMPT_DYNAMIC`),
-    km(`Command line: BOOT_IMAGE=/vmlinuz-linux root=UUID=${uuid()} rw loglevel=3 quiet`),
+    km(`Command line: BOOT_IMAGE=/vmlinuz-linux root=UUID=${uuid()} rw rootflags=subvol=@ nvidia_drm.modeset=1 nvidia_drm.fbdev=1 loglevel=3 quiet`),
     km(`KERNEL supported cpus: Intel GenuineIntel, AMD AuthenticAMD, Hygon HygonGenuine`),
     km(`x86/fpu: Supporting XSAVE feature 0x001: 'x87 floating point registers'`),
     km(`x86/fpu: Supporting XSAVE feature 0x002: 'SSE registers'`),
@@ -446,28 +447,28 @@ function buildBoot(): BootLine[] {
     km(`BIOS-provided physical RAM map:`),
     km(`NX (Execute Disable) protection: active`),
     km(`SMBIOS ${num(2, 4)}.${num(0, 4)}.0 present.`),
-    km(`DMI: LENOVO 21CB; BIOS N3${hex(1)}ET${num(40, 99)}W (1.${num(10, 40)}) ${num(2021, 2024)}`),
-    km(`tsc: Detected ${num(2400, 3800)}.${num(100, 999)} MHz processor`),
+    km(`DMI: ASUS System Product Name/ROG STRIX B650E-F GAMING WIFI, BIOS ${num(14, 30)}03 ${pad2(num(1, 12))}/${pad2(num(1, 28))}/${num(2023, 2025)}`),
+    km(`tsc: Detected ${num(4000, 5000)}.${num(100, 999)} MHz processor`),
     km(`last_pfn = 0x${hex(6)} max_arch_pfn = 0x${hex(9)}`),
     km(`x86/PAT: Configuration [0-7]: WB  WC  UC- UC  WB  WP  UC- WT`),
     km(`Using GB pages for direct mapping`),
     km(`ACPI: Early table checksum verification disabled`),
-    km(`ACPI: RSDP 0x00000000${hex(6).toUpperCase()} 000024 (v02 LENOVO)`),
-    km(`smpboot: Allowing ${num(8, 32)} CPUs, 0 hotplug CPUs`),
+    km(`ACPI: RSDP 0x00000000${hex(6).toUpperCase()} 000024 (v02 ALASKA)`),
+    km(`smpboot: Allowing ${ncpus} CPUs, 0 hotplug CPUs`),
     km(`Memory: ${num(16, 31)}${num(100000, 999999)}K/${num(33, 66)}${num(100000, 999999)}K available`),
-    km(`SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=${num(8, 32)}, Nodes=1`),
+    km(`SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=${ncpus}, Nodes=1`),
     km(`rcu: Hierarchical RCU implementation.`),
-    km(`rcu:     RCU restricting CPUs from NR_CPUS=512 to nr_cpu_ids=${num(8, 32)}.`),
+    km(`rcu:     RCU restricting CPUs from NR_CPUS=512 to nr_cpu_ids=${ncpus}.`),
     km(`NR_IRQS: 524544, nr_irqs: ${num(900, 2048)}, preallocated irqs: 16`),
     km(`Console: colour dummy device 80x25`),
     km(`printk: console [tty0] enabled`),
     km(`ACPI: Core revision 20230628`),
     km(`clocksource: hpet: mask: 0xffffffff max_cycles: 0x${hex(8)}, max_idle_ns: 133484882848 ns`),
     km(`APIC: Switch to symmetric I/O mode setup`),
-    km(`smpboot: CPU0: Intel(R) Core(TM) i7-13${num(60, 99)}0H CPU @ ${num(2, 3)}.${num(0, 9)}0GHz`),
-    km(`Performance Events: PEBS fmt4+, Alderlake events, 32-deep LBR, full-width counters`),
+    km(`smpboot: CPU0: AMD Ryzen 7 7800X3D 8-Core Processor (family: 0x19, model: 0x61, stepping: 0x2)`),
+    km(`Performance Events: Fam17h+ core perfctr, AMD PMU driver.`),
     km(`smp: Bringing up secondary CPUs ...`),
-    km(`smp: Brought up 1 node, ${num(8, 32)} CPUs`),
+    km(`smp: Brought up 1 node, ${ncpus} CPUs`),
     km(`devtmpfs: initialized`),
     km(`clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 7645519600211568 ns`),
     km(`NET: Registered PF_NETLINK/PF_ROUTE protocol family`),
@@ -477,21 +478,31 @@ function buildBoot(): BootLine[] {
     km(`xor: automatically using best checksumming function   avx`),
     km(`Freeing SMP alternatives memory: ${num(20, 48)}K`),
     km(`random: crng init done`),
+    km(`nvidia: loading out-of-tree module taints kernel.`),
+    km(`NVRM: loading NVIDIA UNIX Open Kernel Module for x86_64  ${num(550, 575)}.${num(40, 99)}.${pad2(num(2, 17))}  Release Build`),
+    km(`nvidia-modeset: Loading NVIDIA Kernel Mode Setting Driver for UNIX platforms`),
+    km(`[drm] [nvidia-drm] [GPU ID 0x00000100] Loading driver`),
+    km(`BTRFS: device label arch devid 1 transid ${num(2000, 9000)} /dev/nvme0n1p2 scanned by mount (${num(180, 260)})`),
+    km(`BTRFS info (device nvme0n1p2): using crc32c (crc32c-intel) checksum algorithm`),
+    km(`BTRFS info (device nvme0n1p2): use zstd compression, level 3`),
+    km(`BTRFS info (device nvme0n1p2): enabling ssd optimizations`),
+    km(`BTRFS info (device nvme0n1p2): auto enabling async discard`),
   ]
 
   /* ----------------------- procgen pools -------------------------- */
   const inputs = [
-    "AT Translated Set 2 keyboard", "Power Button", "Lid Switch", "Sleep Button",
-    "PC Speaker", "Video Bus", "ELAN Touchpad", "Logitech USB Receiver Mouse",
-    "Intel HID events", "HDA Intel PCH Mic", "HDA Intel PCH Headphone",
+    "AT Translated Set 2 keyboard", "Power Button", "Sleep Button",
+    "PC Speaker", "Video Bus", "Logitech USB Receiver Mouse",
+    "Logitech USB Receiver Keyboard", "HDA NVidia HDMI/DP,pcm=3",
+    "HDA NVidia HDMI/DP,pcm=7", "Eee PC WMI hotkeys",
   ]
   const devpaths = [
     "platform/i8042/serio0", "LNXSYSTM:00", "pci0000:00/0000:00:14.0/usb1",
-    "platform/thinkpad_acpi", "pci0000:00/0000:00:1f.3",
+    "pci0000:00/0000:01:00.1/sound/card1", "platform/eeepc-wmi",
   ]
-  const aaProfiles = [
-    "/usr/bin/man", "man_filter", "man_groff", "nvidia_modprobe", "lsb_release",
-    "/usr/bin/chromium", "tcpdump", "ping",
+  const auditUnits = [
+    "systemd-journald", "systemd-udevd", "NetworkManager", "docker",
+    "bluetooth", "sshd", "systemd-timesyncd",
   ]
 
   // kernel ring-buffer chatter (gets a timestamp)
@@ -505,12 +516,12 @@ function buildBoot(): BootLine[] {
       () => `input: ${pick(inputs)} as /devices/${pick(devpaths)}/input/input${num(1, 30)}`,
       () => `ata${num(1, 6)}: SATA link up 6.0 Gbps (SStatus 133 SControl 300)`,
       () => `nvme nvme0: ${num(4, 16)}/0/0 default/read/poll queues`,
-      () => `EXT4-fs (nvme0n1p${num(1, 3)}): mounted filesystem ${uuid()} r/w with ordered data mode`,
-      () => `i915 0000:00:02.0: [drm] Finished loading DMC firmware i915/adlp_dmc.bin (v2.${num(10, 20)})`,
-      () => `iwlwifi 0000:00:14.3: loaded firmware version ${num(70, 89)}.${hex(8)} op_mode iwlmvm`,
+      () => `BTRFS info (device nvme0n1p2): qgroup scan completed (inconsistency flag cleared)`,
+      () => `nvidia 0000:01:00.0: vgaarb: VGA decodes changed: olddecodes=io+mem,decodes=none:owns=io+mem`,
+      () => `iwlwifi 0000:0a:00.0: loaded firmware version ${num(70, 89)}.${hex(8)} op_mode iwlmvm`,
       () => `Bluetooth: hci0: Firmware revision ${num(0, 9)}.${num(0, 9)} build ${num(20, 99)}`,
-      () => `e1000e 0000:00:1f.6 eth0: NIC Link is Up 1000 Mbps Full Duplex, Flow Control: Rx/Tx`,
-      () => `audit: type=1400 audit(${num(100, 200)}.${num(100, 999)}:${num(2, 99)}): apparmor="STATUS" operation="profile_load" name="${pick(aaProfiles)}"`,
+      () => `r8169 0000:02:00.0 enp2s0: Link is Up - 2.5Gbps/Full - flow control rx/tx`,
+      () => `audit: type=1130 audit(${num(100, 200)}.${num(100, 999)}:${num(2, 99)}): pid=1 uid=0 auid=4294967295 ses=4294967295 msg='unit=${pick(auditUnits)} comm="systemd" res=success'`,
       () => `loop${num(0, 12)}: detected capacity change from 0 to ${num(100000, 900000)}`,
       () => `thermal thermal_zone${num(0, 9)}: registered as thermal_zone${num(0, 9)}`,
       () => `RAPL PMU: API unit is 2^-32 Joules, ${num(3, 5)} fixed counters, 655360 ms ovfl timer`,
@@ -524,7 +535,7 @@ function buildBoot(): BootLine[] {
     "D-Bus System Message Bus", "Network Manager", "OpenSSH Daemon",
     "Network Time Synchronization", "Permit User Sessions", "Login Service",
     "User Login Management", "Authorization Manager", "Disk Manager",
-    "Modem Manager", "Avahi mDNS/DNS-SD Stack", "CUPS Scheduler",
+    "NVIDIA Persistence Daemon", "Docker Application Container Engine",
     "Bluetooth service", "Hostname Service", "Locale Service",
     "Time & Date Service", "Network Name Resolution", "Journal Service",
     "Rule-based Manager for Device Events and Files", "Load/Save Random Seed",
@@ -532,11 +543,11 @@ function buildBoot(): BootLine[] {
     "Remount Root and Kernel File Systems", "Setup Virtual Console",
     "Record System Boot/Shutdown in UTMP", "Flush Journal to Persistent Storage",
     "Save/Restore Sound Card State", "WPA supplicant", "Accounts Service",
-    "Thermal Daemon Service", "Firmware update daemon", "Power Profiles daemon",
+    "containerd container runtime", "Firmware update daemon", "Power Profiles daemon",
     "RealtimeKit Scheduling Policy Service", "User Manager for UID 1000",
     "Self Monitoring and Reporting Technology (SMART) Daemon",
     "Virtual Machine and Container Registration Service",
-    "Simple Desktop Display Manager",
+    "Periodic Command Scheduler",
   ]
   const targetDesc = [
     "Basic System", "Sockets", "Timers", "Paths", "Local File Systems", "Swap",
@@ -547,7 +558,8 @@ function buildBoot(): BootLine[] {
     "Preparation for Network", "First Boot Complete", "Containers",
   ]
   const mountDesc = [
-    "/boot", "/boot/efi", "/home", "/home/jess", "Temporary Directory (/tmp)",
+    "/boot", "/home", "/var/log", "/var/cache/pacman/pkg",
+    "/.snapshots", "Temporary Directory (/tmp)",
     "Kernel Debug File System", "Kernel Trace File System", "Huge Pages File System",
     "POSIX Message Queue File System", "Kernel Configuration File System",
     "FUSE Control File System", "RPC Pipe File System",
@@ -570,7 +582,7 @@ function buildBoot(): BootLine[] {
     "Wait for udev To Complete Device Initialization",
   ]
   const founddev = [
-    "Samsung SSD 980 1TB", "WDC WDS500G2B0C", "ST1000LM035-1RK172",
+    "Samsung SSD 980 1TB", "Samsung SSD 990 PRO 2TB", "WDC WDS500G2B0C",
     "Crucial CT525MX300SSD1", "NVMe disk", "/dev/ttyS0", "VGA controller",
   ]
   const slices = [
@@ -625,7 +637,6 @@ function buildBoot(): BootLine[] {
     ok("Started Getty on tty1."),
     ok("Reached target Login Prompts."),
     ok("Reached target Multi-User System."),
-    ok("Started GNOME Display Manager."),
     ok("Reached target Graphical Interface."),
     ok("Created slice User Slice of UID 1000."),
     ok("Started Session 1 of User jess."),
@@ -634,6 +645,15 @@ function buildBoot(): BootLine[] {
     info(""),
     info("jessica-black login: jess (automatic login)"),
     info(`Last login: ${pick(days)} ${pick(months)} ${pad2(num(1, 28))} ${pad2(num(0, 23))}:${pad2(num(0, 59))}:${pad2(num(0, 59))} on tty1`),
+    info(""),
+    info("exec Hyprland"),
+    info(`[LOG] Welcome to Hyprland! (v0.4${num(5, 9)}.${num(0, 3)})`),
+    info(`[LOG] Instance Signature: ${hex(13)}_${num(1735000000, 1765000000)}`),
+    info(`[LOG] Added monitor DP-1 (5120x1440@120)`),
+    info("[LOG] exec-once: waybar"),
+    info("[LOG] exec-once: waypaper --restore"),
+    info("[LOG] exec-once: systemctl --user start hyprpolkitagent"),
+    info("[LOG] Spawning kitty on workspace 1"),
   ]
 
   /* --------------------- assemble the middle ---------------------- */
@@ -2872,7 +2892,7 @@ function ShellView({ controller }: { controller: ShellController }) {
               <span className="jsh-clock jsh-tnum" aria-hidden="true">
                 {clock ? `${clock} PT` : ""}
               </span>
-              <span className="jsh-tty">{phase === "booting" ? "init" : "tty1"}</span>
+              <span className="jsh-tty">{phase === "booting" ? "init" : "kitty"}</span>
             </span>
           </div>
 
