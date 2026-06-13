@@ -1,22 +1,22 @@
 "use client"
 
 /*
-  threebody — a real-time simulation of the three-body problem: masses under
+  threebody - a real-time simulation of the three-body problem: masses under
   mutual Newtonian gravity, integrated with velocity Verlet at a small fixed
   step (plus a little softening so a close pass doesn't divide by zero), so
   energy stays honest over long runs.
 
   Two modes:
-   • trisolaris — the setup from Liu Cixin's books: three suns of unequal mass
-     plus a small planet caught among them. It's a real four-body system — the
+   • trisolaris - the setup from Liu Cixin's books: three suns of unequal mass
+     plus a small planet caught among them. It's a real four-body system - the
      suns dance chaotically and drag the planet through stable spells and
      violent ones, while the planet is light enough that it barely tugs back
      (as a real world wouldn't). Reseed (r) for a fresh sky.
-   • chaos — three equal masses flung at random, net momentum zeroed. The bare
+   • chaos - three equal masses flung at random, net momentum zeroed. The bare
      problem, with nothing to hide behind: no two runs ever match.
 
   The camera eases around the live body bounds and auto-zooms to keep the dance
-  framed, even when a body is thrown across the room. No score — it's a toy.
+  framed, even when a body is thrown across the room. No score - it's a toy.
 */
 
 import { useEffect, useReducer, useRef } from "react"
@@ -183,7 +183,7 @@ export default function ThreeBody() {
   const escapeFramesRef = useLazyRef<number[]>(() => bodiesRef.current.map(() => 0))
   const escapeNoticeRef = useRef<EscapeNotice | null>(null)
   const endStateRef = useRef<EscapeNotice | null>(null)
-  // one trail per body (4 for trisolaris, 3 for chaos) — derived so the counts
+  // one trail per body (4 for trisolaris, 3 for chaos) - derived so the counts
   // never fall out of sync with the body list
   const trailRef = useLazyRef<Array<Array<{ x: number; y: number }>>>(() =>
     bodiesRef.current.map(() => []),
@@ -297,11 +297,11 @@ export default function ThreeBody() {
       const sx = (wx: number) => PW / 2 + (wx - v.cx) * v.scale
       const sy = (wy: number) => PH / 2 - (wy - v.cy) * v.scale
 
-      // every star is the same amber — mass shows in size, not colour — while
+      // every star is the same amber - mass shows in size, not colour - while
       // the planet takes a different, paler colour so it never blends into a sun.
       const bodyColor = bodies.map((b) => (b.role === "planet" ? c.fg : c.accent))
 
-      // trails — fade from dim (old) to bright (recent)
+      // trails - fade from dim (old) to bright (recent)
       ctx.shadowBlur = 0
       if (trailsRef.current) {
         ctx.lineWidth = 1.5 * dpr

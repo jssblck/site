@@ -4,7 +4,7 @@
   The backdrop for "matrix mode" (toggled by the `cmatrix` command): a
   full-viewport sheet of digital rain that sits BEHIND the still-usable
   terminal, so the shell reads like it's living inside the code. Classic
-  algorithm — per-column drops, a bright head trailing into fading phosphor,
+  algorithm - per-column drops, a bright head trailing into fading phosphor,
   the field dimmed each frame toward black. Movie-green on purpose. Sizes to
   the window, and under prefers-reduced-motion it paints a static field
   instead of animating.
@@ -59,7 +59,7 @@ export default function MatrixRain() {
     }
 
     const step = () => {
-      // dim the whole field toward black — short trails keep text readable
+      // dim the whole field toward black - short trails keep text readable
       ctx.globalAlpha = 0.12
       ctx.fillStyle = BASE
       ctx.fillRect(0, 0, w, h)

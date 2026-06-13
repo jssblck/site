@@ -1,7 +1,7 @@
 "use client"
 
 /*
-  2048 — slide tiles with the arrows; equal tiles merge and double. Reach 2048,
+  2048 - slide tiles with the arrows; equal tiles merge and double. Reach 2048,
   then keep going until the board jams. Monochrome tiles: the accent gets more
   intense as the value climbs. Best score persists.
 */

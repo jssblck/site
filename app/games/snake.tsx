@@ -1,7 +1,7 @@
 "use client"
 
 /*
-  snake — the canonical terminal game. Grid + canvas, fixed-timestep loop,
+  snake - the canonical terminal game. Grid + canvas, fixed-timestep loop,
   theme-aware colors. Arrows / WASD / hjkl to steer; eat the squares, don't
   bite yourself or the walls. Best score persists per browser.
 */

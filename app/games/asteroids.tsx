@@ -1,7 +1,7 @@
 "use client"
 
 /*
-  asteroids — the vector classic, drawn as wireframe phosphor. Rotate with
+  asteroids - the vector classic, drawn as wireframe phosphor. Rotate with
   ← → (or a/d, h/l), thrust with ↑ / w / k, fire with space. Momentum carries
   and the screen wraps. Big rocks split into smaller, faster ones; clear the
   field and a bigger wave drifts in. Three ships; best score persists.

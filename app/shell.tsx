@@ -1,7 +1,7 @@
 "use client"
 
 /*
-  jessica.black — "The Shell"
+  jessica.black - "The Shell"
   A personal site that presents as a live, full-screen shell session: it boots,
   settles, then takes commands. One client component, no terminal-emulator
   library; amber phosphor on near-black.
@@ -13,11 +13,17 @@ import {
   use,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useReducer,
   useRef,
   useState,
 } from "react"
-import type { ComponentType, JSX, KeyboardEvent as ReactKeyboardEvent } from "react"
+import type {
+  ComponentType,
+  JSX,
+  KeyboardEvent as ReactKeyboardEvent,
+  PointerEvent as ReactPointerEvent,
+} from "react"
 import { IBM_Plex_Mono, Martian_Mono } from "next/font/google"
 import {
   useClientSnapshot,
@@ -153,7 +159,7 @@ function commandContainsBlockedOpen(command: string): boolean {
   return false
 }
 
-// Industrial mono for the REPL body. Static weights — predictable rhythm.
+// Industrial mono for the REPL body. Static weights - predictable rhythm.
 const plex = IBM_Plex_Mono({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
@@ -168,7 +174,7 @@ const martian = Martian_Mono({
 })
 
 /* ------------------------------------------------------------------ *
- *  CONTENT  — the facts, structured so the interpreter can render them
+ *  CONTENT  - the facts, structured so the interpreter can render them
  * ------------------------------------------------------------------ */
 
 const HOST = "jessica.black"
@@ -193,7 +199,7 @@ const JOBS: Job[] = [
     role: "Founding Engineer · Member of Technical Staff",
     start: "Jul 2025",
     end: "present",
-    years: "2025—",
+    years: "2025-present",
     blurb: "Developer tools for AI coding agents and the people using them.",
     bullets: [
       "Built an incident-triage agent that reads Sentry, Datadog, and Slack, runs the root-cause investigation in a sandbox, and cites its evidence. Triage that took hours takes minutes.",
@@ -210,7 +216,7 @@ const JOBS: Job[] = [
     role: "Software Engineer → Senior → Staff Tech Lead",
     start: "Sep 2019",
     end: "Jul 2025",
-    years: "2019—25",
+    years: "2019-25",
     blurb:
       "Promoted twice in under five years. Tech lead for the analysis platform, the distributed system under every FOSSA product, analyzing ~30k customer and ~200k open-source projects a day across 20+ language ecosystems.",
     bullets: [
@@ -229,7 +235,7 @@ const JOBS: Job[] = [
     role: "Software Engineer",
     start: "Jun 2013",
     end: "Sep 2019",
-    years: "2013—19",
+    years: "2013-19",
     blurb:
       "Started on a small reporting team and helped turn it into a software team. Self-directed the whole way, no mentor.",
     bullets: [
@@ -245,11 +251,11 @@ const JOBS: Job[] = [
 // differs is the link. Open-source projects carry a `code` URL (their repo) and
 // a `lang`; closed ones may instead have a `site` (their own public home, like
 // Sandi's) and a `badge`. `open <name>` and the projects list send you to
-// `code ?? site` — the code if it's open, its home if not, nowhere if neither.
+// `code ?? site` - the code if it's open, its home if not, nowhere if neither.
 type Project = {
   name: string
   note: string
-  code?: string // public source repo — present iff open source
+  code?: string // public source repo - present iff open source
   site?: string // a public home of its own (e.g. Sandi's site)
   lang?: string // language badge, for open-source code
   badge?: string // badge text for projects without public code
@@ -346,7 +352,7 @@ const linkUrl = (k: string) => LINKS.find((l) => l.key === k)?.url ?? "#"
 
 // A visitor is a guest on jess's machine. Rather than an IP (creepy + useless),
 // they get a Docker-style handle: an adjective + a computer-science name, in
-// kebab-case. Rolled fresh on every load — you're a different guest each visit.
+// kebab-case. Rolled fresh on every load - you're a different guest each visit.
 const GUEST_ADJ = [
   "curious", "nostalgic", "eager", "brave", "clever", "gentle", "quiet",
   "bold", "keen", "witty", "stoic", "lucid", "nimble", "wry", "candid",
@@ -454,14 +460,14 @@ const MOTD_CYCLE: string[] = [
   "achieving eventual consistency…",
   "garbage-collecting the garbage collector…",
   "proving termination (this may not terminate)…",
-  "founding engineer @ attune — agent systems in rust & ts", // settle
+  "founding engineer @ attune - agent systems in rust & ts", // settle
 ]
 
 /* ------------------------------------------------------------------ *
  *  BOOT REEL
  *  The page boots like a machine: a few hundred lines of deterministic
  *  kernel + systemd chatter that print fast and settle into the prompt
- *  in ~1s. You only meet it again by scrolling up. No jokes — it reads
+ *  in ~1s. You only meet it again by scrolling up. No jokes - it reads
  *  like a real Arch boot. Two quiet exceptions reward anyone who keeps
  *  reading: the hidden commands appear as package installs
  *  ("installing breakout (1.0-1)..."), and BOOT_EXTRA (just below) lets
@@ -804,7 +810,7 @@ const THEME_NOTE: Record<Theme, string> = {
   amber: "phosphor amber on near-black (default)",
   green: "phosphor green on near-black",
   paper: "ink on warm paper (light)",
-  pride: "rainbow wordmark — everyone's welcome",
+  pride: "rainbow wordmark - everyone's welcome",
 }
 
 const EMPTY_ACHIEVEMENTS: string[] = []
@@ -823,11 +829,11 @@ type Block =
   | { kind: "echo"; cmd: string; prompt: string } // the command the user "ran", and the prompt it ran under
   | { kind: "boot"; line: BootLine } // a boot reel line (kernel / systemd / bare)
 
-// `home` marks the welcome card — the persistent header/"tab bar". Clicking a
+// `home` marks the welcome card - the persistent header/"tab bar". Clicking a
 // command collapses the transcript back to this line, then shows that command.
 type Line = { id: number; block: Block; home?: boolean }
 
-// Verb table — used for Tab completion and the not-found hint.
+// Verb table - used for Tab completion and the not-found hint.
 const COMMANDS = [
   "help",
   "man",
@@ -864,120 +870,120 @@ const COMMANDS = [
 ] as const
 
 // Real files `cat` can print, for the not-found hint. (Directories like skills/
-// or projects/ aren't here — cat-ing a directory is an error; you `ls` those.)
+// or projects/ aren't here - cat-ing a directory is an error; you `ls` those.)
 const CAT_TARGETS = [
   "about",
   "readme",
   "resume",
 ] as const
 
-// Manual pages — `man <cmd>` prints one, classic-formatted. Concise but real;
+// Manual pages - `man <cmd>` prints one, classic-formatted. Concise but real;
 // SEE ALSO entries chain to other pages. (Unknown command → "No manual entry".)
 type ManEntry = { name: string; synopsis: string; desc: string; see?: string[] }
 const MANPAGES: Record<string, ManEntry> = {
   ls: {
-    name: "ls — list directory contents",
+    name: "ls - list directory contents",
     synopsis: "ls [path]",
-    desc: "Lists a directory — with no argument, the one you're in (cd moves you). Folders end in /; cat a file, ls a folder, run a game. Try `ls`, `ls ~/skills`, `ls /`.",
+    desc: "Lists a directory - with no argument, the one you're in (cd moves you). Folders end in /; cat a file, ls a folder, run a game. Try `ls`, `ls ~/skills`, `ls /`.",
     see: ["cd", "cat", "tree"],
   },
   cd: {
-    name: "cd — change the working directory",
+    name: "cd - change the working directory",
     synopsis: "cd [path]",
-    desc: "Moves around the tree: `cd skills`, `cd ..`, `cd ~` (home), `cd /` (root). The prompt and the top bar track where you are. Folders only — a file isn't a directory.",
+    desc: "Moves around the tree: `cd skills`, `cd ..`, `cd ~` (home), `cd /` (root). The prompt and the top bar track where you are. Folders only - a file isn't a directory.",
     see: ["ls", "pwd", "tree"],
   },
   pwd: {
-    name: "pwd — print working directory",
+    name: "pwd - print working directory",
     synopsis: "pwd",
     desc: "Prints the absolute path you're standing in. You start in /home/jess; cd moves you, and the prompt follows.",
     see: ["cd", "ls"],
   },
   cat: {
-    name: "cat — concatenate and print files",
+    name: "cat - concatenate and print files",
     synopsis: "cat <file>",
     desc: "Prints a file: about, readme.md, resume.txt, or ~/skills/*/SKILL.md. Bare names work too (`cat rust`). cat a directory and it'll point you at `ls` instead.",
     see: ["ls", "cd", "resume"],
   },
   tree: {
-    name: "tree — list contents as a tree",
+    name: "tree - list contents as a tree",
     synopsis: "tree [path]",
     desc: "A recursive view from here (or a given path), drawn from the same filesystem ls and cd see. Click any name to open it.",
     see: ["ls", "cd"],
   },
   whoami: {
-    name: "whoami — print the current user",
+    name: "whoami - print the current user",
     synopsis: "whoami",
-    desc: "You're a guest, handed a fresh handle each visit. The machine — and the résumé — belong to Jessica Black.",
+    desc: "You're a guest, handed a fresh handle each visit. The machine - and the résumé - belong to Jessica Black.",
     see: ["neofetch", "cat"],
   },
   skills: {
-    name: "skills — list skills",
+    name: "skills - list skills",
     synopsis: "skills",
-    desc: "Lists ~/skills — one directory per skill, each holding a SKILL.md, laid out the way agent skills are. cat one to read it.",
+    desc: "Lists ~/skills - one directory per skill, each holding a SKILL.md, laid out the way agent skills are. cat one to read it.",
     see: ["cat", "resume", "projects"],
   },
   projects: {
-    name: "projects — list the things I've built",
+    name: "projects - list the things I've built",
     synopsis: "projects",
     desc: "Lists ~/projects with a one-line note each. Open-source ones link to their code; others, like sandi, link to their own home. Click one, or `open <name>`, to visit it.",
     see: ["resume", "skills"],
   },
   resume: {
-    name: "resume — print the full résumé",
+    name: "resume - print the full résumé",
     synopsis: "resume",
     desc: "The whole thing: work history, skills, writing, and links. Switch to the paper theme first if you're printing.",
     see: ["theme", "cat", "projects", "whoami"],
   },
   theme: {
-    name: "theme — set the colour theme",
+    name: "theme - set the colour theme",
     synopsis: "theme [amber|green|paper|pride|next]",
     desc: "Switches the phosphor. amber (default), green, paper (light), pride. `theme next` cycles. Persists across visits.",
     see: ["resume"],
   },
   games: {
-    name: "games — the arcade",
+    name: "games - the arcade",
     synopsis: "games | <name>",
     desc: "Lists the arcade and your bests. Run a name (snake, tetris, asteroids, wordle, …) to play fullscreen; Esc exits. Not everything is listed.",
     see: ["threebody", "help"],
   },
   threebody: {
-    name: "threebody — simulate the three-body problem",
+    name: "threebody - simulate the three-body problem",
     synopsis: "threebody | 3bp",
     desc: "A real-time gravity simulation, integrated with velocity Verlet. Two modes: trisolaris, the books' setup with three unequal suns and a small planet, and a chaotic scramble of three equal masses. r reseeds, space pauses, 1/2 switch, [ ] change speed, t toggles trails, esc quits.",
     see: ["games", "neofetch"],
   },
   neofetch: {
-    name: "neofetch — system + identity card",
+    name: "neofetch - system + identity card",
     synopsis: "neofetch",
     desc: "The wordmark and the vitals: role, uptime (13 years), stack, focus, links.",
     see: ["whoami"],
   },
   history: {
-    name: "history — command history",
+    name: "history - command history",
     synopsis: "history",
-    desc: "What you've typed this session; the up arrow walks it. Clicks don't count — those are website navigation, not shell history.",
+    desc: "What you've typed this session; the up arrow walks it. Clicks don't count - those are website navigation, not shell history.",
     see: ["help"],
   },
   achievements: {
-    name: "achievements — what you've unlocked",
+    name: "achievements - what you've unlocked",
     synopsis: "achievements",
-    desc: "Eleven of them — some by doing, some by trying. No points; just the satisfaction.",
+    desc: "Eleven of them - some by doing, some by trying. No points; just the satisfaction.",
     see: ["help"],
   },
   clear: {
-    name: "clear — clear the screen",
+    name: "clear - clear the screen",
     synopsis: "clear",
-    desc: "Wipes the transcript (Ctrl-L too). The boot log won't come back — scrolling up was your one chance.",
+    desc: "Wipes the transcript (Ctrl-L too). The boot log won't come back - scrolling up was your one chance.",
   },
   man: {
-    name: "man — read the manual",
+    name: "man - read the manual",
     synopsis: "man <command>",
     desc: "You're doing it right now. Meta, isn't it.",
     see: ["help"],
   },
   help: {
-    name: "help — list commands",
+    name: "help - list commands",
     synopsis: "help",
     desc: "The overview. Not everything is listed; a good terminal rewards curiosity.",
     see: ["man", "games"],
@@ -1022,7 +1028,7 @@ function Ext({ href, children }: { href: string; children: React.ReactNode }) {
 }
 
 // A clickable token that runs a command when activated. Keyboard-operable.
-// `run` is optional — when omitted it dispatches through RunContext, which is
+// `run` is optional - when omitted it dispatches through RunContext, which is
 // how blocks embedded in the transcript reach the live interpreter.
 function Cmd({
   run,
@@ -1068,7 +1074,7 @@ const GAME_LIST: Array<[string, string]> = [
   ["flappy", "tap to flap, thread the gaps"],
   ["wordle", "six guesses, five letters"],
   ["minesweeper", "flag the mines, sweep the rest"],
-  ["life", "conway's game of life — draw + watch"],
+  ["life", "conway's game of life - draw + watch"],
   ["pong", "you vs the machine, first to 11"],
 ]
 const GAME_COMMANDS = new Set([...GAME_LIST.map(([name]) => name), "threebody"])
@@ -1120,7 +1126,7 @@ const GAME_STAT: Record<string, { key: string; fmt: (n: number) => string }> = {
  *  it: an in-memory tree plus a Shell that resolves paths (~, ., .., /,
  *  relative) and implements ls / cat / cd / pwd / tree the way a real
  *  shell would. Every "content command" (skills, projects, resume, …) is
- *  just an alias for an ls or cat of a known path — so typing `ls ~/skills`
+ *  just an alias for an ls or cat of a known path - so typing `ls ~/skills`
  *  and clicking `skills` land in exactly the same place, and `cd skills`
  *  moves the prompt for real.
  *
@@ -1129,7 +1135,7 @@ const GAME_STAT: Record<string, { key: string; fmt: (n: number) => string }> = {
  *  carry a custom `listing` (the pretty skills/projects/games views);
  *  without one it falls back to a generic `ls`. The whole tree is built
  *  from the same JOBS / SKILLS / PROJECTS / WRITING / GAME_LIST data the
- *  rest of the page renders — one source of truth, so ls, tree, and cat
+ *  rest of the page renders - one source of truth, so ls, tree, and cat
  *  can never drift apart again.
  * ------------------------------------------------------------------ */
 
@@ -1140,7 +1146,7 @@ interface FsFileNode {
   name: string // basename, with extension: "resume.txt", "SKILL.md"
   note?: string // right-gutter note in ls / tree
   cmd?: string // preferred command when the name is clicked (its alias); else `cat <path>`
-  open?: string // external URL — a "link file" (a project or a post)
+  open?: string // external URL - a "link file" (a project or a post)
   exe?: boolean // executable (a game): running the name launches it; cat is a gag
   render: (run: RunCmd) => JSX.Element // what `cat` prints
 }
@@ -1152,7 +1158,7 @@ interface FsDirNode {
   children: FsNode[]
   listing?: (run: RunCmd) => JSX.Element // rich `ls` view; omit for a generic listing
   treeMeta?: string // in `tree`, the right-gutter note for this directory
-  treeLeaf?: boolean // in `tree`, stop here — show the dir but don't recurse into it
+  treeLeaf?: boolean // in `tree`, stop here - show the dir but don't recurse into it
 }
 type FsNode = FsFileNode | FsDirNode
 
@@ -1530,7 +1536,7 @@ function GameOverlay({ name, onExit }: { name: string; onExit: () => void }) {
         open
         className="jsh-game-overlay"
         aria-modal="true"
-        aria-label={`${name} — fullscreen game`}
+        aria-label={`${name} - fullscreen game`}
         onPointerDown={(e) => {
           if (e.target === e.currentTarget) onExit()
         }}
@@ -1599,6 +1605,11 @@ function MobileArcadeBlock() {
 }
 
 /* ----------------------- terminal toys --------------------------- */
+const REMOTE_FORTUNE_URLS = [
+  "https://raw.githubusercontent.com/shlomif/fortune-mod/master/fortune-mod/datfiles/computers",
+] as const
+const MAX_REMOTE_FORTUNE_LENGTH = 260
+
 const FORTUNES = [
   "There are only two hard things in computer science: cache invalidation, naming things, and off-by-one errors.",
   "It works on my machine.",
@@ -1608,7 +1619,7 @@ const FORTUNES = [
   "To understand recursion, you must first understand recursion.",
   "Real programmers count from zero.",
   "The best thing about a boolean is that even if you're wrong, you're only off by a bit.",
-  "Premature optimization is the root of all evil. — Knuth",
+  "Premature optimization is the root of all evil. - Knuth",
   "Any sufficiently advanced bug is indistinguishable from a feature.",
   "git commit -m 'fixed'. (narrator: it was not fixed.)",
   "I'd tell you a UDP joke, but you might not get it.",
@@ -1618,17 +1629,171 @@ const FORTUNES = [
   "It's not a bug, it's an undocumented feature.",
   "Old programmers never die. They just decompile.",
   "There are 10 kinds of people: those who read binary, and those who don't.",
+  "Ship small diffs when you can. Ship the right diff always.",
+  "A cache miss is the universe asking if you really needed that abstraction.",
+  "Every flaky test is a distributed system trying to confess.",
+  "The build is green, but the demo is still the truth.",
+  "Good logs turn mysteries into chores.",
+  "If the incident channel is quiet, check whether everyone is holding their breath.",
+  "A feature flag is a time machine with a rollback button.",
+  "The fastest query is the one your product no longer needs.",
+  "Latency hides in places the diagram rounds down to arrows.",
+  "Types are tiny contracts. Read the fine print.",
+  "The sharpest tool in the box is usually a boring invariant.",
+  "The second hardest problem in computer science is admitting the first name was wrong.",
+  "A passing test suite is a promise, not a prophecy.",
+  "Make the invalid state expensive to represent.",
+  "Every migration deserves a way home.",
+  "A branch named final-v2 is asking for supervision.",
+  "If the mock is smarter than the feature, the feature is in trouble.",
+  "The best retry policy starts by asking why the first attempt failed.",
+  "Observability is what you wish you had before the outage.",
+  "A queue is where synchronous dreams go to become operational.",
+  "The happy path is a rumor until the error path has tests.",
+  "A well-named variable is a tiny act of mercy.",
+  "Delete code like you expect someone to thank you later.",
+  "A dashboard without units is modern art.",
+  "Your future self is the busiest person on the team. Leave notes.",
+  "The compiler is not mad. The compiler is disappointed.",
+  "Every TODO needs either an owner or a calendar.",
+  "A local maximum is just tech debt with good posture.",
+  "The network is reliable in the same way a cat is a liquid: only in demos.",
+  "If it only fails in production, production is your test case now.",
+  "Backups are optimism with receipts.",
+  "The fastest rollback is the one rehearsed before launch.",
+  "Every global mutable singleton wants to become a haunted house.",
+  "If a regex grows a second paragraph, invite a parser.",
+  "The API is forever unless you are brave enough to make it honest.",
+  "If the workaround has documentation, it has become architecture.",
+  "A good error message is customer support at compile time.",
+  "Concurrency is easy until time starts happening in more than one place.",
+  "The best benchmark is the one that changes a decision.",
+  "A migration without metrics is a trust fall.",
+  "The perfect abstraction has probably not met the second use case.",
+  "Sometimes the optimization is deleting the spinner.",
+  "Config is code wearing a fake mustache.",
+  "A stable interface is a kindness. A stable bug is a treaty.",
+  "If you cannot explain the cache key, you do not have a cache key.",
+  "The incident review is part of the feature.",
+  "A schema is a promise your data will remember.",
+  "The null case has seniority.",
+  "A cron job is a production feature with a tiny office.",
+  "Make illegal states boringly impossible.",
+  "The root cause is rarely the loudest stack frame.",
+  "Your deploy script should be calmer than you are.",
+  "A slow page is an accessibility bug with a stopwatch.",
+  "The best comment saves a reader from reconstructing your afternoon.",
+  "If the fix is scary, make the proof boring.",
+  "The database has a better memory than the meeting.",
+  "Every CLI deserves a dry run and a sharp warning.",
+  "A clever line of code accrues interest.",
+  "A test that fails well is a debugging tool.",
+  "The user does not care which layer was elegant.",
+  "A small invariant can carry a large system.",
+  "Release notes are the map of what changed while everyone was blinking.",
+  "If the pager has folklore, write the runbook.",
+  "The first version teaches you the names of the real problems.",
+  "If the fix needs luck, it is a mitigation.",
+  "A dependency graph is a biography of your decisions.",
+  "The cleanest API is the one users can guess correctly.",
+  "A good terminal never shouts unless something is on fire.",
+  "When in doubt, print the state you wish you had seen sooner.",
+  "The most useful abstraction removes a question.",
+  "If a feature needs a ritual, automate the ritual.",
+  "The diff is smaller when the model is right.",
 ]
+
+let remoteFortunesPromise: Promise<string[]> | null = null
+let remoteFortunesCache: string[] | null = null
+
+function pickFrom<T>(items: readonly T[]): T {
+  return items[Math.floor(Math.random() * items.length)]
+}
+
+function normalizeFortuneText(text: string): string {
+  return text
+    .replace(/\r\n?/g, "\n")
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201c\u201d\u00ab\u00bb]/g, '"')
+    .replace(/\u2014/g, "--")
+    .replace(/\u2013/g, "-")
+    .replace(/\t/g, "  ")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+}
+
+function parseFortuneDatfile(raw: string): string[] {
+  const seen = new Set<string>()
+  const parsed: string[] = []
+  for (const chunk of raw.split(/\n%\n/g)) {
+    const fortune = normalizeFortuneText(chunk)
+    if (
+      fortune.length < 12 ||
+      fortune.length > MAX_REMOTE_FORTUNE_LENGTH ||
+      seen.has(fortune)
+    ) {
+      continue
+    }
+    seen.add(fortune)
+    parsed.push(fortune)
+  }
+  return parsed
+}
+
+function loadRemoteFortunes(): Promise<string[]> {
+  if (remoteFortunesCache) return Promise.resolve(remoteFortunesCache)
+  if (remoteFortunesPromise) return remoteFortunesPromise
+
+  remoteFortunesPromise = Promise.all(
+    REMOTE_FORTUNE_URLS.map(async (url) => {
+      const res = await fetch(url, { cache: "force-cache" })
+      if (!res.ok) return []
+      return parseFortuneDatfile(await res.text())
+    }),
+  )
+    .then((groups) => {
+      remoteFortunesCache = groups.flat()
+      return remoteFortunesCache
+    })
+    .catch(() => [])
+
+  return remoteFortunesPromise
+}
+
 function pickFortune(): string {
-  return FORTUNES[Math.floor(Math.random() * FORTUNES.length)]
+  return pickFrom(FORTUNES)
+}
+
+function useFortune(): string {
+  const [fortune, setFortune] = useState(() => pickFortune())
+
+  useEffect(() => {
+    let alive = true
+    loadRemoteFortunes().then((remote) => {
+      if (alive && remote.length > 0) setFortune(pickFrom(remote))
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  return fortune
 }
 
 function FortuneBlock() {
-  return <p className="jsh-out jsh-measure">{pickFortune()}</p>
+  const fortune = useFortune()
+  return <p className="jsh-out jsh-measure jsh-fortune">{fortune}</p>
+}
+
+function FortuneCowsayBlock() {
+  const fortune = useFortune()
+  return <CowsayBlock text={fortune} />
 }
 
 function cowBubble(text: string): string {
-  const t = text.length > 44 ? text.slice(0, 43) + "…" : text
+  const oneLine = text.replace(/\s+/g, " ").trim()
+  const t = oneLine.length > 44 ? oneLine.slice(0, 43) + "..." : oneLine
   const bar = "-".repeat(t.length + 2)
   return ` _${bar}_\n( ${t} )\n -${bar}-`
 }
@@ -1706,9 +1871,9 @@ function RotatingGag() {
 }
 
 /* ------------------------------------------------------------------ *
- *  RETYPE — self-revising text
+ *  RETYPE - self-revising text
  *  A small primitive for "text that rewrites itself over time". It walks
- *  a list of frames, erasing the current one and typing the next — a
+ *  a list of frames, erasing the current one and typing the next - a
  *  terminal correcting itself in real time. Frames are strings or
  *  () => string thunks (resolved when reached, so randomness re-rolls
  *  each pass). Drop it anywhere a value should feel alive:
@@ -1764,7 +1929,7 @@ function Retype({
 }) {
   const reduced = usePrefersReducedMotion()
   // Render a literal first frame immediately, but never call a random thunk
-  // during render — keep SSR/first paint stable; the effect fills those in.
+  // during render - keep SSR/first paint stable; the effect fills those in.
   const [{ text, done }, setRetype] = useReducer(
     retypeReducer,
     frames,
@@ -1934,9 +2099,10 @@ function useShellController() {
   const tailSpacerRef = useRef<HTMLDivElement>(null)
   const bootCancel = useRef<(() => void) | null>(null)
   const hashCommandConsumed = useRef(false)
+  const lastScrollHeightRef = useRef(0)
   const scrollWelcomeTop = useRef(false)
   const scrollResultTop = useRef(false)
-  // True once the welcome card (the home header) is on screen — gates the
+  // True once the welcome card (the home header) is on screen - gates the
   // click-to-replace "tab bar" behavior.
   const hasHomeRef = useRef(false)
   const historyRef = useRef<string[]>([])
@@ -1952,7 +2118,7 @@ function useShellController() {
   const cmdCountRef = useRef(0)
   const guestRef = useRef(guest)
   guestRef.current = guest
-  // True while a fullscreen game is open — used to mute the shell's global key
+  // True while a fullscreen game is open - used to mute the shell's global key
   // handlers so they don't steal focus or advance behind the overlay.
   const activeGameRef = useRef<string | null>(null)
   activeGameRef.current = activeGame
@@ -1984,7 +2150,7 @@ function useShellController() {
     [push],
   )
 
-  // The prompt as it stands right now — captured per echo line so scrollback
+  // The prompt as it stands right now - captured per echo line so scrollback
   // keeps the path each command actually ran under, even after `cd` moves on.
   const ps1 = useCallback(
     () => `${guestRef.current}@${HOST}:${SHELL.pathLabel(cwdRef.current)}$`,
@@ -2104,29 +2270,66 @@ function useShellController() {
   }, [finishBoot, mobileMode, reduced, renderBoot])
 
   /* --------------------- autoscroll on growth --------------------- */
-  // Normally pin to the bottom. But the instant the boot reel finishes, snap the
-  // welcome card to the TOP instead — so the boot log scrolls out of sight and
-  // you only meet it again by scrolling up.
-  useEffect(() => {
+  // The settled home screen intentionally starts with breathing room below the
+  // prompt. Command output fills that space first; only once the prompt would
+  // run past the viewport does the transcript scroll like a terminal tail.
+  useLayoutEffect(() => {
     const el = scrollRef.current
     if (!el) return
     const spacer = tailSpacerRef.current
+    const getSpacerHeight = () => {
+      if (!spacer) return 0
+      const parsed = Number.parseFloat(spacer.style.height)
+      return Number.isFinite(parsed) ? parsed : 0
+    }
+    const setSpacerHeight = (height: number) => {
+      if (!spacer) return
+      spacer.style.height = height > 0 ? `${Math.ceil(height)}px` : "0px"
+    }
+    const rememberScrollHeight = () => {
+      lastScrollHeightRef.current = el.scrollHeight
+    }
+    const keepPromptNaturallyVisible = () => {
+      const head = el.querySelector(
+        ".jsh-promptline:not(.jsh-promptline-readonly), .jsh-bootcursor",
+      ) as HTMLElement | null
+      if (!head) return
+      const elRect = el.getBoundingClientRect()
+      const headRect = head.getBoundingClientRect()
+      const lineHeight = Math.max(1, headRect.height)
+      const maxHeadTop = elRect.bottom - lineHeight - 10
+      if (headRect.top > maxHeadTop) {
+        el.scrollTop += headRect.top - maxHeadTop
+      }
+    }
+    const shrinkTailIntoNewOutput = () => {
+      const previousScrollHeight = lastScrollHeightRef.current || el.scrollHeight
+      const growth = el.scrollHeight - previousScrollHeight
+      const spacerHeight = getSpacerHeight()
+      if (growth > 0 && spacerHeight > 0) {
+        setSpacerHeight(Math.max(0, spacerHeight - growth))
+      }
+    }
+
     if (scrollWelcomeTop.current) {
       scrollWelcomeTop.current = false
       const snapTo = (target: HTMLElement, pad = 6) => {
-        if (spacer) spacer.style.height = "0px"
+        setSpacerHeight(0)
         const targetOffset =
           target.getBoundingClientRect().top - el.getBoundingClientRect().top - pad
         el.scrollTop += targetOffset
         // If the scroll bottomed out before the welcome reached the top, there
-        // is not enough content below it — add exactly that much tail space so
+        // is not enough content below it. Add exactly that much tail space so
         // the whole boot reel sits above the fold.
         const residual =
           target.getBoundingClientRect().top - el.getBoundingClientRect().top - pad
-        if (residual > 1 && spacer) {
-          spacer.style.height = `${Math.ceil(residual)}px`
+        if (residual > 1) {
+          setSpacerHeight(residual)
           el.scrollTop += residual
+        } else {
+          keepPromptNaturallyVisible()
         }
+        rememberScrollHeight()
       }
       const snap = () => {
         const w = el.querySelector(".jsh-welcome") as HTMLElement | null
@@ -2151,10 +2354,11 @@ function useShellController() {
         const home = el.querySelector(".jsh-home-row") as HTMLElement | null
         const target = home?.nextElementSibling as HTMLElement | null
         if (!target) return
-        if (spacer) spacer.style.height = "0px"
+        setSpacerHeight(0)
         const targetOffset =
           target.getBoundingClientRect().top - el.getBoundingClientRect().top - 8
         el.scrollTop += targetOffset
+        rememberScrollHeight()
       }
       snap()
       requestAnimationFrame(() => {
@@ -2163,10 +2367,10 @@ function useShellController() {
       })
       return
     }
-    // normal growth: drop any tail spacer and pin to the bottom
-    if (spacer) spacer.style.height = "0px"
-    el.scrollTop = el.scrollHeight
-  }, [lines])
+    shrinkTailIntoNewOutput()
+    keepPromptNaturallyVisible()
+    rememberScrollHeight()
+  }, [lines, phase])
 
   /* --------- archaeologist: scroll up to the top of the boot ------ */
   useEffect(() => {
@@ -2214,7 +2418,7 @@ function useShellController() {
       }
       // Update the ref synchronously so a chained `cd x && ls` sees the new cwd
       // immediately; setCwd moves the prompt on the next render. cd itself is
-      // silent, like a real shell — the `&& ls` is what shows the contents.
+      // silent, like a real shell - the `&& ls` is what shows the contents.
       cwdRef.current = r.cwd
       setCwd(r.cwd)
       return true
@@ -2324,7 +2528,7 @@ function useShellController() {
       if (r.kind === "dir")
         return pushText(
           <Errline>
-            cat: {r.name}: Is a directory — try{" "}
+            cat: {r.name}: Is a directory - try{" "}
             <Cmd run={clickRef.current}>{`ls ${r.name}`}</Cmd>
           </Errline>,
         )
@@ -2355,7 +2559,7 @@ function useShellController() {
           <Errline>
             open: which one? try <Cmd run={clickRef.current}>open github</Cmd>,{" "}
             <Cmd run={clickRef.current}>open linkedin</Cmd>, or a repo like{" "}
-            <Cmd run={clickRef.current}>open hurry</Cmd> —{" "}
+            <Cmd run={clickRef.current}>open hurry</Cmd> -{" "}
             <Cmd run={clickRef.current}>projects</Cmd> lists them all
           </Errline>,
         )
@@ -2412,7 +2616,7 @@ function useShellController() {
         return
       }
 
-      // record history (dedupe consecutive) — typed commands only; clicks are
+      // record history (dedupe consecutive) - typed commands only; clicks are
       // website navigation, not shell history.
       if (!replace) {
         const history = historyRef.current
@@ -2452,7 +2656,7 @@ function useShellController() {
 
       // Commands chain on && like a real shell: run each segment in order and
       // stop at the first failure. A folder click sends `cd <dir> && ls`, so it
-      // drills in (the prompt moves) and shows the contents — like opening a
+      // drills in (the prompt moves) and shows the contents - like opening a
       // folder in a file browser. Most commands "succeed" (return undefined);
       // only a bad cd or an unknown command returns false to break the chain.
       const execOne = (segment: string): boolean | void => {
@@ -2463,13 +2667,13 @@ function useShellController() {
 
         // a tiny nod to the classic pipe
         if (/^fortune\s*\|\s*cowsay$/i.test(segment)) {
-          return pushText(<CowsayBlock text={pickFortune()} />)
+          return pushText(<FortuneCowsayBlock />)
         }
         // the vim escape reflex
         if (/^:(w?q!?|x)$/i.test(segment) || segment === "ZZ") {
           return pushText(
             <p className="jsh-out jsh-muted">
-              not in an editor — but the reflex is respected. you&apos;re already free.
+              not in an editor - but the reflex is respected. you&apos;re already free.
             </p>,
           )
         }
@@ -2545,7 +2749,7 @@ function useShellController() {
           case "fortune":
             return pushText(<FortuneBlock />)
           case "cowsay":
-            return pushText(<CowsayBlock text={arg || pickFortune()} />)
+            return pushText(arg ? <CowsayBlock text={arg} /> : <FortuneCowsayBlock />)
           case "sl":
             return pushText(<SlBlock />)
           case "apt":
@@ -2577,7 +2781,7 @@ function useShellController() {
           case "nvim":
             return pushText(
               <p className="jsh-out jsh-muted">
-                nice reflex — but nothing&apos;s open. to leave, type{" "}
+                nice reflex - but nothing&apos;s open. to leave, type{" "}
                 <Cmd run={clickRef.current}>:q</Cmd> like the rest of us.
               </p>,
             )
@@ -2665,7 +2869,7 @@ function useShellController() {
             }
             pushText(
               <Errline>
-                {head}: command not found. try <Cmd run={clickRef.current}>help</Cmd> —
+                {head}: command not found. try <Cmd run={clickRef.current}>help</Cmd> -
                 or just click something below.
               </Errline>,
             )
@@ -2673,7 +2877,7 @@ function useShellController() {
         }
       }
 
-      // chain on && — run each segment, stop at the first failure
+      // chain on && - run each segment, stop at the first failure
       for (const part of cmd.split("&&")) {
         const seg = part.trim()
         if (!seg) continue
@@ -2726,7 +2930,7 @@ function useShellController() {
   const clickRef = useRef<(cmd: string) => void>(() => {})
   clickRef.current = (cmd: string) => runRef.current(cmd, { replace: true })
 
-  // The context dispatcher (palette, Cmd tokens, etc.) is the click path —
+  // The context dispatcher (palette, Cmd tokens, etc.) is the click path -
   // stable identity, always reaches live `run` in replace mode.
   const dispatch = useCallback((cmd: string) => clickRef.current(cmd), [])
 
@@ -2749,6 +2953,10 @@ function useShellController() {
       if (activeGameRef.current) return // arrows belong to the game, not konami
       const k = e.key.toLowerCase()
       if (k === SEQ[pos]) {
+        if (pos >= SEQ.length - 2 && e.target === inputRef.current) {
+          e.preventDefault()
+          e.stopPropagation()
+        }
         pos += 1
         if (pos === SEQ.length) {
           pos = 0
@@ -2759,8 +2967,8 @@ function useShellController() {
         pos = k === SEQ[0] ? 1 : 0
       }
     }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
+    window.addEventListener("keydown", onKey, { capture: true })
+    return () => window.removeEventListener("keydown", onKey, { capture: true })
   }, [pushText])
 
   /* ------------------------ INPUT HANDLING ------------------------ */
@@ -2864,7 +3072,7 @@ function useShellController() {
         return
       }
       // When ready: a printable key focuses the prompt (so you can just start
-      // typing from anywhere) — but never steal focus from another control.
+      // typing from anywhere) - but never steal focus from another control.
       if (
         phase === "ready" &&
         e.key.length === 1 &&
@@ -2888,11 +3096,37 @@ function useShellController() {
     return () => window.removeEventListener("keydown", onKey)
   }, [mobileMode, phase])
 
-  // Click anywhere in the terminal body focuses the prompt (unless selecting).
-  const focusPrompt = useCallback(() => {
+  // Click anywhere in the terminal body focuses the prompt. Interactive
+  // descendants keep their own focus/click behavior, and selected text remains
+  // copyable.
+  const focusPrompt = useCallback((e?: ReactPointerEvent<HTMLElement>) => {
     if (mobileMode) return
+
+    if (e) {
+      if (e.button !== 0) return
+      const target = e.target
+      if (target instanceof HTMLElement) {
+        const interactive = target.closest(
+          [
+            "a",
+            "button",
+            "input",
+            "textarea",
+            "select",
+            "label",
+            "summary",
+            "[contenteditable='true']",
+            "[role='button']",
+            "[role='link']",
+          ].join(","),
+        )
+        if (interactive) return
+      }
+    }
+
     const sel = window.getSelection?.()
     if (sel && sel.toString().length > 0) return // let users copy text
+
     // preventScroll so a click that bubbles here doesn't yank the view to the
     // bottom and fight the click-to-replace snap that pins the header up top.
     if (phase === "ready") inputRef.current?.focus({ preventScroll: true })
@@ -2988,11 +3222,12 @@ function ShellView({ controller }: { controller: ShellController }) {
           TypeScript.
         </h1>
 
-        {/* the terminal IS the page — full-bleed, full-height */}
+        {/* the terminal IS the page - full-bleed, full-height */}
         <section
           className={`jsh-term ${reveal}`}
           style={delay(0)}
-          aria-label="jessica black — interactive shell"
+          aria-label="jessica black - interactive shell"
+          onPointerDown={focusPrompt}
         >
           <div className="jsh-topbar">
             <span className="jsh-dots" aria-hidden="true">
@@ -3022,7 +3257,6 @@ function ShellView({ controller }: { controller: ShellController }) {
           <div
             className="jsh-scroll"
             ref={scrollRef}
-            onPointerDown={focusPrompt}
             role="log"
             aria-label="session transcript"
             aria-live="polite"
@@ -3148,7 +3382,7 @@ function TranscriptRow({ line, reduced }: { line: Line; reduced: boolean }) {
     )
   }
   if (b.kind === "boot") {
-    // No per-row entrance animation — the reel prints fast, so a stagger would
+    // No per-row entrance animation - the reel prints fast, so a stagger would
     // just look chaotic. Three line shapes: a systemd status tag, a kernel
     // timestamp, or a bare line (pacman output / the login banner).
     const ln = b.line
@@ -3358,7 +3592,7 @@ function ManBlock({ cmd, page }: { cmd: string; page: ManEntry }) {
 function HelpBlock({ run }: { run: (c: string) => void }) {
   return (
     <div className="jsh-help">
-      <p className="jsh-out jsh-muted">available commands — click any to run:</p>
+      <p className="jsh-out jsh-muted">available commands - click any to run:</p>
       <ul className="jsh-helpgrid">
         {HELP_ROWS.map(([c, d]) => {
           const base = c.split(" ")[0]
@@ -3377,14 +3611,14 @@ function HelpBlock({ run }: { run: (c: string) => void }) {
       </ul>
       <p className="jsh-out jsh-muted jsh-help-foot">
         history: <kbd className="jsh-kbd">↑</kbd> <kbd className="jsh-kbd">↓</kbd> ·
-        complete: <kbd className="jsh-kbd">Tab</kbd> · or never type at all — everything
+        complete: <kbd className="jsh-kbd">Tab</kbd> · or never type at all - everything
         is clickable. (not everything is listed; try what you would try in a real shell.)
       </p>
     </div>
   )
 }
 
-// `ls <dir>` — a directory as a clickable listing, generated from the live FS
+// `ls <dir>` - a directory as a clickable listing, generated from the live FS
 // node. Files cat, folders ls, executables run; the per-node `cmd` (its alias)
 // is used when present so a clicked name lands on the same view typing would.
 function DirListing({
@@ -3444,7 +3678,7 @@ function DirListing({
   )
 }
 
-// `ls <file>` — a single row, like a real `ls` of one file.
+// `ls <file>` - a single row, like a real `ls` of one file.
 function FileLsBlock({
   node,
   segs,
@@ -3473,13 +3707,13 @@ function FileLsBlock({
         </li>
       </ul>
       <p className="jsh-out jsh-muted jsh-ls-hint">
-        → it&apos;s a file — <Cmd run={run}>{cmd}</Cmd> to read it.
+        → it&apos;s a file - <Cmd run={run}>{cmd}</Cmd> to read it.
       </p>
     </div>
   )
 }
 
-// `cat ~/projects/<name>` — a project's "file": its note and where it lives.
+// `cat ~/projects/<name>` - a project's "file": its note and where it lives.
 // Open-source ones link to code, others to their own home; clicking opens it.
 function ProjectFileBlock({ project, run }: { project: Project; run: RunCmd }) {
   const url = projectUrl(project)
@@ -3500,13 +3734,13 @@ function ProjectFileBlock({ project, run }: { project: Project; run: RunCmd }) {
           <Cmd run={run}>{`open ${project.name}`}</Cmd>
         </p>
       ) : (
-        <p className="jsh-out jsh-muted">no public link — this one keeps to itself.</p>
+        <p className="jsh-out jsh-muted">no public link - this one keeps to itself.</p>
       )}
     </div>
   )
 }
 
-// `cat ~/writing/<slug>.md` — a post's "file": title, venue, and the link.
+// `cat ~/writing/<slug>.md` - a post's "file": title, venue, and the link.
 function WritingFileBlock({ item, file }: { item: Writing; file: string }) {
   return (
     <div className="jsh-skillfile">
@@ -3524,11 +3758,11 @@ function WritingFileBlock({ item, file }: { item: Writing; file: string }) {
   )
 }
 
-// `cat ~/games/<name>` — games are "binaries", not text. Don't cat them; run them.
+// `cat ~/games/<name>` - games are "binaries", not text. Don't cat them; run them.
 function BinaryBlock({ name, run }: { name: string; run: RunCmd }) {
   return (
     <p className="jsh-out jsh-muted">
-      cat: {name}: binary file — it&apos;s a game, not a text file. <Cmd run={run}>{name}</Cmd>{" "}
+      cat: {name}: binary file - it&apos;s a game, not a text file. <Cmd run={run}>{name}</Cmd>{" "}
       to play it. (arrows move; esc quits.)
     </p>
   )
@@ -3542,7 +3776,7 @@ function SkillsBlock({ run }: { run: (c: string) => void }) {
         <span className="jsh-ok">$</span> ls ~/skills/
       </p>
       <p className="jsh-ls-total jsh-muted">
-        {SKILLS.length} skills — one directory per skill, a SKILL.md in each
+        {SKILLS.length} skills - one directory per skill, a SKILL.md in each
       </p>
       <ul className="jsh-sk-list">
         {SKILLS.map((s) => (
@@ -3622,7 +3856,7 @@ function ResumeBlock({ run }: { run: (c: string) => void }) {
         <div key={j.id} className="jsh-resume-job">
           <div className="jsh-resume-jobhead">
             <span className="jsh-em">{j.org}</span>
-            <span className="jsh-muted"> — {j.role}</span>
+            <span className="jsh-muted"> - {j.role}</span>
             <span className="jsh-muted jsh-tnum jsh-resume-dates">
               {j.start} – {j.end}
             </span>
@@ -3661,7 +3895,7 @@ function ResumeBlock({ run }: { run: (c: string) => void }) {
   )
 }
 
-// `tree` — rendered from rows the Shell flattened out of the live FS, so it
+// `tree` - rendered from rows the Shell flattened out of the live FS, so it
 // always matches what `ls` and `cd` see. Every name is clickable.
 function TreeBlock({
   label,
@@ -3743,7 +3977,7 @@ function ThemeList({
   return (
     <div className="jsh-themes">
       <p className="jsh-out jsh-muted">
-        <span className="jsh-ok">$</span> theme — set with <Cmd run={run}>theme green</Cmd>
+        <span className="jsh-ok">$</span> theme - set with <Cmd run={run}>theme green</Cmd>
         , or <Cmd run={run}>theme next</Cmd> to cycle:
       </p>
       <ul className="jsh-theme-list">
@@ -3864,7 +4098,7 @@ function WritingBlock() {
         {WRITING.map((w) => (
           <li key={w.url}>
             <Ext href={w.url}>{w.title}</Ext>
-            <span className="jsh-linklist-where jsh-muted">— {w.where}</span>
+            <span className="jsh-linklist-where jsh-muted">- {w.where}</span>
           </li>
         ))}
       </ul>
@@ -3884,7 +4118,7 @@ function WritingBlock() {
   )
 }
 
-// `projects` — the things Jess has built, listed like the skills/arcade blocks:
+// `projects` - the things Jess has built, listed like the skills/arcade blocks:
 // a name, a one-line note, and a badge. Open-source projects badge their
 // language and open their code; others (Sandi) badge "live · private" and open
 // their own home. A name with a public home is clickable (dispatches
@@ -3897,7 +4131,7 @@ function ProjectsBlock({ run }: { run: (c: string) => void }) {
         <span className="jsh-ok">$</span> ls ~/projects/
       </p>
       <p className="jsh-ls-total jsh-muted">
-        {PROJECTS.length} projects — the open ones link to code
+        {PROJECTS.length} projects - the open ones link to code
       </p>
       <ul className="jsh-sk-list">
         {PROJECTS.map((p) => {
@@ -3948,7 +4182,7 @@ function WhoamiBlock({ run }: { run: (c: string) => void }) {
   return (
     <div className="jsh-whoami">
       <p className="jsh-out">
-        <span className="jsh-em">Jessica Black</span> — founding engineer.
+        <span className="jsh-em">Jessica Black</span> - founding engineer.
       </p>
       <p className="jsh-out jsh-measure">
         I build AI agent systems in Rust and TypeScript. Most of my work has been
@@ -4016,7 +4250,7 @@ function withRepoLinks(text: string): React.ReactNode {
     { word: "Nudge", url: "https://github.com/attunehq/nudge" },
   ]
   const hit = named.find(
-    (n) => text.startsWith(n.word + ":") || text.startsWith(n.word + " —"),
+    (n) => text.startsWith(n.word + ":") || text.startsWith(n.word + " -"),
   )
   if (!hit) return text
   const rest = text.slice(hit.word.length)
@@ -4034,7 +4268,7 @@ function delay(step: number): React.CSSProperties {
 }
 
 /* ------------------------------------------------------------------ *
- *  STYLES — keyframes + custom CSS. All prefixed jsh-.
+ *  STYLES - keyframes + custom CSS. All prefixed jsh-.
  * ------------------------------------------------------------------ */
 
 function StyleBlock() {
@@ -4062,7 +4296,7 @@ const CSS = String.raw`
   --jsh-err: #d98a6a;
 }
 
-/* phosphor green — same dark surfaces, different accent */
+/* phosphor green - same dark surfaces, different accent */
 .jsh-root[data-theme="green"] {
   --jsh-amber: #7dd66e;
   --jsh-amber-soft: #5fa653;
@@ -4071,7 +4305,7 @@ const CSS = String.raw`
   --jsh-err: #d98a6a;
 }
 
-/* ink on warm paper — light mode for the people who print things */
+/* ink on warm paper - light mode for the people who print things */
 .jsh-root[data-theme="paper"] {
   --jsh-bg: #f3f1ea;
   --jsh-bg-2: #efece3;
@@ -4092,7 +4326,7 @@ const CSS = String.raw`
   --jsh-err: #ab4524;
 }
 
-/* pride — dark and lavender-accented, with a rainbow wordmark */
+/* pride - dark and lavender-accented, with a rainbow wordmark */
 .jsh-root[data-theme="pride"] {
   --jsh-bg: #0c0c0e;
   --jsh-bg-2: #100d14;
@@ -4121,7 +4355,7 @@ const CSS = String.raw`
   color: transparent;
 }
 
-/* matrix mode — a green takeover with live rain behind the (still-usable)
+/* matrix mode - a green takeover with live rain behind the (still-usable)
    terminal. Surfaces go translucent so the rain reads through; text glows. */
 .jsh-root[data-matrix="1"] {
   --jsh-bg: #010a01;
@@ -4180,7 +4414,7 @@ const CSS = String.raw`
   letter-spacing: 0.1px;
 }
 
-/* faint scanline texture — atmosphere, not glitz */
+/* faint scanline texture - atmosphere, not glitz */
 .jsh-root::before {
   content: "";
   position: fixed;
@@ -4326,6 +4560,7 @@ const CSS = String.raw`
 .jsh-block { margin-top: 6px; }
 .jsh-block-pad { padding: 4px 0; }
 .jsh-out { margin: 3px 0; color: var(--jsh-fg); }
+.jsh-fortune { white-space: pre-wrap; }
 .jsh-muted { color: var(--jsh-muted); }
 .jsh-faint { color: var(--jsh-faint); }
 .jsh-em { color: var(--jsh-amber); font-weight: 500; }
@@ -4665,7 +4900,7 @@ const CSS = String.raw`
 .jsh-sk-file:focus-visible { outline: none; background: var(--jsh-accent-weak); }
 .jsh-sk-desc { color: var(--jsh-muted); font-size: 12.5px; }
 .jsh-game-best { color: var(--jsh-amber-soft); font-variant-numeric: tabular-nums; }
-/* a non-language project badge (e.g. sandi's "live · private") — full accent so
+/* a non-language project badge (e.g. sandi's "live · private") - full accent so
    it reads a touch brighter than the dim language badges. */
 .jsh-proj-live { color: var(--jsh-amber); }
 /* a project name with no public home: shown, but not a link. */
@@ -4818,6 +5053,7 @@ const CSS = String.raw`
   background: var(--jsh-bg-2);
   margin: 6px 0;
   outline: none;
+  overflow: hidden;
   max-width: 540px;
 }
 .jsh-game:focus-visible { border-color: var(--jsh-amber-soft); }
@@ -4861,7 +5097,7 @@ const CSS = String.raw`
 }
 .jsh-game-hint b { color: var(--jsh-amber-soft); font-weight: 600; }
 
-/* fullscreen game overlay — a game takes over the whole shell */
+/* fullscreen game overlay - a game takes over the whole shell */
 .jsh-game-overlay {
   position: fixed;
   inset: 0;
@@ -4870,8 +5106,16 @@ const CSS = String.raw`
   align-items: center;
   justify-content: center;
   padding: clamp(6px, 1.4vh, 18px);
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  color: inherit;
   background: var(--jsh-bg);
   background-image: radial-gradient(circle at 50% 32%, var(--jsh-bg-2), var(--jsh-bg) 72%);
+  overflow: hidden;
   animation: jsh-overlay-in 160ms ease;
 }
 @keyframes jsh-overlay-in {
@@ -4897,7 +5141,7 @@ const CSS = String.raw`
   max-width: 98vw;
   box-shadow: 0 12px 60px rgba(0, 0, 0, 0.45);
 }
-/* games open near-fullscreen — only a little inset from the screen edges */
+/* games open near-fullscreen - only a little inset from the screen edges */
 .jsh-game-overlay .jsh-game-canvas {
   width: auto;
   height: min(74vh, 820px);
@@ -4955,11 +5199,18 @@ const CSS = String.raw`
   justify-content: center;
   gap: 10px;
   padding: 24px;
+  margin: 0;
+  max-width: none;
+  max-height: none;
   background: color-mix(in srgb, var(--jsh-bg) 82%, transparent);
   border: 1px solid var(--jsh-rule-2);
+  border-radius: 4px;
+  background-clip: padding-box;
   color: var(--jsh-muted);
+  font: inherit;
   text-align: center;
   line-height: 1.4;
+  overflow: hidden;
   pointer-events: auto;
 }
 .jsh-threebody-end p {

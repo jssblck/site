@@ -1,7 +1,7 @@
 "use client"
 
 /*
-  tetris — 10x20 well, the seven tetrominoes, soft/hard drop, line clears,
+  tetris - 10x20 well, the seven tetrominoes, soft/hard drop, line clears,
   levels. Move with arrows / hjkl, rotate with up / w / k / x, soft drop with
   down, hard drop with space. Monochrome: locked blocks sit in the dim accent,
   the live piece in the bright one. Best score persists.

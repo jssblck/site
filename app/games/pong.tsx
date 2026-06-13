@@ -1,7 +1,7 @@
 "use client"
 
 /*
-  pong — you (left) vs the machine (right). Move with ↑ ↓ (or w/s, k/j). The
+  pong - you (left) vs the machine (right). Move with ↑ ↓ (or w/s, k/j). The
   ball speeds up every rally and leaves the paddle at an angle based on where it
   hits. First to 11 wins; space serves and rematches. Longest rally persists.
 */

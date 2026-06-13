@@ -1,7 +1,7 @@
 "use client"
 
 /*
-  breakout — paddle, ball, a wall of bricks. Move with arrows / a-d or the
+  breakout - paddle, ball, a wall of bricks. Move with arrows / a-d or the
   mouse; space launches the ball and retries after game over. Clear the wall and
   a fresh, slightly faster one drops in. Three lives; best score persists.
 */
@@ -134,7 +134,7 @@ export default function Breakout() {
       getComputedStyle(canvas).getPropertyValue(n).trim() || f
 
     // keyup isn't forwarded by GameFrame (it stops keydown only), so listen at
-    // the window — otherwise a released key keeps the paddle gliding.
+    // the window - otherwise a released key keeps the paddle gliding.
     const onKeyUpWin = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase()
       if (k === "arrowleft" || k === "a" || k === "h") s.current.left = false

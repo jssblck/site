@@ -1,7 +1,7 @@
 "use client"
 
 /*
-  minesweeper — 12×12, 24 mines. Reveal with click / enter / space, flag with
+  minesweeper - 12×12, 24 mines. Reveal with click / enter / space, flag with
   right-click or f. Move the keyboard cursor with the arrows. The first reveal
   is always safe (mines are placed afterward, clear of where you tapped). Clear
   every safe cell to win; best time persists.
@@ -262,7 +262,7 @@ export default function Minesweeper() {
   return (
     <GameFrame
       title="minesweeper"
-      status={`mines ${Math.max(0, MINES - flagCount)} · time ${state.time}s · best ${best || "—"}${state.status === "won" ? " · cleared!" : state.status === "lost" ? " · boom" : ""}`}
+      status={`mines ${Math.max(0, MINES - flagCount)} · time ${state.time}s · best ${best || "-"}${state.status === "won" ? " · cleared!" : state.status === "lost" ? " · boom" : ""}`}
       hint={
         state.status === "won" || state.status === "lost"
           ? `${state.status === "won" ? "swept clean" : "boom"} · space to retry · esc to quit`

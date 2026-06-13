@@ -1,7 +1,7 @@
 "use client"
 
 /*
-  flappy — tap to flap, thread the gaps. Space / ↑ / click gives a little lift;
+  flappy - tap to flap, thread the gaps. Space / ↑ / click gives a little lift;
   gravity does the rest. Pipes scroll in and speed up. One touch ends it. Score
   is pipes cleared; best persists.
 */
@@ -202,7 +202,7 @@ export default function Flappy() {
       ctx.fillStyle = bg
       ctx.fillRect(0, 0, W, H)
 
-      // pipes — wireframe rectangles with a faint fill
+      // pipes - wireframe rectangles with a faint fill
       ctx.lineWidth = 1.5
       for (const p of g.pipes) {
         ctx.fillStyle = "rgba(224,162,58,0.07)"

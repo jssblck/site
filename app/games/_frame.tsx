@@ -46,7 +46,7 @@ export function GameFrame({
       tabIndex={-1}
       ref={ref}
       role="application"
-      aria-label={`${title} — a game`}
+      aria-label={`${title} - a game`}
       onKeyDown={(e) => {
         // keep keys inside the game; never let them reach the shell
         e.stopPropagation()

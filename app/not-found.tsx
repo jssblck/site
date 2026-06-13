@@ -1,7 +1,7 @@
 "use client"
 
 /*
-  404 — in the shell's voice, with a Chrome-style T-Rex runner to pass the time.
+  404 - in the shell's voice, with a Chrome-style T-Rex runner to pass the time.
   Self-contained: this route doesn't mount the shell, so it carries its own
   palette + font. All game state lives in a ref and renders to canvas, so it
   never re-renders React while you play.
@@ -306,7 +306,7 @@ function TRex() {
       width={W}
       height={H}
       onClick={jump}
-      aria-label="T-Rex runner — press space to jump"
+      aria-label="T-Rex runner - press space to jump"
       style={TREX_CANVAS_STYLE}
     />
   )

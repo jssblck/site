@@ -1,7 +1,7 @@
 "use client"
 
 /*
-  life — Conway's Game of Life, the zero-player classic. Draw cells with the
+  life - Conway's Game of Life, the zero-player classic. Draw cells with the
   mouse; space plays/pauses; → steps one generation while paused; r reseeds a
   random soup; c clears; g drops a glider; ↑/↓ change speed. Edges wrap, so
   gliders sail off one side and back in the other.
