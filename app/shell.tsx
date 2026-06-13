@@ -22,7 +22,6 @@ import type {
   ComponentType,
   JSX,
   KeyboardEvent as ReactKeyboardEvent,
-  PointerEvent as ReactPointerEvent,
 } from "react"
 import { IBM_Plex_Mono, Martian_Mono } from "next/font/google"
 import {
@@ -101,6 +100,31 @@ const HELP_ROWS: Array<[string, string]> = [
 const HASH_COMMAND_PREFIX = "cmd="
 const HASH_COMMAND_RUN_DELAY_MS = 140
 const HASH_BLOCKED_COMMANDS = new Set(["open", "xdg-open", "start"])
+const PROMPT_FOCUS_DRAG_TOLERANCE_PX = 5
+const PROMPT_FOCUS_INTERACTIVE_SELECTOR = [
+  "a",
+  "button",
+  "input",
+  "option",
+  "textarea",
+  "select",
+  "label",
+  "summary",
+  "[contenteditable='true']",
+  "[role='button']",
+  "[role='link']",
+  "[role='menuitem']",
+  "[role='option']",
+  "[role='tab']",
+  "[tabindex]:not([tabindex='-1'])",
+].join(",")
+
+function isPromptFocusInteractiveTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    target.closest(PROMPT_FOCUS_INTERACTIVE_SELECTOR) !== null
+  )
+}
 
 type RunOptions = {
   replace?: boolean
@@ -2097,6 +2121,12 @@ function useShellController() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const tailSpacerRef = useRef<HTMLDivElement>(null)
+  const promptPointerRef = useRef<{
+    pointerId: number
+    x: number
+    y: number
+    startedInteractive: boolean
+  } | null>(null)
   const bootCancel = useRef<(() => void) | null>(null)
   const hashCommandConsumed = useRef(false)
   const lastScrollHeightRef = useRef(0)
@@ -3096,41 +3126,62 @@ function useShellController() {
     return () => window.removeEventListener("keydown", onKey)
   }, [mobileMode, phase])
 
-  // Click anywhere in the terminal body focuses the prompt. Interactive
-  // descendants keep their own focus/click behavior, and selected text remains
-  // copyable.
-  const focusPrompt = useCallback((e?: ReactPointerEvent<HTMLElement>) => {
-    if (mobileMode) return
+  // A completed, unclaimed click anywhere on the page focuses the prompt.
+  // Listening at document level lets real click handlers prevent or stop the
+  // event first, while the pointer-down record filters out drag selection.
+  const focusPrompt = useCallback(() => {
+    if (!mobileMode && phase === "ready") {
+      // preventScroll so a blank-page click doesn't yank the view to the bottom
+      // and fight the click-to-replace snap that pins the header up top.
+      inputRef.current?.focus({ preventScroll: true })
+    }
+  }, [mobileMode, phase])
 
-    if (e) {
-      if (e.button !== 0) return
-      const target = e.target
-      if (target instanceof HTMLElement) {
-        const interactive = target.closest(
-          [
-            "a",
-            "button",
-            "input",
-            "textarea",
-            "select",
-            "label",
-            "summary",
-            "[contenteditable='true']",
-            "[role='button']",
-            "[role='link']",
-          ].join(","),
-        )
-        if (interactive) return
+  useEffect(() => {
+    if (mobileMode) {
+      promptPointerRef.current = null
+      return
+    }
+
+    const onPointerDown = (e: globalThis.PointerEvent) => {
+      if (e.defaultPrevented || e.button !== 0) {
+        promptPointerRef.current = null
+        return
+      }
+
+      promptPointerRef.current = {
+        pointerId: e.pointerId,
+        x: e.clientX,
+        y: e.clientY,
+        startedInteractive: isPromptFocusInteractiveTarget(e.target),
       }
     }
 
-    const sel = window.getSelection?.()
-    if (sel && sel.toString().length > 0) return // let users copy text
+    const onClick = (e: globalThis.MouseEvent) => {
+      const down = promptPointerRef.current
+      promptPointerRef.current = null
 
-    // preventScroll so a click that bubbles here doesn't yank the view to the
-    // bottom and fight the click-to-replace snap that pins the header up top.
-    if (phase === "ready") inputRef.current?.focus({ preventScroll: true })
-  }, [mobileMode, phase])
+      if (activeGameRef.current) return
+      if (e.defaultPrevented || e.button !== 0) return
+      if (isPromptFocusInteractiveTarget(e.target)) return
+      if (!down || down.startedInteractive) return
+
+      const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y)
+      if (moved > PROMPT_FOCUS_DRAG_TOLERANCE_PX) return
+
+      const sel = window.getSelection?.()
+      if (sel && sel.toString().length > 0) return // let users copy text
+
+      focusPrompt()
+    }
+
+    document.addEventListener("pointerdown", onPointerDown)
+    document.addEventListener("click", onClick)
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown)
+      document.removeEventListener("click", onClick)
+    }
+  }, [focusPrompt, mobileMode])
 
   // Close the fullscreen game and hand focus back to the prompt.
   const onExitGame = useCallback(() => {
@@ -3148,7 +3199,6 @@ function useShellController() {
     clock,
     cwd,
     dispatch,
-    focusPrompt,
     focused,
     guest,
     input,
@@ -3180,7 +3230,6 @@ function ShellView({ controller }: { controller: ShellController }) {
     clock,
     cwd,
     dispatch,
-    focusPrompt,
     focused,
     guest,
     input,
@@ -3227,7 +3276,6 @@ function ShellView({ controller }: { controller: ShellController }) {
           className={`jsh-term ${reveal}`}
           style={delay(0)}
           aria-label="jessica black - interactive shell"
-          onPointerDown={focusPrompt}
         >
           <div className="jsh-topbar">
             <span className="jsh-dots" aria-hidden="true">
