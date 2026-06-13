@@ -52,10 +52,9 @@ const pacificTimeSnapshot = () => {
 const PALETTE_ITEMS: Array<[string, string]> = [
   ["whoami", "who is this"],
   ["ls", "browse files"],
-  ["experience", "full history"],
+  ["projects", "things I've built"],
   ["skills", "what I'm fluent in"],
   ["resume", "the whole thing"],
-  ["contact", "say hi"],
   ["help", "everything"],
 ]
 
@@ -67,11 +66,9 @@ type MobileHomeAction = {
 
 const MOBILE_HOME_ACTIONS: MobileHomeAction[] = [
   { label: "About", hint: "Who Jessica is", cmd: "whoami" },
-  { label: "Experience", hint: "Roles and impact", cmd: "experience" },
   { label: "Projects", hint: "Built and shipped", cmd: "projects" },
   { label: "Skills", hint: "Rust, agents, systems", cmd: "skills" },
   { label: "Resume", hint: "The full version", cmd: "resume" },
-  { label: "Contact", hint: "Links and email", cmd: "contact" },
 ]
 
 const HELP_ROWS: Array<[string, string]> = [
@@ -81,13 +78,12 @@ const HELP_ROWS: Array<[string, string]> = [
   ["cd <dir>", "change directory, e.g. cd skills, cd .."],
   ["pwd", "print where you are"],
   ["whoami", "the short version"],
-  ["cat <name>", "read a file, e.g. cat attune, cat readme"],
+  ["cat <name>", "read a file, e.g. cat rust, cat readme"],
   ["skills", "skill files, like the ones you give an agent"],
   ["projects", "the things I've built"],
   ["resume", "the whole résumé, printed"],
   ["tree", "the filesystem, at a glance"],
   ["writing", "blog posts & interviews"],
-  ["contact", "github · linkedin · email"],
   ["open <target>", "open a link, e.g. open github, open hurry"],
   ["theme <name>", "amber · green · paper"],
   ["history", "what you have run"],
@@ -780,12 +776,10 @@ const COMMANDS = [
   "whoami",
   "cat",
   "open",
-  "experience",
   "skills",
   "resume",
   "writing",
   "projects",
-  "contact",
   "tree",
   "theme",
   "history",
@@ -814,10 +808,6 @@ const CAT_TARGETS = [
   "about",
   "readme",
   "resume",
-  "contact",
-  "attune",
-  "fossa",
-  "reynolds",
 ] as const
 
 // Manual pages — `man <cmd>` prints one, classic-formatted. Concise but real;
@@ -845,7 +835,7 @@ const MANPAGES: Record<string, ManEntry> = {
   cat: {
     name: "cat — concatenate and print files",
     synopsis: "cat <file>",
-    desc: "Prints a file: about, readme.md, resume.txt, contact, ~/experience/*.md, ~/skills/*/SKILL.md. Bare names work too (`cat rust`). cat a directory and it'll point you at `ls` instead.",
+    desc: "Prints a file: about, readme.md, resume.txt, or ~/skills/*/SKILL.md. Bare names work too (`cat rust`). cat a directory and it'll point you at `ls` instead.",
     see: ["ls", "cd", "resume"],
   },
   tree: {
@@ -875,8 +865,8 @@ const MANPAGES: Record<string, ManEntry> = {
   resume: {
     name: "resume — print the full résumé",
     synopsis: "resume",
-    desc: "The whole thing: experience, skills, writing, contact. Switch to the paper theme first if you're printing.",
-    see: ["theme", "cat", "contact", "projects"],
+    desc: "The whole thing: work history, skills, writing, and links. Switch to the paper theme first if you're printing.",
+    see: ["theme", "cat", "projects", "whoami"],
   },
   theme: {
     name: "theme — set the colour theme",
@@ -901,12 +891,6 @@ const MANPAGES: Record<string, ManEntry> = {
     synopsis: "neofetch",
     desc: "The wordmark and the vitals: role, uptime (13 years), stack, focus, links.",
     see: ["whoami"],
-  },
-  contact: {
-    name: "contact — how to reach Jessica",
-    synopsis: "contact",
-    desc: "Email and the usual links. Fastest path: me@jessica.black.",
-    see: ["resume"],
   },
   history: {
     name: "history — command history",
@@ -1160,13 +1144,6 @@ function slugify(s: string): string {
 // directory; the rich blocks (SkillsBlock, ProjectsBlock, …) stay the custom
 // `listing` for their directory, so `ls ~/skills` looks exactly like `skills`.
 function buildHomeChildren(): FsNode[] {
-  const jobs: FsNode[] = JOBS.map((j): FsFileNode => ({
-    kind: "file",
-    name: `${j.id}.md`,
-    note: `${j.org} · ${j.years}`,
-    cmd: `cat ~/experience/${j.id}.md`,
-    render: () => <JobBlock job={j} expanded />,
-  }))
   const skills: FsNode[] = SKILLS.map((s): FsDirNode => ({
     kind: "dir",
     name: s.id,
@@ -1231,22 +1208,6 @@ function buildHomeChildren(): FsNode[] {
       note: "the whole résumé",
       cmd: "resume",
       render: (run) => <ResumeBlock run={run} />,
-    },
-    {
-      kind: "file",
-      name: "contact",
-      note: "how to reach me",
-      cmd: "contact",
-      render: () => <ContactBlock />,
-    },
-    {
-      kind: "dir",
-      name: "experience",
-      note: "where I've worked",
-      cmd: "experience",
-      children: jobs,
-      listing: (run) => <ExperienceListing run={run} />,
-      treeMeta: `${JOBS.length} roles`,
     },
     {
       kind: "dir",
@@ -1334,7 +1295,7 @@ class ShellFs {
   }
 
   // Flat index of file basenames (with and without extension) → absolute path,
-  // so `cat readme`, `cat attune`, `cat rust` resolve from anywhere, the way a
+  // so `cat readme` and `cat rust` resolve from anywhere, the way a
   // muscle-memory shortcut would. A SKILL.md is indexed under its directory's
   // name (`cat rust` → ~/skills/rust/SKILL.md), the way a skill is addressed.
   // First writer wins; there are no collisions.
@@ -1385,7 +1346,7 @@ class ShellFs {
   }
 
   // Walk the tree to a node. Each segment matches by exact name first,
-  // then by extension-less base (so `cat experience/attune` finds attune.md).
+  // then by extension-less base (so `cat skills/rust/SKILL` finds SKILL.md).
   lookup(segs: readonly string[]): FsNode | null {
     let node: FsNode = this.root
     for (const name of segs) {
@@ -2373,7 +2334,7 @@ function useShellController() {
   // Master dispatch. Echoes the command, then renders its output.
   // `replace` is the website-mode path: a clicked command collapses the page
   // back to the welcome header (its "tab bar") and shows just that command, so
-  // visitors can hop between experience / skills / resume without scrolling
+  // visitors can hop between about / projects / skills / resume without scrolling
   // back up. Typed commands append, like a real terminal. Commands are also
   // &&-chained (a folder click runs `cd <dir> && ls`).
   const run = useCallback(
@@ -2479,10 +2440,6 @@ function useShellController() {
           case "whoami":
           case "about":
             return runCat("about")
-          case "experience":
-          case "work":
-          case "jobs":
-            return runLs("~/experience")
           case "skills":
             return runLs("~/skills")
           case "resume":
@@ -2495,9 +2452,6 @@ function useShellController() {
           case "repos":
           case "oss":
             return runLs("~/projects")
-          case "contact":
-          case "email":
-            return runCat("contact")
           case "readme":
             return runCat("readme")
           case "theme":
@@ -3444,34 +3398,6 @@ function FileLsBlock({
   )
 }
 
-// `ls ~/experience` — the three roles as collapsed cards (hover/cat to expand).
-function ExperienceListing({ run }: { run: RunCmd }) {
-  const mobileMode = useMobileShellMode()
-  return (
-    <div className="jsh-exp">
-      <p className="jsh-out jsh-muted">
-        <span className="jsh-ok">$</span> ls ~/experience/
-      </p>
-      {JOBS.map((j) => (
-        <JobBlock key={j.id} job={j} />
-      ))}
-      <p className="jsh-out jsh-muted jsh-ls-hint">
-        {mobileMode ? (
-          <>
-            → role details are expanded here. the printable version:{" "}
-            <Cmd run={run}>resume</Cmd>.
-          </>
-        ) : (
-          <>
-            → hover a card to expand, or <Cmd run={run}>cat ~/experience/attune.md</Cmd>{" "}
-            for one. the printable version: <Cmd run={run}>resume</Cmd>.
-          </>
-        )}
-      </p>
-    </div>
-  )
-}
-
 // `cat ~/projects/<name>` — a project's "file": its note and where it lives.
 // Open-source ones link to code, others to their own home; clicking opens it.
 function ProjectFileBlock({ project, run }: { project: Project; run: RunCmd }) {
@@ -3524,52 +3450,6 @@ function BinaryBlock({ name, run }: { name: string; run: RunCmd }) {
       cat: {name}: binary file — it&apos;s a game, not a text file. <Cmd run={run}>{name}</Cmd>{" "}
       to play it. (arrows move; esc quits.)
     </p>
-  )
-}
-
-function JobBlock({ job, expanded }: { job: Job; expanded?: boolean }) {
-  // Hover-to-expand: bullets are revealed on hover/focus; `expanded` forces open
-  // (used by `cat attune`). Both paths keep content in the DOM for a11y.
-  return (
-    <article
-      className={`jsh-job ${expanded ? "jsh-job-open" : ""}`}
-      aria-label={`${job.org} — ${job.role}`}
-    >
-      <header className="jsh-job-head">
-        <span className="jsh-job-year jsh-tnum">{job.years}</span>
-        <span className="jsh-job-bar" aria-hidden="true" />
-        <span className="jsh-job-meta">
-          <span className="jsh-job-org">{job.org}</span>
-          <span className="jsh-job-role">{job.role}</span>
-        </span>
-        <span className="jsh-job-dates jsh-muted jsh-tnum">
-          {job.start} – {job.end}
-        </span>
-      </header>
-      <p className="jsh-job-blurb">{job.blurb}</p>
-      <div className="jsh-job-detail">
-        <ul className="jsh-job-bullets">
-          {job.bullets.map((b) => (
-            <li key={`${job.id}:${b}`}>
-              <span className="jsh-bullet-mark" aria-hidden="true">
-                ›
-              </span>
-              <span>{withRepoLinks(b)}</span>
-            </li>
-          ))}
-        </ul>
-        {job.stack && (
-          <p className="jsh-job-stack jsh-muted">
-            <span className="jsh-job-stack-k">stack</span> {job.stack}
-          </p>
-        )}
-      </div>
-      {!expanded && (
-        <span className="jsh-job-hover jsh-muted" aria-hidden="true">
-          hover to expand ↡
-        </span>
-      )}
-    </article>
   )
 }
 
@@ -3693,8 +3573,8 @@ function ResumeBlock({ run }: { run: (c: string) => void }) {
         })}
       </p>
       <p className="jsh-out jsh-muted jsh-resume-foot">
-        ↑ that&apos;s the whole résumé. or read it piece by piece:{" "}
-        <Cmd run={run}>experience</Cmd> · <Cmd run={run}>skills</Cmd>.
+        ↑ that&apos;s the whole résumé. related paths: <Cmd run={run}>skills</Cmd> ·{" "}
+        <Cmd run={run}>projects</Cmd>.
       </p>
     </div>
   )
@@ -3983,28 +3863,6 @@ function ProjectsBlock({ run }: { run: (c: string) => void }) {
   )
 }
 
-function ContactBlock() {
-  return (
-    <div className="jsh-contact">
-      <p className="jsh-out jsh-muted">
-        <span className="jsh-ok">$</span> cat ~/.contact
-      </p>
-      <ul className="jsh-linklist">
-        {LINKS.map((l) => (
-          <li key={l.key}>
-            <span className="jsh-contact-k jsh-muted">{l.key}</span>
-            <Ext href={l.url}>{l.label}</Ext>
-          </li>
-        ))}
-      </ul>
-      <p className="jsh-out jsh-muted">
-        good reasons to reach out: distributed systems, agent infrastructure, or
-        anything with a borrow checker.
-      </p>
-    </div>
-  )
-}
-
 function WhoamiBlock({ run }: { run: (c: string) => void }) {
   return (
     <div className="jsh-whoami">
@@ -4019,11 +3877,19 @@ function WhoamiBlock({ run }: { run: (c: string) => void }) {
         correctness conditions: consensus, reproducible builds, dependency graphs,
         type systems.
       </p>
+      <ul className="jsh-linklist jsh-about-links" aria-label="contact links">
+        {LINKS.map((l) => (
+          <li key={l.key}>
+            <span className="jsh-contact-k jsh-muted">{l.key}</span>
+            <Ext href={l.url}>{l.label}</Ext>
+          </li>
+        ))}
+      </ul>
       <p className="jsh-out jsh-muted">
         currently <span className="jsh-em">@ Attune</span>. previously tech lead{" "}
         <span className="jsh-em">@ FOSSA</span>. read more:{" "}
-        <Cmd run={run}>experience</Cmd> · <Cmd run={run}>skills</Cmd> ·{" "}
-        <Cmd run={run}>contact</Cmd>
+        <Cmd run={run}>resume</Cmd> · <Cmd run={run}>skills</Cmd> ·{" "}
+        <Cmd run={run}>projects</Cmd>
       </p>
     </div>
   )
@@ -5098,79 +4964,9 @@ const CSS = String.raw`
   white-space: pre;
 }
 
-/* ---------------- job / timeline ---------------- */
-.jsh-job {
-  border: 1px solid var(--jsh-rule-2);
-  border-left: 2px solid var(--jsh-rule);
-  border-radius: 3px;
-  padding: 12px 14px;
-  margin: 8px 0;
-  transition: border-color 180ms ease, background 180ms ease;
-  outline: none;
-}
-.jsh-job:hover, .jsh-job:focus-visible, .jsh-job-open {
-  border-left-color: var(--jsh-amber);
-  background: var(--jsh-surface);
-}
-.jsh-job:focus-visible { border-color: var(--jsh-amber-soft); }
-.jsh-job-head {
-  display: grid;
-  grid-template-columns: 64px 10px 1fr auto;
-  align-items: baseline;
-  column-gap: 10px;
-}
-.jsh-job-year { color: var(--jsh-amber-soft); font-weight: 600; }
-.jsh-job-bar { width: 1px; align-self: stretch; background: var(--jsh-rule); justify-self: center; }
-.jsh-job-meta { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.jsh-job-org { color: var(--jsh-fg); font-weight: 600; font-size: 14px; }
-.jsh-job-role { color: var(--jsh-muted); font-size: 12.5px; }
-.jsh-job-dates { font-size: 11.5px; white-space: nowrap; }
-.jsh-job-blurb { margin: 9px 0 0; color: var(--jsh-fg); font-size: 13px; }
-
-/* hover-to-expand: collapse detail until hover/focus/open */
-.jsh-job-detail {
-  display: grid;
-  grid-template-rows: 0fr;
-  opacity: 0;
-  transition: grid-template-rows 240ms ease, opacity 200ms ease, margin 240ms ease;
-  margin-top: 0;
-}
-.jsh-job-detail > * { overflow: hidden; min-height: 0; }
-.jsh-job:hover .jsh-job-detail,
-.jsh-job:focus-visible .jsh-job-detail,
-.jsh-job:focus-within .jsh-job-detail,
-.jsh-job-open .jsh-job-detail {
-  grid-template-rows: 1fr;
-  opacity: 1;
-  margin-top: 10px;
-}
-.jsh-job-bullets { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.jsh-job-bullets li {
-  display: grid;
-  grid-template-columns: 16px 1fr;
-  align-items: baseline;
-  color: var(--jsh-fg);
-  font-size: 12.8px;
-  line-height: 1.55;
-}
-.jsh-job-bullets li > span:last-child { max-width: 70ch; }
 .jsh-bullet-mark { color: var(--jsh-amber-soft); }
-.jsh-job-stack { margin: 9px 0 0; font-size: 12px; }
-.jsh-job-stack-k {
-  color: var(--jsh-faint);
-  border: 1px solid var(--jsh-rule);
-  border-radius: 3px;
-  padding: 0 5px;
-  margin-right: 6px;
-  font-size: 10.5px;
-  letter-spacing: 0.4px;
-}
-.jsh-job-hover { display: block; margin-top: 8px; font-size: 10.5px; letter-spacing: 0.4px; opacity: 0.7; }
-.jsh-job:hover .jsh-job-hover,
-.jsh-job:focus-within .jsh-job-hover,
-.jsh-job-open .jsh-job-hover { display: none; }
 
-/* ---------------- writing / contact ---------------- */
+/* ---------------- writing / contact links ---------------- */
 .jsh-linklist { list-style: none; margin: 6px 0 8px; padding: 0; display: grid; gap: 4px; }
 .jsh-linklist li { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
 .jsh-linklist-where { font-size: 12px; }
@@ -5244,15 +5040,6 @@ const CSS = String.raw`
     margin-top: 14px;
   }
   .jsh-help-foot { display: none; }
-  .jsh-job-detail {
-    grid-template-rows: 1fr;
-    opacity: 1;
-    margin-top: 10px;
-  }
-  .jsh-job-hover { display: none; }
-  .jsh-job {
-    padding: 11px 12px;
-  }
   .jsh-sk-file,
   .jsh-ls-name,
   .jsh-tree-name {
@@ -5260,8 +5047,7 @@ const CSS = String.raw`
     display: inline-flex;
     align-items: center;
   }
-  .jsh-resume-bullets li,
-  .jsh-job-bullets li {
+  .jsh-resume-bullets li {
     line-height: 1.5;
   }
 }
@@ -5294,9 +5080,6 @@ const CSS = String.raw`
   .jsh-ls-name { grid-area: name; }
   .jsh-ls-role { grid-area: role; }
   .jsh-helpgrid li { grid-template-columns: 84px auto; }
-  .jsh-job-head { grid-template-columns: 60px 1fr; row-gap: 2px; }
-  .jsh-job-bar { display: none; }
-  .jsh-job-dates { grid-column: 2; }
   .jsh-sk-row { grid-template-columns: 1fr; gap: 0; }
   .jsh-nf-table { min-width: 0; }
   .jsh-clock { display: none; }
@@ -5325,7 +5108,6 @@ const CSS = String.raw`
     transform: none !important;
   }
   .jsh-cursor { animation: none !important; }
-  .jsh-job-detail { transition: none !important; }
   .jsh-link, .jsh-cmd, .jsh-pill { transition: none !important; }
 }
 .jsh-root[data-reduced="1"] .jsh-reveal,
