@@ -92,6 +92,61 @@ const HELP_ROWS: Array<[string, string]> = [
   ["clear", "wipe the screen (⌃L)"],
 ]
 
+const HASH_COMMAND_PREFIX = "cmd="
+const HASH_COMMAND_RUN_DELAY_MS = 140
+const HASH_BLOCKED_COMMANDS = new Set(["open", "xdg-open", "start"])
+
+type RunOptions = {
+  replace?: boolean
+  blockOpen?: boolean
+}
+
+function decodeHashCommandValue(raw: string): string {
+  const plusAsSpace = raw.replace(/\+/g, " ")
+  try {
+    return decodeURIComponent(plusAsSpace)
+  } catch {
+    return plusAsSpace
+  }
+}
+
+function stripCommandQuotes(value: string): string {
+  const trimmed = value.trim()
+  if (trimmed.length < 2) return trimmed
+  const first = trimmed[0]
+  const last = trimmed[trimmed.length - 1]
+  if ((first === `"` && last === `"`) || (first === "'" && last === "'")) {
+    return trimmed.slice(1, -1).trim()
+  }
+  return trimmed
+}
+
+function commandFromLocationHash(hash: string): string | null {
+  const fragment = hash.startsWith("#") ? hash.slice(1) : hash
+  if (!fragment) return null
+
+  const markerAt = fragment.startsWith(HASH_COMMAND_PREFIX)
+    ? 0
+    : fragment.indexOf(`&${HASH_COMMAND_PREFIX}`)
+  if (markerAt < 0) return null
+
+  const markerOffset = markerAt === 0 ? 0 : 1
+  const valueStart = markerAt + markerOffset + HASH_COMMAND_PREFIX.length
+  const command = stripCommandQuotes(decodeHashCommandValue(fragment.slice(valueStart)))
+  return command === "" ? null : command
+}
+
+function commandHead(segment: string): string {
+  return segment.trim().split(/\s+/, 1)[0]?.toLowerCase() ?? ""
+}
+
+function commandContainsBlockedOpen(command: string): boolean {
+  for (const segment of command.split("&&")) {
+    if (HASH_BLOCKED_COMMANDS.has(commandHead(segment))) return true
+  }
+  return false
+}
+
 // Industrial mono for the REPL body. Static weights — predictable rhythm.
 const plex = IBM_Plex_Mono({
   subsets: ["latin"],
@@ -1888,6 +1943,8 @@ function useShellController() {
   const inputRef = useRef<HTMLInputElement>(null)
   const tailSpacerRef = useRef<HTMLDivElement>(null)
   const bootCancel = useRef<(() => void) | null>(null)
+  const pendingHashCommand = useRef<string | null>(null)
+  const hashCommandConsumed = useRef(false)
   const scrollWelcomeTop = useRef(false)
   const scrollResultTop = useRef(false)
   // True once the welcome card (the home header) is on screen — gates the
@@ -1969,6 +2026,10 @@ function useShellController() {
   useEffect(() => {
     unlockRef.current = unlock
   }, [unlock])
+
+  useEffect(() => {
+    pendingHashCommand.current = commandFromLocationHash(window.location.hash)
+  }, [])
 
   /* -------------------------- the boot ---------------------------- */
   // Build the transcript deterministically from a boot-progress count, so the
@@ -2338,12 +2399,19 @@ function useShellController() {
   // back up. Typed commands append, like a real terminal. Commands are also
   // &&-chained (a folder click runs `cd <dir> && ls`).
   const run = useCallback(
-    (raw: string, opts?: { replace?: boolean }) => {
+    (raw: string, opts?: RunOptions) => {
       const replace = opts?.replace === true
+      const blockOpen = opts?.blockOpen === true
       setPreview(null)
       const cmd = raw.trim()
       if (cmd.length === 0) {
         push({ kind: "echo", cmd: "", prompt: mobileModeRef.current ? `${HOST}:~$` : ps1() })
+        return
+      }
+
+      if (blockOpen && commandContainsBlockedOpen(cmd)) {
+        push({ kind: "echo", cmd, prompt: mobileModeRef.current ? `${HOST}:~$` : ps1() })
+        pushText(<Errline>hash cmd: open commands are disabled for shared links.</Errline>)
         return
       }
 
@@ -2638,6 +2706,23 @@ function useShellController() {
   useEffect(() => {
     runRef.current = run
   }, [run])
+
+  useEffect(() => {
+    if (phase !== "ready" || hashCommandConsumed.current || !pendingHashCommand.current) return
+
+    const command = pendingHashCommand.current
+    setInput(command)
+    const timer = window.setTimeout(() => {
+      if (hashCommandConsumed.current) return
+      hashCommandConsumed.current = true
+      pendingHashCommand.current = null
+      setInput("")
+      tabCycle.current = null
+      runRef.current(command, { blockOpen: true })
+    }, HASH_COMMAND_RUN_DELAY_MS)
+
+    return () => window.clearTimeout(timer)
+  }, [phase])
 
   // Clicking a command (palette pills, command tokens, file names) navigates
   // like a website: it REPLACES the page content. Stored in a ref so the blocks

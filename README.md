@@ -21,6 +21,15 @@ npm run build
 npm start
 ```
 
+## Shareable commands
+
+Append `#cmd="<command>"` to run a shell command after the boot sequence. For
+example, `/#cmd="3bp"` opens the Three Body Problem game. Chained commands are
+allowed, so `/#cmd="cd projects && ls"` works too.
+
+Hash-launched commands cannot run `open`, `xdg-open`, or `start`, so shared URLs
+cannot immediately navigate visitors away from the site.
+
 ## Commit gate
 
 This checkout uses `.githooks/pre-commit` as its Git hooks path. The pre-commit
