@@ -22,6 +22,7 @@ import dynamic from "next/dynamic"
 import {
   useClientSnapshot,
   useIntervalSnapshot,
+  useMobileShellMode,
   usePrefersReducedMotion,
   useStoredBoolean,
   useStoredJson,
@@ -56,6 +57,21 @@ const PALETTE_ITEMS: Array<[string, string]> = [
   ["resume", "the whole thing"],
   ["contact", "say hi"],
   ["help", "everything"],
+]
+
+type MobileHomeAction = {
+  label: string
+  hint: string
+  cmd: string
+}
+
+const MOBILE_HOME_ACTIONS: MobileHomeAction[] = [
+  { label: "About", hint: "Who Jessica is", cmd: "whoami" },
+  { label: "Experience", hint: "Roles and impact", cmd: "experience" },
+  { label: "Projects", hint: "Built and shipped", cmd: "projects" },
+  { label: "Skills", hint: "Rust, agents, systems", cmd: "skills" },
+  { label: "Resume", hint: "The full version", cmd: "resume" },
+  { label: "Contact", hint: "Links and email", cmd: "contact" },
 ]
 
 const HELP_ROWS: Array<[string, string]> = [
@@ -1569,6 +1585,20 @@ function GamesBlock({ run }: { run: (c: string) => void }) {
   )
 }
 
+function MobileArcadeBlock() {
+  return (
+    <div className="jsh-skillfile">
+      <p className="jsh-out jsh-muted">
+        <span className="jsh-ok">$</span> games
+      </p>
+      <p className="jsh-out jsh-measure">
+        The arcade is a keyboard toy. Phone visits stay browse-first; visit on desktop
+        if you want the games.
+      </p>
+    </div>
+  )
+}
+
 /* ----------------------- terminal toys --------------------------- */
 const FORTUNES = [
   "There are only two hard things in computer science: cache invalidation, naming things, and off-by-one errors.",
@@ -1865,10 +1895,11 @@ function useShellController() {
   const [lines, setLines] = useState<Line[]>([])
   const [input, setInput] = useState("")
   const [phase, setPhase] = useState<"booting" | "ready">("booting")
+  const mobileMode = useMobileShellMode()
   const reduced = usePrefersReducedMotion()
   const windowFocused = useWindowFocused()
   const [inputFocused, setInputFocused] = useState(true)
-  const focused = windowFocused && inputFocused
+  const focused = !mobileMode && windowFocused && inputFocused
   const [storedTheme, setStoredTheme] = useStoredString("jsh-theme", "amber")
   const theme = isTheme(storedTheme) ? storedTheme : "amber"
   const setTheme = useCallback((next: Theme) => setStoredTheme(next), [setStoredTheme])
@@ -1897,6 +1928,7 @@ function useShellController() {
   const tailSpacerRef = useRef<HTMLDivElement>(null)
   const bootCancel = useRef<(() => void) | null>(null)
   const scrollWelcomeTop = useRef(false)
+  const scrollResultTop = useRef(false)
   // True once the welcome card (the home header) is on screen — gates the
   // click-to-replace "tab bar" behavior.
   const hasHomeRef = useRef(false)
@@ -1917,6 +1949,8 @@ function useShellController() {
   // handlers so they don't steal focus or advance behind the overlay.
   const activeGameRef = useRef<string | null>(null)
   activeGameRef.current = activeGame
+  const mobileModeRef = useRef(false)
+  mobileModeRef.current = mobileMode
   const matrixModeRef = useRef(false)
   matrixModeRef.current = matrixMode
   const cwdRef = useRef(cwd)
@@ -1959,7 +1993,7 @@ function useShellController() {
       achievementsRef.current = next
       setAchievements(next)
       const a = ACHIEVEMENTS.find((x) => x.id === id)
-      if (a) pushText(<AchievementToast a={a} />)
+      if (a && !mobileModeRef.current) pushText(<AchievementToast a={a} />)
       const others: string[] = []
       for (const achievement of ACHIEVEMENTS) {
         if (achievement.id !== "completionist") others.push(achievement.id)
@@ -1991,18 +2025,26 @@ function useShellController() {
     setLines(next)
   }, [])
 
+  const renderHome = useCallback(() => {
+    idRef.current = 1
+    setLines([{ id: 1, block: { kind: "text", node: <WelcomeCard /> }, home: true }])
+  }, [])
+
   const finishBoot = useCallback(() => {
     scrollWelcomeTop.current = true
-    renderBoot(BOOT.length, true)
+    if (mobileMode) renderHome()
+    else renderBoot(BOOT.length, true)
     hasHomeRef.current = true
     setPhase("ready")
-    window.setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 0)
-  }, [renderBoot])
+    if (!mobileMode) {
+      window.setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 0)
+    }
+  }, [mobileMode, renderBoot, renderHome])
 
   // The boot timeline. Skippable (any key / click) via the cancel fn, which
   // jumps straight to the settled final state.
   useEffect(() => {
-    if (reduced) {
+    if (mobileMode || reduced) {
       finishBoot()
       return
     }
@@ -2040,7 +2082,7 @@ function useShellController() {
       timers.forEach((t) => window.clearTimeout(t))
       bootCancel.current = null
     }
-  }, [finishBoot, reduced, renderBoot])
+  }, [finishBoot, mobileMode, reduced, renderBoot])
 
   /* --------------------- autoscroll on growth --------------------- */
   // Normally pin to the bottom. But the instant the boot reel finishes, snap the
@@ -2052,21 +2094,25 @@ function useShellController() {
     const spacer = tailSpacerRef.current
     if (scrollWelcomeTop.current) {
       scrollWelcomeTop.current = false
-      const offset = (w: HTMLElement) =>
-        w.getBoundingClientRect().top - el.getBoundingClientRect().top - 6
-      const snap = () => {
-        const w = el.querySelector(".jsh-welcome") as HTMLElement | null
-        if (!w) return
+      const snapTo = (target: HTMLElement, pad = 6) => {
         if (spacer) spacer.style.height = "0px"
-        el.scrollTop += offset(w)
+        const targetOffset =
+          target.getBoundingClientRect().top - el.getBoundingClientRect().top - pad
+        el.scrollTop += targetOffset
         // If the scroll bottomed out before the welcome reached the top, there
         // is not enough content below it — add exactly that much tail space so
         // the whole boot reel sits above the fold.
-        const residual = offset(w)
+        const residual =
+          target.getBoundingClientRect().top - el.getBoundingClientRect().top - pad
         if (residual > 1 && spacer) {
           spacer.style.height = `${Math.ceil(residual)}px`
           el.scrollTop += residual
         }
+      }
+      const snap = () => {
+        const w = el.querySelector(".jsh-welcome") as HTMLElement | null
+        if (!w) return
+        snapTo(w)
       }
       snap()
       // Re-assert across the next frames + once fonts swap in, since both the
@@ -2078,6 +2124,24 @@ function useShellController() {
       if (document.fonts && document.fonts.ready) {
         document.fonts.ready.then(snap).catch(() => {})
       }
+      return
+    }
+    if (scrollResultTop.current) {
+      scrollResultTop.current = false
+      const snap = () => {
+        const home = el.querySelector(".jsh-home-row") as HTMLElement | null
+        const target = home?.nextElementSibling as HTMLElement | null
+        if (!target) return
+        if (spacer) spacer.style.height = "0px"
+        const targetOffset =
+          target.getBoundingClientRect().top - el.getBoundingClientRect().top - 8
+        el.scrollTop += targetOffset
+      }
+      snap()
+      requestAnimationFrame(() => {
+        snap()
+        requestAnimationFrame(snap)
+      })
       return
     }
     // normal growth: drop any tail spacer and pin to the bottom
@@ -2318,7 +2382,7 @@ function useShellController() {
       setPreview(null)
       const cmd = raw.trim()
       if (cmd.length === 0) {
-        push({ kind: "echo", cmd: "", prompt: ps1() })
+        push({ kind: "echo", cmd: "", prompt: mobileModeRef.current ? `${HOST}:~$` : ps1() })
         return
       }
 
@@ -2340,7 +2404,8 @@ function useShellController() {
       // website mode: drop everything below the welcome header before showing
       // this command, and re-pin the header to the top.
       if (replace && hasHomeRef.current) {
-        scrollWelcomeTop.current = true
+        if (mobileModeRef.current) scrollResultTop.current = true
+        else scrollWelcomeTop.current = true
         setLines((prev) => {
           let homeIdx = -1
           for (let i = prev.length - 1; i >= 0; i--) {
@@ -2353,7 +2418,7 @@ function useShellController() {
         })
       }
 
-      push({ kind: "echo", cmd, prompt: ps1() })
+      push({ kind: "echo", cmd, prompt: mobileModeRef.current ? `${HOST}:~$` : ps1() })
 
       cmdCountRef.current += 1
       unlockRef.current("first-contact")
@@ -2448,6 +2513,7 @@ function useShellController() {
             return pushText(<AchievementsBlock unlocked={achievementsRef.current} />)
           case "games":
           case "play":
+            if (mobileModeRef.current) return pushText(<MobileArcadeBlock />)
             return runLs("~/games")
           case "history":
             return pushText(
@@ -2536,6 +2602,7 @@ function useShellController() {
           case "3bp":
           case "threebody":
           case "3body":
+            if (mobileModeRef.current) return pushText(<MobileArcadeBlock />)
             setActiveGame("threebody")
             return
           case "sudo":
@@ -2570,6 +2637,10 @@ function useShellController() {
             )
           default:
             if (GAMES[h]) {
+              if (mobileModeRef.current) {
+                pushText(<MobileArcadeBlock />)
+                return
+              }
               setActiveGame(h)
               return
             }
@@ -2746,6 +2817,7 @@ function useShellController() {
 
   /* --------- global key affordance: any key skips the boot -------- */
   useEffect(() => {
+    if (mobileMode) return
     const onKey = (e: globalThis.KeyboardEvent) => {
       if (activeGameRef.current) return // a fullscreen game owns the keyboard
       // While booting, any key (except pure modifiers) jumps to the prompt.
@@ -2779,22 +2851,23 @@ function useShellController() {
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [phase])
+  }, [mobileMode, phase])
 
   // Click anywhere in the terminal body focuses the prompt (unless selecting).
   const focusPrompt = useCallback(() => {
+    if (mobileMode) return
     const sel = window.getSelection?.()
     if (sel && sel.toString().length > 0) return // let users copy text
     // preventScroll so a click that bubbles here doesn't yank the view to the
     // bottom and fight the click-to-replace snap that pins the header up top.
     if (phase === "ready") inputRef.current?.focus({ preventScroll: true })
-  }, [phase])
+  }, [mobileMode, phase])
 
   // Close the fullscreen game and hand focus back to the prompt.
   const onExitGame = useCallback(() => {
     setActiveGame(null)
-    inputRef.current?.focus({ preventScroll: true })
-  }, [])
+    if (!mobileMode) inputRef.current?.focus({ preventScroll: true })
+  }, [mobileMode])
 
   /* ----------------------------- VIEW ----------------------------- */
 
@@ -2813,6 +2886,7 @@ function useShellController() {
     inputRef,
     lines,
     matrixMode,
+    mobileMode,
     onChange,
     onExitGame,
     onKeyDown,
@@ -2844,6 +2918,7 @@ function ShellView({ controller }: { controller: ShellController }) {
     inputRef,
     lines,
     matrixMode,
+    mobileMode,
     onChange,
     onExitGame,
     onKeyDown,
@@ -2891,9 +2966,15 @@ function ShellView({ controller }: { controller: ShellController }) {
               <i />
             </span>
             <span className="jsh-topbar-title">
-              {guest}@{HOST}
-              <span className="jsh-faint">:</span>
-              <span className="jsh-path">{SHELL.pathLabel(cwd)}</span>
+              {mobileMode ? (
+                HOST
+              ) : (
+                <>
+                  {guest}@{HOST}
+                  <span className="jsh-faint">:</span>
+                  <span className="jsh-path">{SHELL.pathLabel(cwd)}</span>
+                </>
+              )}
             </span>
             <span className="jsh-topbar-right">
               <span className="jsh-clock jsh-tnum" aria-hidden="true">
@@ -2917,50 +2998,57 @@ function ShellView({ controller }: { controller: ShellController }) {
               ))}
 
               {phase === "ready" && (
-                <div
-                  className="jsh-promptline"
-                >
-                  <label htmlFor="jsh-input" className="jsh-ps1">
-                    {promptStr}
-                  </label>
-                  <span className="jsh-inputwrap">
-                    <input
-                      id="jsh-input"
-                      ref={inputRef}
-                      className="jsh-input"
-                      value={input}
-                      onChange={(e) => onChange(e.target.value)}
-                      onKeyDown={onKeyDown}
-                      onFocus={() => setInputFocused(true)}
-                      onBlur={() => setInputFocused(false)}
-                      autoComplete="off"
-                      autoCapitalize="off"
-                      autoCorrect="off"
-                      spellCheck={false}
-                      aria-label="terminal command input"
-                    />
-                    {input === "" && preview ? (
-                      <span className="jsh-ghost" aria-hidden="true">
-                        <span className="jsh-ghost-cmd">{preview}</span>
-                        <span
-                          className={`jsh-cursor ${focused ? "" : "jsh-cursor-hollow"}`}
-                        >
-                          ▋
+                mobileMode ? (
+                  <div className="jsh-promptline jsh-promptline-readonly">
+                    <span className="jsh-ps1">{HOST}:~$</span>
+                    <span className="jsh-readonly-input">choose a path</span>
+                  </div>
+                ) : (
+                  <div
+                    className="jsh-promptline"
+                  >
+                    <label htmlFor="jsh-input" className="jsh-ps1">
+                      {promptStr}
+                    </label>
+                    <span className="jsh-inputwrap">
+                      <input
+                        id="jsh-input"
+                        ref={inputRef}
+                        className="jsh-input"
+                        value={input}
+                        onChange={(e) => onChange(e.target.value)}
+                        onKeyDown={onKeyDown}
+                        onFocus={() => setInputFocused(true)}
+                        onBlur={() => setInputFocused(false)}
+                        autoComplete="off"
+                        autoCapitalize="off"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        aria-label="terminal command input"
+                      />
+                      {input === "" && preview ? (
+                        <span className="jsh-ghost" aria-hidden="true">
+                          <span className="jsh-ghost-cmd">{preview}</span>
+                          <span
+                            className={`jsh-cursor ${focused ? "" : "jsh-cursor-hollow"}`}
+                          >
+                            ▋
+                          </span>
+                          <span className="jsh-ghost-enter">↵</span>
                         </span>
-                        <span className="jsh-ghost-enter">↵</span>
-                      </span>
-                    ) : (
-                      <span className="jsh-caret-track" aria-hidden="true">
-                        <span className="jsh-caret-ghost">{input}</span>
-                        <span
-                          className={`jsh-cursor ${focused ? "" : "jsh-cursor-hollow"}`}
-                        >
-                          ▋
+                      ) : (
+                        <span className="jsh-caret-track" aria-hidden="true">
+                          <span className="jsh-caret-ghost">{input}</span>
+                          <span
+                            className={`jsh-cursor ${focused ? "" : "jsh-cursor-hollow"}`}
+                          >
+                            ▋
+                          </span>
                         </span>
-                      </span>
-                    )}
-                  </span>
-                </div>
+                      )}
+                    </span>
+                  </div>
+                )
               )}
 
               {phase === "booting" && (
@@ -2972,26 +3060,28 @@ function ShellView({ controller }: { controller: ShellController }) {
             </div>
           </div>
 
-          <div className="jsh-statusbar">
-            <div className="jsh-status-hint">
-              <span className="jsh-hint-key">type</span> <Cmd run={dispatch}>help</Cmd>
-              <span className="jsh-muted"> · ↑↓ history · Tab completes · ⌃L clears</span>
-              {phase === "booting" && (
-                <span className="jsh-hint-skip"> · any key skips boot</span>
-              )}
+          {!mobileMode && (
+            <div className="jsh-statusbar">
+              <div className="jsh-status-hint">
+                <span className="jsh-hint-key">type</span> <Cmd run={dispatch}>help</Cmd>
+                <span className="jsh-muted"> · ↑↓ history · Tab completes · ⌃L clears</span>
+                {phase === "booting" && (
+                  <span className="jsh-hint-skip"> · any key skips boot</span>
+                )}
+              </div>
+              <nav className="jsh-status-nav" aria-label="primary">
+                {LINKS.map((l) => (
+                  <Ext key={l.key} href={l.url}>
+                    {l.key}
+                  </Ext>
+                ))}
+                <span className="jsh-foot-sep" aria-hidden="true">
+                  ::
+                </span>
+                <Cmd run={dispatch}>theme</Cmd>
+              </nav>
             </div>
-            <nav className="jsh-status-nav" aria-label="primary">
-              {LINKS.map((l) => (
-                <Ext key={l.key} href={l.url}>
-                  {l.key}
-                </Ext>
-              ))}
-              <span className="jsh-foot-sep" aria-hidden="true">
-                ::
-              </span>
-              <Cmd run={dispatch}>theme</Cmd>
-            </nav>
-          </div>
+          )}
         </section>
 
         {activeGame && <GameOverlay name={activeGame} onExit={onExitGame} />}
@@ -3039,7 +3129,7 @@ function TranscriptRow({ line, reduced }: { line: Line; reduced: boolean }) {
       </div>
     )
   }
-  return <div className={`jsh-block ${cls}`}>{b.node}</div>
+  return <div className={`jsh-block ${line.home ? "jsh-home-row" : ""} ${cls}`}>{b.node}</div>
 }
 
 /* ------------------------------------------------------------------ *
@@ -3049,13 +3139,69 @@ function TranscriptRow({ line, reduced }: { line: Line; reduced: boolean }) {
 function WelcomeCard() {
   return (
     <div className="jsh-welcome">
-      <NeofetchCard />
-      <p className="jsh-w-line jsh-measure jsh-muted">
-        I build AI agent systems in Rust and TypeScript. Thirteen years in
+      <div className="jsh-desktop-home">
+        <NeofetchCard />
+        <p className="jsh-w-line jsh-measure jsh-muted">
+          I build AI agent systems in Rust and TypeScript. Thirteen years in
+          distributed systems, program analysis, and developer tools.
+        </p>
+        <PaletteRow />
+      </div>
+      <div className="jsh-mobile-home">
+        <MobileHero />
+        <MobileActionGrid />
+      </div>
+    </div>
+  )
+}
+
+function MobileHero() {
+  return (
+    <section className="jsh-mobile-hero" aria-label="Jessica Black">
+      <p className="jsh-mobile-kicker">Founding Engineer @ Attune</p>
+      <div className={`${martian.className} jsh-mobile-name`}>
+        JESSICA
+        <br />
+        BLACK
+      </div>
+      <p className="jsh-mobile-copy">
+        I build AI agent systems in Rust and TypeScript, with 13 years across
         distributed systems, program analysis, and developer tools.
       </p>
-      <PaletteRow />
-    </div>
+      <dl className="jsh-mobile-facts">
+        <div>
+          <dt>focus</dt>
+          <dd>AI agents + developer tools</dd>
+        </div>
+        <div>
+          <dt>stack</dt>
+          <dd>Rust, TypeScript, Go, Haskell</dd>
+        </div>
+        <div>
+          <dt>where</dt>
+          <dd>Mountain View, CA</dd>
+        </div>
+      </dl>
+    </section>
+  )
+}
+
+function MobileActionGrid() {
+  const run = useRun()
+  return (
+    <nav className="jsh-mobile-actions" aria-label="portfolio sections">
+      {MOBILE_HOME_ACTIONS.map((item) => (
+        <button
+          key={item.cmd}
+          type="button"
+          className="jsh-mobile-action"
+          onClick={() => run(item.cmd)}
+        >
+          <span className="jsh-mobile-action-label">{item.label}</span>
+          <span className="jsh-mobile-action-hint">{item.hint}</span>
+        </button>
+      ))}
+    </nav>
   )
 }
 
@@ -3300,6 +3446,7 @@ function FileLsBlock({
 
 // `ls ~/experience` — the three roles as collapsed cards (hover/cat to expand).
 function ExperienceListing({ run }: { run: RunCmd }) {
+  const mobileMode = useMobileShellMode()
   return (
     <div className="jsh-exp">
       <p className="jsh-out jsh-muted">
@@ -3309,8 +3456,17 @@ function ExperienceListing({ run }: { run: RunCmd }) {
         <JobBlock key={j.id} job={j} />
       ))}
       <p className="jsh-out jsh-muted jsh-ls-hint">
-        → hover a card to expand, or <Cmd run={run}>cat ~/experience/attune.md</Cmd> for
-        one. the printable version: <Cmd run={run}>resume</Cmd>.
+        {mobileMode ? (
+          <>
+            → role details are expanded here. the printable version:{" "}
+            <Cmd run={run}>resume</Cmd>.
+          </>
+        ) : (
+          <>
+            → hover a card to expand, or <Cmd run={run}>cat ~/experience/attune.md</Cmd>{" "}
+            for one. the printable version: <Cmd run={run}>resume</Cmd>.
+          </>
+        )}
       </p>
     </div>
   )
@@ -4268,6 +4424,12 @@ const CSS = String.raw`
   align-items: baseline;
   margin-top: 14px;
 }
+.jsh-promptline-readonly {
+  user-select: none;
+}
+.jsh-readonly-input {
+  color: var(--jsh-muted);
+}
 .jsh-inputwrap {
   position: relative;
   flex: 1;
@@ -4333,6 +4495,7 @@ const CSS = String.raw`
 
 /* ---------------- welcome / neofetch / palette ---------------- */
 .jsh-welcome { margin-top: 2px; }
+.jsh-mobile-home { display: none; }
 .jsh-neofetch {
   display: flex;
   gap: clamp(18px, 4vw, 44px);
@@ -4344,9 +4507,9 @@ const CSS = String.raw`
 }
 .jsh-nf-logo { display: flex; flex-direction: column; gap: 6px; }
 .jsh-nf-name {
-  font-size: clamp(30px, 6.4vw, 60px);
+  font-size: 60px;
   line-height: 0.9;
-  letter-spacing: -0.5px;
+  letter-spacing: 0;
   font-weight: 700;
   color: var(--jsh-fg);
 }
@@ -4400,6 +4563,88 @@ const CSS = String.raw`
 .jsh-pill:focus-visible { outline: none; border-color: var(--jsh-amber); background: var(--jsh-surface-2); }
 .jsh-pill-cmd { color: var(--jsh-amber); font-size: 12.5px; }
 .jsh-pill-hint { color: var(--jsh-faint); font-size: 10px; letter-spacing: 0.2px; }
+
+.jsh-mobile-hero {
+  padding: 2px 0 14px;
+  border-bottom: 1px solid var(--jsh-rule);
+}
+.jsh-mobile-kicker {
+  margin: 0 0 8px;
+  color: var(--jsh-amber-soft);
+  font-size: 12px;
+}
+.jsh-mobile-name {
+  color: var(--jsh-fg);
+  font-size: 42px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 0.92;
+}
+.jsh-mobile-copy {
+  max-width: 34rem;
+  margin: 14px 0 12px;
+  color: var(--jsh-fg);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.jsh-mobile-facts {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+.jsh-mobile-facts div {
+  display: grid;
+  grid-template-columns: 66px 1fr;
+  gap: 12px;
+  align-items: baseline;
+}
+.jsh-mobile-facts dt {
+  color: var(--jsh-amber-soft);
+  font-size: 12px;
+}
+.jsh-mobile-facts dd {
+  margin: 0;
+  color: var(--jsh-muted);
+  font-size: 13px;
+}
+.jsh-mobile-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 14px 0 4px;
+}
+.jsh-mobile-action {
+  font: inherit;
+  min-height: 64px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  align-items: flex-start;
+  padding: 10px 11px;
+  color: var(--jsh-fg);
+  background: var(--jsh-surface);
+  border: 1px solid var(--jsh-rule);
+  border-radius: 4px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.jsh-mobile-action:hover,
+.jsh-mobile-action:focus-visible {
+  outline: none;
+  border-color: var(--jsh-amber-soft);
+  background: var(--jsh-surface-2);
+}
+.jsh-mobile-action-label {
+  color: var(--jsh-amber);
+  font-size: 14px;
+  font-weight: 600;
+}
+.jsh-mobile-action-hint {
+  color: var(--jsh-faint);
+  font-size: 11.5px;
+  line-height: 1.25;
+}
 
 /* ---------------- help ---------------- */
 .jsh-help { margin-top: 2px; }
@@ -4955,6 +5200,90 @@ const CSS = String.raw`
 }
 
 /* ---------------- responsive ---------------- */
+@media (max-width: 900px) {
+  .jsh-nf-name { font-size: 46px; }
+}
+
+@media (max-width: 700px), (pointer: coarse) {
+  .jsh-root::before { opacity: 0.34; }
+  .jsh-topbar {
+    gap: 10px;
+    padding: 8px 14px;
+    min-height: 36px;
+  }
+  .jsh-topbar-title {
+    color: var(--jsh-amber-soft);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .jsh-topbar-right { display: none; }
+  .jsh-scroll {
+    padding: 14px 14px 18px;
+    font-size: 14px;
+    line-height: 1.58;
+  }
+  .jsh-scroll-inner { max-width: none; }
+  .jsh-desktop-home { display: none; }
+  .jsh-mobile-home { display: block; }
+  .jsh-promptline {
+    gap: 6px 8px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+  .jsh-promptline-readonly {
+    padding-bottom: 8px;
+    pointer-events: none;
+  }
+  .jsh-readonly-input {
+    color: var(--jsh-faint);
+  }
+  .jsh-echo {
+    gap: 6px;
+    margin-top: 14px;
+  }
+  .jsh-help-foot { display: none; }
+  .jsh-job-detail {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    margin-top: 10px;
+  }
+  .jsh-job-hover { display: none; }
+  .jsh-job {
+    padding: 11px 12px;
+  }
+  .jsh-sk-file,
+  .jsh-ls-name,
+  .jsh-tree-name {
+    min-height: 28px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .jsh-resume-bullets li,
+  .jsh-job-bullets li {
+    line-height: 1.5;
+  }
+}
+
+@media (max-width: 360px) {
+  .jsh-mobile-name { font-size: 36px; }
+  .jsh-mobile-copy { font-size: 13.5px; }
+  .jsh-mobile-facts div {
+    grid-template-columns: 58px 1fr;
+    gap: 10px;
+  }
+  .jsh-mobile-actions {
+    gap: 7px;
+  }
+  .jsh-mobile-action {
+    min-height: 60px;
+    padding: 9px 10px;
+  }
+  .jsh-mobile-action-label { font-size: 13.5px; }
+  .jsh-mobile-action-hint { font-size: 11px; }
+}
+
 @media (max-width: 560px) {
   .jsh-lsrow {
     grid-template-columns: auto;

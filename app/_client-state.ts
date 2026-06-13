@@ -120,6 +120,9 @@ function useMediaQuery(query: string): boolean {
 export const usePrefersReducedMotion = () =>
   useMediaQuery("(prefers-reduced-motion: reduce)")
 
+export const useMobileShellMode = () =>
+  useMediaQuery("(max-width: 700px), (pointer: coarse)")
+
 export function useClientSnapshot<T>(getSnapshot: () => T, getServerSnapshot: () => T): T {
   const subscribe = useCallback(() => () => {}, [])
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
