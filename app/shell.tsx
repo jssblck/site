@@ -9,6 +9,7 @@
 
 import {
   createContext,
+  Suspense,
   use,
   useCallback,
   useEffect,
@@ -16,9 +17,8 @@ import {
   useRef,
   useState,
 } from "react"
-import type { JSX, KeyboardEvent as ReactKeyboardEvent } from "react"
+import type { ComponentType, JSX, KeyboardEvent as ReactKeyboardEvent } from "react"
 import { IBM_Plex_Mono, Martian_Mono } from "next/font/google"
-import dynamic from "next/dynamic"
 import {
   useClientSnapshot,
   useIntervalSnapshot,
@@ -100,6 +100,10 @@ type RunOptions = {
   replace?: boolean
   blockOpen?: boolean
 }
+type HashCommandRequest = {
+  command: string
+  hash: string
+}
 
 function decodeHashCommandValue(raw: string): string {
   const plusAsSpace = raw.replace(/\+/g, " ")
@@ -132,7 +136,9 @@ function commandFromLocationHash(hash: string): string | null {
 
   const markerOffset = markerAt === 0 ? 0 : 1
   const valueStart = markerAt + markerOffset + HASH_COMMAND_PREFIX.length
-  const command = stripCommandQuotes(decodeHashCommandValue(fragment.slice(valueStart)))
+  const valueEnd = fragment.indexOf("&", valueStart)
+  const rawValue = valueEnd < 0 ? fragment.slice(valueStart) : fragment.slice(valueStart, valueEnd)
+  const command = stripCommandQuotes(decodeHashCommandValue(rawValue))
   return command === "" ? null : command
 }
 
@@ -1047,57 +1053,12 @@ function Cmd({
 }
 
 /* ------------------------------ games ---------------------------- */
-// Lazy-loaded so they never weigh down the initial page. Each renders into the
-// transcript and captures the keyboard via GameFrame. Add an entry here and it
-// becomes a runnable command automatically.
-const GAMES: Record<string, React.ComponentType> = {
-  snake: dynamic(() => import("@/app/games/snake"), {
-    ssr: false,
-    loading: () => <p className="jsh-out jsh-muted">loading snake…</p>,
-  }),
-  "2048": dynamic(() => import("@/app/games/g2048"), {
-    ssr: false,
-    loading: () => <p className="jsh-out jsh-muted">loading 2048…</p>,
-  }),
-  tetris: dynamic(() => import("@/app/games/tetris"), {
-    ssr: false,
-    loading: () => <p className="jsh-out jsh-muted">loading tetris…</p>,
-  }),
-  breakout: dynamic(() => import("@/app/games/breakout"), {
-    ssr: false,
-    loading: () => <p className="jsh-out jsh-muted">loading breakout…</p>,
-  }),
-  asteroids: dynamic(() => import("@/app/games/asteroids"), {
-    ssr: false,
-    loading: () => <p className="jsh-out jsh-muted">loading asteroids…</p>,
-  }),
-  flappy: dynamic(() => import("@/app/games/flappy"), {
-    ssr: false,
-    loading: () => <p className="jsh-out jsh-muted">loading flappy…</p>,
-  }),
-  wordle: dynamic(() => import("@/app/games/wordle"), {
-    ssr: false,
-    loading: () => <p className="jsh-out jsh-muted">loading wordle…</p>,
-  }),
-  minesweeper: dynamic(() => import("@/app/games/minesweeper"), {
-    ssr: false,
-    loading: () => <p className="jsh-out jsh-muted">loading minesweeper…</p>,
-  }),
-  life: dynamic(() => import("@/app/games/life"), {
-    ssr: false,
-    loading: () => <p className="jsh-out jsh-muted">loading life…</p>,
-  }),
-  pong: dynamic(() => import("@/app/games/pong"), {
-    ssr: false,
-    loading: () => <p className="jsh-out jsh-muted">loading pong…</p>,
-  }),
-  // not a game in the arcade sense (no score, not in GAME_LIST) — a physics
-  // toy, launched by the `3bp` / `threebody` command. Reuses the game overlay.
-  threebody: dynamic(() => import("@/app/games/threebody"), {
-    ssr: false,
-    loading: () => <p className="jsh-out jsh-muted">loading three-body…</p>,
-  }),
-}
+// Conditional loaders keep arcade code out of the initial shell payload. Each
+// game renders into the transcript and captures the keyboard via GameFrame. Add
+// an entry here and it becomes a runnable command automatically.
+type GameComponent = ComponentType
+type GameModule = { default: GameComponent }
+
 const GAME_LIST: Array<[string, string]> = [
   ["snake", "eat, grow, do not bite yourself"],
   ["2048", "slide tiles, make 2048"],
@@ -1110,6 +1071,31 @@ const GAME_LIST: Array<[string, string]> = [
   ["life", "conway's game of life — draw + watch"],
   ["pong", "you vs the machine, first to 11"],
 ]
+const GAME_COMMANDS = new Set([...GAME_LIST.map(([name]) => name), "threebody"])
+const GAME_MODULES = new Map<string, Promise<GameModule>>()
+
+function gameModule(name: string): Promise<GameModule> | null {
+  if (!GAME_COMMANDS.has(name)) return null
+
+  let pending = GAME_MODULES.get(name)
+  if (!pending) {
+    pending = import("@/app/games/_loader").then(({ loadGame }) => {
+      const loaded = loadGame(name)
+      if (!loaded) throw new Error(`no such game: ${name}`)
+      return loaded
+    })
+    GAME_MODULES.set(name, pending)
+  }
+  return pending
+}
+
+function LoadedGame({ name }: { name: string }) {
+  const pending = gameModule(name)
+  if (!pending) return <p className="jsh-out jsh-err">no such game: {name}</p>
+
+  const Game = use(pending).default
+  return <Game />
+}
 
 // Each game quietly persists a personal best; the games list surfaces it so the
 // arcade feels lived-in. Semantics differ (score / streak / time / rally), so
@@ -1528,7 +1514,6 @@ const SHELL = new ShellFs(FS, HOME_PATH)
 // Games take over the whole screen: a focused overlay above the shell. Esc, the
 // ✕, or a click on the backdrop returns you to the prompt. Lazy-loaded.
 function GameOverlay({ name, onExit }: { name: string; onExit: () => void }) {
-  const Game = GAMES[name]
   // Safety net: Esc closes even if focus slipped off the game surface. (When the
   // game is focused, GameFrame handles Esc and stops it before it reaches here.)
   useEffect(() => {
@@ -1551,11 +1536,9 @@ function GameOverlay({ name, onExit }: { name: string; onExit: () => void }) {
         }}
       >
         <div className="jsh-game-stage">
-          {Game ? (
-            <Game />
-          ) : (
-            <p className="jsh-out jsh-err">no such game: {name}</p>
-          )}
+          <Suspense fallback={<p className="jsh-out jsh-muted">loading {name}…</p>}>
+            <LoadedGame name={name} />
+          </Suspense>
           <p className="jsh-game-exit-note">
             press <b>Esc</b> to exit
           </p>
@@ -1926,6 +1909,13 @@ function useShellController() {
     EMPTY_ACHIEVEMENTS,
     stringArray,
   )
+  const [hashCommandRequest, setHashCommandRequest] =
+    useState<HashCommandRequest | null>(() => {
+      if (typeof window === "undefined") return null
+      const hash = window.location.hash
+      const command = commandFromLocationHash(hash)
+      return command ? { command, hash } : null
+    })
   const [preview, setPreview] = useState<string | null>(null)
   const [activeGame, setActiveGame] = useState<string | null>(null)
   const [matrixMode, setMatrixMode] = useStoredBoolean("jsh-matrix", false)
@@ -1943,7 +1933,6 @@ function useShellController() {
   const inputRef = useRef<HTMLInputElement>(null)
   const tailSpacerRef = useRef<HTMLDivElement>(null)
   const bootCancel = useRef<(() => void) | null>(null)
-  const pendingHashCommand = useRef<string | null>(null)
   const hashCommandConsumed = useRef(false)
   const scrollWelcomeTop = useRef(false)
   const scrollResultTop = useRef(false)
@@ -2028,7 +2017,15 @@ function useShellController() {
   }, [unlock])
 
   useEffect(() => {
-    pendingHashCommand.current = commandFromLocationHash(window.location.hash)
+    const syncHashCommand = () => {
+      const hash = window.location.hash
+      const command = commandFromLocationHash(hash)
+      hashCommandConsumed.current = false
+      setHashCommandRequest(command ? { command, hash } : null)
+    }
+
+    window.addEventListener("hashchange", syncHashCommand)
+    return () => window.removeEventListener("hashchange", syncHashCommand)
   }, [])
 
   /* -------------------------- the boot ---------------------------- */
@@ -2658,7 +2655,7 @@ function useShellController() {
               </p>,
             )
           default:
-            if (GAMES[h]) {
+            if (GAME_COMMANDS.has(h)) {
               if (mobileModeRef.current) {
                 pushText(<MobileArcadeBlock />)
                 return
@@ -2708,21 +2705,20 @@ function useShellController() {
   }, [run])
 
   useEffect(() => {
-    if (phase !== "ready" || hashCommandConsumed.current || !pendingHashCommand.current) return
+    if (phase !== "ready" || hashCommandConsumed.current || !hashCommandRequest) return
 
-    const command = pendingHashCommand.current
+    const { command } = hashCommandRequest
     setInput(command)
     const timer = window.setTimeout(() => {
       if (hashCommandConsumed.current) return
       hashCommandConsumed.current = true
-      pendingHashCommand.current = null
       setInput("")
       tabCycle.current = null
       runRef.current(command, { blockOpen: true })
     }, HASH_COMMAND_RUN_DELAY_MS)
 
     return () => window.clearTimeout(timer)
-  }, [phase])
+  }, [phase, hashCommandRequest])
 
   // Clicking a command (palette pills, command tokens, file names) navigates
   // like a website: it REPLACES the page content. Stored in a ref so the blocks
