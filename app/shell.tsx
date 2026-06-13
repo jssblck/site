@@ -273,23 +273,22 @@ const JOBS: Job[] = [
 
 // Everything worth pointing at, open source or not. The shape is uniform; what
 // differs is the link. Open-source projects carry a `code` URL (their repo) and
-// a `lang`; closed ones may instead have a `site` (their own public home, like
-// Sandi's) and a `badge`. `open <name>` and the projects list send you to
-// `code ?? site` - the code if it's open, its home if not, nowhere if neither.
+// a `lang`; projects without public code may instead have a `site` (their own
+// public home). `open <name>` and the projects list send you to `code ?? site`
+// - the code if it's open, its home if not, nowhere if neither.
 type Project = {
   name: string
   note: string
   code?: string // public source repo - present iff open source
-  site?: string // a public home of its own (e.g. Sandi's site)
+  site?: string // a public home of its own
   lang?: string // language badge, for open-source code
-  badge?: string // badge text for projects without public code
 }
 
 const PROJECTS: Project[] = [
   {
     name: "sandi",
-    site: "https://sandi.jessica.black",
-    badge: "live · private",
+    code: "https://github.com/sandi-black/sandi",
+    lang: "TypeScript",
     note: "household intelligence on Discord, with memory, tools, and personal context",
   },
   {
@@ -950,7 +949,7 @@ const MANPAGES: Record<string, ManEntry> = {
   projects: {
     name: "projects - list the things I've built",
     synopsis: "projects",
-    desc: "Lists ~/projects with a one-line note each. Open-source ones link to their code; others, like sandi, link to their own home. Click one, or `open <name>`, to visit it.",
+    desc: "Lists ~/projects with a one-line note each. Open-source ones link to their code; any project with its own public home links there instead. Click one, or `open <name>`, to visit it.",
     see: ["resume", "skills"],
   },
   resume: {
@@ -3765,7 +3764,6 @@ function FileLsBlock({
 // Open-source ones link to code, others to their own home; clicking opens it.
 function ProjectFileBlock({ project, run }: { project: Project; run: RunCmd }) {
   const url = projectUrl(project)
-  const badge = project.lang ?? project.badge
   return (
     <div className="jsh-skillfile">
       <p className="jsh-out jsh-muted">
@@ -3773,7 +3771,7 @@ function ProjectFileBlock({ project, run }: { project: Project; run: RunCmd }) {
       </p>
       <p className="jsh-out">
         <span className="jsh-em">{project.name}</span>
-        {badge && <span className="jsh-muted"> · {badge}</span>}
+        {project.lang && <span className="jsh-muted"> · {project.lang}</span>}
       </p>
       <p className="jsh-out jsh-measure">{project.note}</p>
       {url ? (
@@ -4167,10 +4165,9 @@ function WritingBlock() {
 }
 
 // `projects` - the things Jess has built, listed like the skills/arcade blocks:
-// a name, a one-line note, and a badge. Open-source projects badge their
-// language and open their code; others (Sandi) badge "live · private" and open
-// their own home. A name with a public home is clickable (dispatches
-// `open <name>`); one with neither code nor site is just text.
+// a name, a one-line note, and a language badge when public source is available.
+// Open-source projects open their code. A name with a public home is clickable
+// (dispatches `open <name>`); one with neither code nor site is just text.
 function ProjectsBlock({ run }: { run: (c: string) => void }) {
   const preview = usePreview()
   return (
@@ -4185,7 +4182,6 @@ function ProjectsBlock({ run }: { run: (c: string) => void }) {
         {PROJECTS.map((p) => {
           const url = projectUrl(p)
           const cmd = `open ${p.name}`
-          const badge = p.lang ?? p.badge
           return (
             <li key={p.name} className="jsh-sk-row">
               {url ? (
@@ -4206,12 +4202,7 @@ function ProjectsBlock({ run }: { run: (c: string) => void }) {
               )}
               <span className="jsh-sk-desc">
                 {p.note}
-                {badge && (
-                  <span className={p.lang ? "jsh-game-best" : "jsh-proj-live"}>
-                    {" "}
-                    · {badge}
-                  </span>
-                )}
+                {p.lang && <span className="jsh-game-best"> · {p.lang}</span>}
               </span>
             </li>
           )
@@ -4219,7 +4210,7 @@ function ProjectsBlock({ run }: { run: (c: string) => void }) {
       </ul>
       <p className="jsh-out jsh-muted jsh-ls-hint">
         → click to open. open-source projects open their code on GitHub;{" "}
-        <Cmd run={run}>open sandi</Cmd> visits her own place. more at{" "}
+        <Cmd run={run}>open sandi</Cmd> opens her repo. more at{" "}
         <Cmd run={run}>open github</Cmd>.
       </p>
     </div>
@@ -4948,9 +4939,6 @@ const CSS = String.raw`
 .jsh-sk-file:focus-visible { outline: none; background: var(--jsh-accent-weak); }
 .jsh-sk-desc { color: var(--jsh-muted); font-size: 12.5px; }
 .jsh-game-best { color: var(--jsh-amber-soft); font-variant-numeric: tabular-nums; }
-/* a non-language project badge (e.g. sandi's "live · private") - full accent so
-   it reads a touch brighter than the dim language badges. */
-.jsh-proj-live { color: var(--jsh-amber); }
 /* a project name with no public home: shown, but not a link. */
 .jsh-sk-file-static { color: var(--jsh-fg); border-bottom: none; cursor: default; }
 
