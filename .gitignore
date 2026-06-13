@@ -30,6 +30,13 @@ yarn-error.log*
 # vercel
 .vercel
 
+# claude code local config (preview launch config, worktrees, etc.)
+.claude/
+
+# local long-running simulation search checkpoints
+.codex/threebody-search/
+.codex/server/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
