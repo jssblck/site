@@ -117,32 +117,36 @@ const JOBS: Job[] = [
   {
     id: "attune",
     org: "Attune",
-    role: "Member of Technical Staff · Founding Engineer",
+    role: "Founding Engineer · Member of Technical Staff",
     start: "Jul 2025",
     end: "present",
     years: "2025—",
     blurb: "Developer tools for AI coding agents and the people using them.",
     bullets: [
-      "Built and shipped production multi-agent orchestration: topology, coordination, and the handoffs between agents.",
-      "Hurry: a drop-in distributed build cache for Cargo, with content-addressed artifacts and reproducible results across CI, local machines, and teams. Rust, open source.",
-      "Nudge: guardrails for AI coding agents using tree-sitter and regex rules through Claude Code hooks. It keeps coding conventions in tools instead of prompt text. Rust, open source.",
+      "Built an incident-triage agent that reads Sentry, Datadog, and Slack, runs the root-cause investigation in a sandbox, and cites its evidence. Triage that took hours takes minutes.",
+      "Built an agent-first dev-sandbox platform for a client: full-stack cloud environments that let engineers run agents in parallel, where the stack used to fit on one laptop at a time.",
+      "Hurry: a drop-in distributed build cache for Cargo that wraps the toolchain without forking it. General-purpose, not tuned to any one project: 3x median and up to 22x on clean builds across a broad range of Rust projects. Rust, open source.",
+      "Nudge: guardrails for coding agents. tree-sitter and regex rules across 9 languages, with Claude Code and Codex hooks, keeping conventions in tooling instead of the prompt. Rust, open source.",
+      "Plus a Slack/Discord/GitHub agent bot, an internal coding agent, and client work under hard data-sovereignty constraints.",
     ],
     stack: "Rust · TypeScript",
   },
   {
     id: "fossa",
     org: "FOSSA",
-    role: "Staff Software Engineer · Tech Lead",
+    role: "Software Engineer → Senior → Staff Tech Lead",
     start: "Sep 2019",
     end: "Jul 2025",
     years: "2019—25",
     blurb:
-      "Tech lead for the Analysis Platform, a distributed system analyzing ~30k user projects and ~200k open-source projects every day.",
+      "Promoted twice in under five years. Tech lead for the analysis platform, the distributed system under every FOSSA product, analyzing ~30k customer and ~200k open-source projects a day across 20+ language ecosystems.",
     bullets: [
-      "Owned dependency analysis across 20+ language ecosystems: native toolchain integration plus custom parsers.",
-      "Tracked down pipeline bottlenecks: rewrote hot paths in Rust where that paid off, tuned the existing JS where it didn't.",
-      "Designed the on-prem deployment architecture under strict customer infra constraints, with no cloud elasticity to lean on.",
-      "Led projects generating $4M+ in revenue; ran quarterly squads of 2–3 engineers end-to-end.",
+      "Introduced Rust to FOSSA and drove its adoption from one service I founded to the default for new backend systems, teaching the org along the way.",
+      "Founded and architected the analysis service: one versioned platform to replace analysis logic scattered across the CLI and core product, so every team had a stable base to build on. Sole author its first two months. Also took a hot path that was melting the database from seconds to sub-millisecond.",
+      "Tech lead for snippet scanning, design lead for reachability, both shipped publicly. Wrote the MVP designs, built big parts of each across backend and CLI.",
+      "Built the vendored-source-identification engine: fingerprint matching that spots third-party code copied into a codebase, against a corpus of hundreds of thousands of projects.",
+      "Primary author of Broker, FOSSA's open-source on-prem connector that let security-conscious enterprises adopt FOSSA without ever exposing their source. Plus Circe (container extraction) and core analysis engines in the open-source CLI customers run.",
+      "Shipped analysis features that Fortune 500 engineering orgs rely on.",
     ],
     stack: "Rust · Haskell · Go · TypeScript · React",
   },
@@ -153,11 +157,14 @@ const JOBS: Job[] = [
     start: "Jun 2013",
     end: "Sep 2019",
     years: "2013—19",
-    blurb: "Internal tooling and embedded systems.",
+    blurb:
+      "Started on a small reporting team and helped turn it into a software team. Self-directed the whole way, no mentor.",
     bullets: [
-      "Built internal developer tooling and embedded systems across Go, Node, React, Swift, .NET, and C.",
+      "Built a remote backup-and-repair system for databases on tens of thousands of unattended machines: scheduled backups, storage, and a pull-only broker that let support staff pull a corrupted database, fix it, and push it back. Nothing exposed to the internet.",
+      "Drove migrations from PHP and VB.net to Node, TypeScript, and Go. Designed and led a unified internal portal: single sign-on, org-synced RBAC, independently deployable apps behind one surface.",
+      "Rewrote embedded C firmware for in-field vehicle hardware to a server-driven RPC model under tight memory limits.",
     ],
-    stack: "Go · Node · React · Swift · .NET · C",
+    stack: "Go · TypeScript · Node · Swift · C · .NET",
   },
 ]
 
@@ -314,14 +321,14 @@ const SKILLS: Skill[] = [
     name: "distributed-systems",
     description: "correctness under partial failure",
     level: "native",
-    body: "Built and operated a platform analyzing ~200k projects a day, designed on-prem architecture with no cloud elasticity to hide behind, and shipped multi-agent coordination layers from scratch. That work made retries, state boundaries, and failure modes hard to ignore.",
+    body: "Built and operated a platform analyzing ~200k projects a day, designed on-prem architecture with no cloud elasticity to hide behind, and years earlier a pull-only connection broker reaching tens of thousands of unattended machines. That work made retries, state boundaries, and failure modes hard to ignore.",
   },
   {
     id: "agentic-systems",
     name: "agentic-systems",
-    description: "multi-agent orchestration: topology, coordination, guardrails",
+    description: "agents that do real work, and the rails that keep them honest",
     level: "fluent",
-    body: "Founding work at Attune: agent topology and coordination from scratch, plus Nudge, a tree-sitter and regex guardrail system via Claude Code hooks that moves conventions out of the prompt and back into the tooling.",
+    body: "Founding work at Attune: an incident-triage agent that investigates in a sandbox and cites its evidence, an agent-first dev-sandbox platform for a client, and Nudge, tree-sitter and regex guardrails via Claude Code and Codex hooks that move conventions out of the prompt and into the tooling.",
   },
   {
     id: "build-systems",
@@ -3490,8 +3497,8 @@ function ResumeBlock({ run }: { run: (c: string) => void }) {
       </div>
       <p className="jsh-out jsh-measure">
         I build AI agent systems in Rust and TypeScript. 13 years in distributed
-        systems, program analysis, and developer tools. Most at home in Rust;
-        fluent in Haskell, Go, and TypeScript.
+        systems, program analysis, and developer tools. Most at home in Rust and
+        TypeScript; fluent in Haskell and Go.
       </p>
       <p className="jsh-resume-h">experience</p>
       {JOBS.map((j) => (
