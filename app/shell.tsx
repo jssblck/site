@@ -304,6 +304,18 @@ const PROJECTS: Project[] = [
     note: "guardrails for AI coding agents via Claude Code hooks",
   },
   {
+    name: "bastion",
+    code: "https://github.com/jssblck/bastion",
+    lang: "Rust",
+    note: "agentic code review as focused single-concern reviewers, local and in CI",
+  },
+  {
+    name: "doteph",
+    code: "https://github.com/attunehq/doteph",
+    lang: "Rust",
+    note: "ephemeral per-workspace local services, like .env files for Postgres and Redis",
+  },
+  {
     name: "fossa-cli",
     code: "https://github.com/fossas/fossa-cli",
     lang: "Haskell",
