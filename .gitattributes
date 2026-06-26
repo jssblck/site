@@ -5,5 +5,8 @@
 .github/**/*.yaml text eol=lf
 oxlint.config.ts text eol=lf
 .githooks/* text eol=lf
+.claude/cloud-setup.sh text eol=lf
+.claude/bootstrap.mjs text eol=lf
+.claude/settings.json text eol=lf
 .agents/** text eol=lf
 skills-lock.json text eol=lf

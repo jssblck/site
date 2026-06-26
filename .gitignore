@@ -30,12 +30,19 @@ yarn-error.log*
 # vercel
 .vercel
 
-# claude code local config (preview launch config, worktrees, etc.)
-.claude/
+# claude code: ignore local config (preview launch config, worktrees, etc.)
+# but version the shared cloud/local dev bootstrap.
+.claude/*
+!.claude/settings.json
+!.claude/cloud-setup.sh
+!.claude/bootstrap.mjs
 
 # local long-running simulation search checkpoints
 .codex/threebody-search/
 .codex/server/
+
+# bastion review run history (BASTION_DATA_DIR), written locally and in CI
+/.bastion/
 
 # typescript
 *.tsbuildinfo

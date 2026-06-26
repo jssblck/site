@@ -1,0 +1,8 @@
+# Bastion policy and its workflow are owned paths: editing a reviewer, loosening
+# a trigger, or changing the review job requires a maintainer review, so the merge
+# gate cannot be weakened or switched off without a human in the loop. CODEOWNERS
+# itself is owned for the same reason. (CODEOWNERS changes only take effect once
+# merged, so these patterns must statically cover every path Bastion governs.)
+/.bastion.yaml                  @jssblck
+/.github/workflows/bastion.yml  @jssblck
+/.github/CODEOWNERS             @jssblck
