@@ -1,0 +1,186 @@
+name: bastion
+
+# Bastion code review. On every pull request this downloads a published
+# `bastion` engine release (from jssblck/bastion, not this repo), authenticates
+# the Codex CLI as the PR author against their ChatGPT subscription, and runs
+# `bastion review` over the changeset. A blocked gate exits non-zero and fails
+# the job; `bastion github report` then posts a sticky comment plus one check run
+# per reviewer and an always-present aggregate `bastion` check. Require the
+# `bastion` check in branch protection on `main` to make a blocking gate stop the
+# merge. See https://bastion.jessica.black/guide/continuous-integration.md
+
+on:
+  pull_request:
+
+# Read the diff and fail the job, and write what `bastion github report` posts:
+# the sticky PR comment (pull-requests: write) and the check runs (checks: write).
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+# One in-flight review per PR; a new push cancels the previous run.
+concurrency:
+  group: bastion-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: bastion review
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Whether the optional dedicated GitHub App is fully configured. The id and
+    # the private key are one credential, so this is true only when both are set:
+    # a half-set repo falls back cleanly instead of failing the mint step.
+    # Computed here because the mint step's `if:` can read `env` but not `secrets`.
+    env:
+      HAS_BASTION_APP: ${{ secrets.BASTION_APP_ID != '' && secrets.BASTION_APP_PRIVATE_KEY != '' }}
+    # The ChatGPT credentials live in an Actions secret, and GitHub does not share
+    # secrets with workflows triggered by fork PRs. We also will not run an agentic
+    # backend over untrusted code. So this runs for same-repo PRs only; review a
+    # fork PR by pushing its branch to a trusted branch in this repo.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history so the base branch resolves for the changeset diff and so
+          # the reviewer can run `git diff <base>` over the working tree.
+          fetch-depth: 0
+
+      - name: Install the bastion engine
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # The engine is a published release of jssblck/bastion, not a binary
+          # built from this PR, so a change can never edit the engine that judges
+          # it. `gh release view` with no tag uses GitHub's "latest" (most recent
+          # non-draft, non-prerelease), so it auto-advances but never adopts an -rc.
+          engine_repo="jssblck/bastion"
+          version="$(gh release view --repo "$engine_repo" --json tagName -q .tagName)"
+          echo "Using bastion engine: $version"
+          echo "BASTION_ENGINE_VERSION=$version" >> "$GITHUB_ENV"
+          asset="bastion-x86_64-unknown-linux-gnu.tar.gz"
+          dest="$RUNNER_TEMP/bastion"
+          mkdir -p "$dest"
+          gh release download "$version" \
+            --repo "$engine_repo" \
+            --pattern "$asset" \
+            --dir "$dest"
+          tar -xzf "$dest/$asset" -C "$dest"
+          # The archive extracts to a directory named after the asset stem.
+          echo "$dest/${asset%.tar.gz}" >> "$GITHUB_PATH"
+
+      - name: Verify bastion
+        run: bastion --version
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+
+      - name: Install the Codex CLI
+        run: |
+          set -euo pipefail
+          npm install -g @openai/codex
+
+      - name: Authenticate Codex as the PR author
+        env:
+          # Bastion bills each PR's reviews to its author's own ChatGPT
+          # subscription. The author's GitHub login maps to a CODEX_AUTH_<LOGIN>
+          # secret holding the contents of that person's ~/.codex/auth.json (the
+          # file `codex login` with "Sign in with ChatGPT" writes); Codex refreshes
+          # the access token from the stored refresh token at run time. To onboard a
+          # contributor, add their secret and a `case` arm below. The mapping lives
+          # in this CODEOWNERS-protected workflow, so changing who may spend a
+          # subscription is itself a reviewed change. An unmapped author fails closed
+          # (the gate blocks) rather than silently billing someone else.
+          #
+          # Bot authors (dependabot[bot]) have no subscription of their own, so their
+          # PRs bill to a maintainer who opted in to sponsor them. GitHub serves
+          # secrets to Dependabot-triggered runs from a SEPARATE Dependabot secret
+          # store, so the CODEX_AUTH_<LOGIN> a bot arm references must also be set
+          # there (gh secret set CODEX_AUTH_JSSBLCK --app dependabot) or it arrives
+          # empty and the gate blocks.
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          CODEX_AUTH_JSSBLCK: ${{ secrets.CODEX_AUTH_JSSBLCK }}
+        run: |
+          set -euo pipefail
+          author="$(printf '%s' "$AUTHOR" | tr '[:upper:]' '[:lower:]')"
+          # Quote bracketed bot logins; unquoted, case reads [bot] as a glob class.
+          case "$author" in
+            jssblck) cred="$CODEX_AUTH_JSSBLCK" ;;
+            'dependabot[bot]') cred="$CODEX_AUTH_JSSBLCK" ;;
+            *)
+              echo "::error::No Codex subscription is mapped for PR author '$AUTHOR'. Add a CODEX_AUTH_<LOGIN> secret and a case arm in .github/workflows/bastion.yml." >&2
+              exit 1
+              ;;
+          esac
+          if [ -z "$cred" ]; then
+            echo "::error::Codex credential for '$AUTHOR' is mapped but its secret is empty; set the matching CODEX_AUTH_<LOGIN> repository secret (and the Dependabot secret store for bot authors)." >&2
+            exit 1
+          fi
+          mkdir -p "$HOME/.codex"
+          printf '%s' "$cred" > "$HOME/.codex/auth.json"
+          chmod 600 "$HOME/.codex/auth.json"
+
+      - name: Run bastion review
+        env:
+          # Keep run history in the workspace so it can be uploaded as an artifact
+          # instead of landing in the runner's per-user data directory.
+          BASTION_DATA_DIR: ${{ github.workspace }}/.bastion
+          # Resolve the `codex` binary npm just put on PATH.
+          BASTION_CODEX_BIN: codex
+        # Default GitHub bash runs with `-eo pipefail`, so a blocked review's
+        # non-zero exit fails the job (and the required check). The human-readable
+        # stream goes to the log; the canonical JSONL is persisted under
+        # BASTION_DATA_DIR and uploaded below.
+        run: bastion review --base "origin/${{ github.base_ref }}"
+
+      - name: Mint a dedicated app token for reporting
+        id: app-token
+        # Optional, only when a dedicated Bastion GitHub App is configured (the
+        # BASTION_APP_ID / BASTION_APP_PRIVATE_KEY secrets). Posting the check runs
+        # under a distinct app gives them their own check suite, so the PR renders
+        # them under the app's name. Without it the report step falls back to the
+        # default GITHUB_TOKEN. The mint runs on always() so reporting works even
+        # when the review blocked and failed the job above.
+        if: ${{ always() && env.HAS_BASTION_APP == 'true' }}
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.BASTION_APP_ID }}
+          private-key: ${{ secrets.BASTION_APP_PRIVATE_KEY }}
+
+      - name: Report the review to the pull request
+        # Runs even when the review blocked (and so failed the job above), so the PR
+        # always gets the comment and the per-reviewer checks. Creating check runs
+        # needs a GitHub App installation token (a classic PAT cannot); both the
+        # minted dedicated-app token and the default GITHUB_TOKEN qualify, so this
+        # uses the dedicated-app token when present and falls back otherwise.
+        # GITHUB_API_URL is provided by Actions.
+        #
+        # The capability probe tolerates an engine release that predates the
+        # `github report` subcommand: if it is missing, the step exits 0 and
+        # reporting begins once the latest release includes it. Once the subcommand
+        # exists, a real posting error fails the step.
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+          BASTION_DATA_DIR: ${{ github.workspace }}/.bastion
+        run: |
+          set -euo pipefail
+          if ! bastion github report --help >/dev/null 2>&1; then
+            echo "::notice::bastion engine ${BASTION_ENGINE_VERSION:-unknown} has no 'github report'; skipping PR comment and checks until the latest release includes it."
+            exit 0
+          fi
+          bastion github report \
+            --repo "${{ github.repository }}" \
+            --pr "${{ github.event.pull_request.number }}" \
+            --sha "${{ github.event.pull_request.head.sha }}"
+
+      - name: Upload the run
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bastion-run
+          path: ${{ github.workspace }}/.bastion/runs/**
+          if-no-files-found: warn
