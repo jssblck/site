@@ -6,8 +6,8 @@
   hits. First to 11 wins; space serves and rematches. Longest rally persists.
 */
 
-import { useEffect, useRef, useState } from "react"
-import { useStoredNumber } from "@/app/_client-state"
+import { useEffect, useReducer, useRef } from "react"
+import { useStoredNumber, writeStoredNumber } from "@/app/_client-state"
 import { GameFrame } from "./_frame"
 
 const W = 480
@@ -42,6 +42,22 @@ type State = {
   over: 0 | 1 | 2 // 0 playing, 1 player won, 2 cpu won
 }
 
+type HudState = {
+  pScore: number
+  cpuScore: number
+  best: number
+  over: 0 | 1 | 2
+}
+
+const hudReducer = (_state: HudState, next: HudState) => next
+
+const toHudState = (g: State): HudState => ({
+  pScore: g.pScore,
+  cpuScore: g.cpuScore,
+  best: g.best,
+  over: g.over,
+})
+
 const serve = (g: State, dir: number) => {
   g.ballX = W / 2
   g.ballY = H / 2
@@ -52,10 +68,10 @@ const serve = (g: State, dir: number) => {
   g.rally = 0
 }
 
-const saveBest = (g: State, setBest: (best: number) => void) => {
+const saveBest = (g: State) => {
   if (g.rally > g.best) {
     g.best = g.rally
-    setBest(g.best)
+    writeStoredNumber("jsh-pong-best", g.best)
   }
 }
 
@@ -65,10 +81,13 @@ export default function Pong() {
   const lastRef = useRef(0)
   const accRef = useRef(0)
   const activeRef = useRef(true)
-  const [pScore, setPScore] = useState(0)
-  const [cpuScore, setCpuScore] = useState(0)
-  const [best, setBest] = useStoredNumber("jsh-pong-best", 0)
-  const [over, setOver] = useState(0)
+  const [storedBest] = useStoredNumber("jsh-pong-best", 0)
+  const [hud, dispatchHud] = useReducer(hudReducer, {
+    pScore: 0,
+    cpuScore: 0,
+    best: 0,
+    over: 0,
+  })
 
   const s = useRef<State>({
     ballX: W / 2,
@@ -98,11 +117,10 @@ export default function Pong() {
     g.pY = H / 2 - PH / 2
     g.cpuY = H / 2 - PH / 2
     serve(g, Math.random() < 0.5 ? -1 : 1)
-    setPScore(0)
-    setCpuScore(0)
-    setOver(0)
+    dispatchHud(toHudState(g))
   }
 
+  const best = Math.max(storedBest, hud.best)
   s.current.best = Math.max(s.current.best, best)
 
   const onKey = (e: React.KeyboardEvent) => {
@@ -143,6 +161,7 @@ export default function Pong() {
     const update = () => {
       const g = s.current
       if (g.over) return
+      const syncHud = () => dispatchHud(toHudState(g))
 
       // paddles
       if (g.up) g.pY -= PSPEED
@@ -210,21 +229,19 @@ export default function Pong() {
 
       // scoring
       if (g.ballX < -BALL) {
-        saveBest(g, setBest)
+        saveBest(g)
         g.cpuScore++
-        setCpuScore(g.cpuScore)
         if (g.cpuScore >= WIN) {
           g.over = 2
-          setOver(2)
         } else serve(g, -1)
+        syncHud()
       } else if (g.ballX > W + BALL) {
-        saveBest(g, setBest)
+        saveBest(g)
         g.pScore++
-        setPScore(g.pScore)
         if (g.pScore >= WIN) {
           g.over = 1
-          setOver(1)
         } else serve(g, 1)
+        syncHud()
       }
     }
 
@@ -297,13 +314,13 @@ export default function Pong() {
       cancelAnimationFrame(rafRef.current)
       window.removeEventListener("keyup", onKeyUp)
     }
-  }, [setBest])
+  }, [])
 
   return (
     <GameFrame
       title="pong"
-      status={`you ${pScore} · cpu ${cpuScore} · longest rally ${best}`}
-      hint={over ? `${over === 1 ? "you win" : "cpu wins"} · space rematch · esc quit` : "↑ ↓ move · first to 11 · esc quit"}
+      status={`you ${hud.pScore} · cpu ${hud.cpuScore} · longest rally ${best}`}
+      hint={hud.over ? `${hud.over === 1 ? "you win" : "cpu wins"} · space rematch · esc quit` : "↑ ↓ move · first to 11 · esc quit"}
       onKey={onKey}
       onActive={(a) => {
         activeRef.current = a
