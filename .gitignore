@@ -36,6 +36,7 @@ yarn-error.log*
 !.claude/settings.json
 !.claude/cloud-setup.sh
 !.claude/bootstrap.mjs
+!.claude/skills/
 
 # local long-running simulation search checkpoints
 .codex/threebody-search/
