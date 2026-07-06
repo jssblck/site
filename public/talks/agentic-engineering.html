@@ -161,11 +161,18 @@
   .title-meta .sep { color: var(--grey-dim); padding: 0 8px; }
 
   /* ---------- count slide ---------- */
-  .count-wrap { display: flex; align-items: center; gap: clamp(16px, 2.5vw, 40px); flex-wrap: wrap; }
+  .count-grid {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    column-gap: clamp(18px, 2.5vw, 40px);
+    row-gap: clamp(20px, 3vw, 40px);
+    align-items: center;
+  }
+  .count-nums-left { display: flex; align-items: center; gap: clamp(12px, 1.8vw, 30px); }
   .count-unit { display: inline-flex; align-items: center; gap: clamp(10px, 1.5vw, 22px); }
   .glyph { display: block; flex: none; }
   .glyph.human { width: clamp(1.5rem, 3.4vw, 2.9rem); color: var(--grey-dim); }
-  .glyph.bot { width: clamp(2.9rem, 7.5vw, 6.4rem); color: var(--amber); }
+  .glyph.bot { width: clamp(2.4rem, 6vw, 5.2rem); color: var(--amber); }
   .count-from {
     font-family: var(--display);
     font-weight: 700;
@@ -174,41 +181,108 @@
     line-height: 1;
   }
   .count-arrow { font-family: var(--mono); font-size: clamp(1.4rem, 3vw, 2.6rem); color: var(--grey-dim); }
+  .count-mid {
+    font-family: var(--display);
+    font-weight: 900;
+    font-size: clamp(3rem, 9vw, 8rem);
+    color: var(--amber);
+    line-height: 0.85;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    transition: color 0.5s ease;
+  }
+  .slide.stage2-on .count-mid { color: var(--amber-dim); }
   .count-to {
     font-family: var(--display);
     font-weight: 900;
-    font-size: clamp(5rem, 18vw, 16rem);
+    font-size: clamp(4rem, 13vw, 11rem);
     color: var(--amber);
     line-height: 0.85;
     letter-spacing: -0.02em;
     font-variant-numeric: tabular-nums;
   }
+  .count-txt { align-self: start; }
+  .count-txt .body { margin-top: clamp(10px, 1.5vw, 16px); max-width: 34ch; }
+  .count-caption {
+    font-family: var(--mono);
+    font-size: clamp(12px, 1.3vw, 15px);
+    letter-spacing: 0.1em;
+    color: var(--grey);
+  }
+  .count-grid .stage2 {
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.45s ease, transform 0.45s ease;
+  }
+  .slide.stage2-on .count-grid .stage2 { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .count-grid .stage2 { transform: none; transition: opacity 0.2s ease; }
+  }
 
-  /* ---------- bastion card ---------- */
+  /* ---------- card row ---------- */
+  .cardrow {
+    display: flex;
+    gap: clamp(16px, 2vw, 26px);
+    margin-top: clamp(24px, 3vw, 38px);
+    max-width: 1080px;
+  }
   .card {
-    margin-top: clamp(26px, 3vw, 38px);
+    flex: 1 1 0;
     border: 1px solid var(--line);
+    border-top: 2px solid var(--amber);
     background: var(--surface);
-    border-left: 2px solid var(--amber);
-    padding: clamp(20px, 2.4vw, 30px) clamp(22px, 2.6vw, 34px);
-    max-width: 52ch;
+    padding: clamp(18px, 2.2vw, 28px) clamp(18px, 2.2vw, 26px);
   }
   .card .tag {
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: clamp(11px, 1.1vw, 13px);
     letter-spacing: 0.1em;
     color: var(--amber);
-    margin-bottom: 12px;
+    margin-bottom: 14px;
   }
-  .card .line { font-size: clamp(1rem, 1.5vw, 1.25rem); color: var(--bone); line-height: 1.45; }
-  .card .link {
+  .card .title {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: clamp(1.1rem, 1.8vw, 1.55rem);
+    line-height: 1.15;
+    color: var(--bone);
+    margin-bottom: 10px;
+  }
+  .card .line {
+    font-size: clamp(0.95rem, 1.3vw, 1.15rem);
+    line-height: 1.5;
+    color: var(--grey);
+  }
+  .cardrow .flow {
+    flex: none;
+    align-self: center;
     font-family: var(--mono);
-    font-size: 13px;
+    font-size: clamp(1.2rem, 2vw, 1.7rem);
+    color: var(--amber-dim);
+  }
+
+  /* ---------- quote slide ---------- */
+  .quote-mark {
+    font-family: var(--display);
+    font-weight: 900;
+    font-size: clamp(3rem, 6vw, 5rem);
+    line-height: 0.6;
     color: var(--amber);
-    margin-top: 14px;
-    display: inline-block;
-    text-decoration: none;
-    border-bottom: 1px solid var(--amber-dim);
+    margin-bottom: clamp(10px, 1.5vw, 18px);
+  }
+  .quote {
+    font-size: clamp(1.35rem, 2.6vw, 2.3rem);
+    line-height: 1.35;
+    color: var(--bone);
+    font-weight: 500;
+    max-width: 36ch;
+  }
+  .quote-attr {
+    font-family: var(--mono);
+    font-size: clamp(12px, 1.3vw, 15px);
+    color: var(--grey);
+    letter-spacing: 0.04em;
+    margin-top: clamp(18px, 2.5vw, 30px);
   }
 
   /* ---------- terminal cast ---------- */
@@ -316,6 +390,32 @@
   .preview.links .t a:hover { color: var(--amber); border-bottom-color: var(--amber); }
   .preview.links .arrow { color: var(--grey); }
 
+  /* ---------- speaker notes ---------- */
+  .notes {
+    position: fixed;
+    left: 24px;
+    bottom: 24px;
+    max-width: min(460px, 60vw);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 2px solid var(--amber);
+    padding: 14px 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--grey);
+    z-index: 6;
+    display: none;
+    white-space: pre-wrap;
+  }
+  .notes.on { display: block; }
+  .notes .notes-tag {
+    color: var(--amber);
+    letter-spacing: 0.1em;
+    display: block;
+    margin-bottom: 6px;
+  }
+
   /* ---------- nav hint ---------- */
   .navhint {
     position: fixed;
@@ -335,6 +435,11 @@
   }
 
   /* ---------- responsive ---------- */
+  @media (max-width: 1000px) {
+    .cardrow { flex-direction: column; }
+    .cardrow .flow { transform: rotate(90deg); align-self: flex-start; margin-left: 18px; }
+  }
+
   @media (max-width: 720px) {
     .obj-grid { grid-template-columns: 1fr; }
     .casts { flex-direction: column; }
@@ -350,7 +455,7 @@
   @media print {
     @page { size: 1280px 720px; margin: 0; }
     html, body { overflow: visible; height: auto; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .hud, .progress, .navhint { display: none; }
+    .hud, .progress, .navhint, .notes { display: none !important; }
     .deck { height: auto; }
     .slide {
       position: relative;
@@ -365,6 +470,8 @@
     }
     body::before { position: absolute; }
     .cursor { animation: none; }
+    .count-grid .stage2 { opacity: 1 !important; transform: none !important; }
+    .count-mid { color: var(--amber-dim) !important; }
   }
 </style>
 </head>
@@ -372,110 +479,211 @@
 
 <div class="hud">
   <div class="brand"><b>agentic engineering</b> · jessica black</div>
-  <div class="count">slide <b id="cur">01</b> / <span id="total">20</span></div>
+  <div class="count">slide <b id="cur">01</b> / <span id="total">00</span></div>
 </div>
 
-<div class="deck" id="deck">
+<div class="deck" id="deck"></div>
 
-  <!-- 1. cold open -->
-  <section class="slide active">
-    <div class="title-eyebrow"><span class="prompt">~/talks $</span> ./agentic-engineering</div>
-    <h1 class="statement">engineers writing code is <em>dead</em>.</h1>
-    <div class="title-meta">jessica black <span class="sep">·</span> 2026</div>
-  </section>
+<div class="notes" id="notes"></div>
+<div class="progress" id="progress"></div>
+<div class="navhint"><kbd>←</kbd> <kbd>→</kbd> move · <kbd>n</kbd> notes · <kbd>f</kbd> fullscreen · <kbd>p</kbd> then print = pdf</div>
 
-  <!-- 2. the turn -->
-  <section class="slide">
-    <div class="eyebrow"><span class="tick">01</span><span class="label">the turn</span></div>
-    <h2 class="statement">it didn't vanish. it moved <em>up a level</em>.</h2>
-    <p class="body">you stopped writing lines and started directing systems. the work is still hard. it's just hard somewhere else now: <strong>guiding agents, unblocking them, owning that the output is correct.</strong></p>
-  </section>
+<script>
+/* ==========================================================================
+   EDIT SLIDES HERE. each object below is one slide, rendered in order.
+   delete a slide by deleting its object; reorder by moving it. slide count,
+   numbering, and the progress bar all update automatically.
 
-  <!-- 3. thesis count -->
-  <section class="slide" data-count>
-    <div class="eyebrow"><span class="tick">02</span><span class="label">the thesis</span></div>
-    <div class="count-wrap">
-      <span class="count-unit">
-        <svg class="glyph human" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <circle cx="12" cy="7" r="4"/>
-          <path d="M12 13.5c-4.7 0-8.5 3-8.5 6.7V22h17v-1.8c0-3.7-3.8-6.7-8.5-6.7z"/>
-        </svg>
-        <span class="count-from">5</span>
-      </span>
-      <span class="count-arrow">→</span>
-      <span class="count-unit">
-        <svg class="glyph bot" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <rect x="11" y="2" width="2" height="4" rx="1"/>
-          <circle cx="12" cy="2" r="1.7"/>
-          <rect x="3.5" y="7" width="17" height="13" rx="3.5"/>
-          <rect x="8" y="11.5" width="2.6" height="4" rx="1" style="fill:var(--bg)"/>
-          <rect x="13.4" y="11.5" width="2.6" height="4" rx="1" style="fill:var(--bg)"/>
-        </svg>
-        <span class="count-to" id="bignum">500</span>
-      </span>
-    </div>
-    <p class="body">a team of 5 engineers with agents is a team of <span class="hot">500</span>. everyone knows the output explodes. what nobody plans for: the <strong>structure</strong> does too. that's the whole talk.</p>
-  </section>
+   text fields accept inline html: <em> = amber accent (in headlines),
+   <strong> = bright emphasis (in body text).
 
-  <!-- 4. what 500 means -->
-  <section class="slide">
-    <div class="eyebrow"><span class="tick">02</span><span class="label">the thesis</span></div>
-    <h2 class="statement sm">you inherited a <em>500-person</em> org's problems with a <em>5-person</em> team.</h2>
-    <p class="body">coordination. review throughput. drift. institutional memory. none of these were <strong>engineering</strong> problems at 5 humans. all of them are now, overnight, with nobody new to delegate them to. if it feels like things are spinning out of control, this is why: <strong>a 500-person org run on 5-person habits is chaos by construction.</strong></p>
-  </section>
+   slide types and their fields:
+     title     { prompt, statement, meta }
+     statement { section: [tick, label], h, size: 'sm' (optional), body (optional) }
+     list      { section, h, size, rows: [{ n, t, arrow (optional) }], body (optional) }
+     cards     { section, h, size, cards: [{ tag, title, line }], flow: true (optional,
+                 draws → between cards for a timeline), body (optional) }
+     quote     { section, quote, attribution, body (optional) }
+     count     { section, beats: [{ to, caption, body }, { to, caption, body }] }
+                 // two-beat counter: 5 -> beat1 -> beat2. entering the slide
+                 // animates 5 -> beat1 with beat1's text on the left. the next
+                 // → reveals an arrow and the second number (animating from
+                 // beat1's value) with beat2's text aligned under it. ← steps
+                 // back a beat before leaving the slide.
+     terminal  { section, h, size, solo (optional), terms: [{ path, badge, body }] }
+     grid      { section, items: [{ q, a }] }
+     links     { section, h, rows: [{ href, text, desc }], meta }
 
-  <!-- 5. downstream -->
-  <section class="slide">
-    <div class="eyebrow"><span class="tick">02</span><span class="label">the thesis</span></div>
-    <h2 class="statement sm">everything else here is downstream of <em>one number</em>.</h2>
-    <div class="preview">
-      <div class="row"><span class="n">a</span><span class="t">review doesn't scale</span><span class="arrow">← 500</span></div>
-      <div class="row"><span class="n">b</span><span class="t">rules aren't binding</span><span class="arrow">← 500</span></div>
-      <div class="row"><span class="n">c</span><span class="t">memory evaporates</span><span class="arrow">← 500</span></div>
-      <div class="row"><span class="n">d</span><span class="t">debug-by-reading dies</span><span class="arrow">← 500</span></div>
-    </div>
-  </section>
+   any slide can also have  notes: '...'  (speaker notes, toggled with n).
+   ========================================================================== */
 
-  <!-- 6. breaks: review -->
-  <section class="slide">
-    <div class="eyebrow"><span class="tick">03</span><span class="label">what breaks</span></div>
-    <h2 class="statement sm">you cannot review 500 engineers <em>by hand</em>.</h2>
-    <p class="body">5 humans reviewing the output of 495 agents isn't a process, it's a LARP. human-in-every-PR does not survive contact with the throughput.</p>
-  </section>
+const SLIDES = [
 
-  <!-- 7. breaks: claude.md -->
-  <section class="slide">
-    <div class="eyebrow"><span class="tick">03</span><span class="label">what breaks</span></div>
-    <h2 class="statement sm">claude.md is a <em>suggestion</em>.</h2>
-    <p class="body">a rule an agent can ignore is a vibe. if it must hold, it has to live somewhere the agent won't route around: <strong>linters, the type system, hooks, a reviewer that blocks the merge.</strong> "please don't" is not an architecture.</p>
-  </section>
+  {
+    type: 'title',
+    prompt: '~/talks $ ./agentic-engineering',
+    statement: 'agentic engineering',
+    meta: 'jessica black <span class="sep">·</span> talk @ fossa <span class="sep">·</span> 2026',
+  },
 
-  <!-- 9. breaks: memory -->
-  <section class="slide">
-    <div class="eyebrow"><span class="tick">03</span><span class="label">what breaks</span></div>
-    <h2 class="statement sm">institutional memory <em>evaporates</em> by default.</h2>
-    <p class="body">the long-tenured engineer who "just knows why" doesn't exist on an agent fleet. so you <strong>manufacture</strong> the memory: topology maps, knowledge graphs, written context the agents actually load before they touch anything.</p>
-  </section>
+  {
+    type: 'statement',
+    section: ['01', 'full disclosure'],
+    h: 'some of your skepticism came from <em>me</em>.',
+    body: 'i was loudly anti-ai when i worked here, and people trusted my read. it seemed fair to come back and report what changed.',
+    notes: 'opus 4.1 / sonnet 4 era. i was a trusted voice across engineering and beyond, and the sentiment here partly traces to me. own it rather than apologize for it: the critiques were accurate at the time.',
+  },
 
-  <!-- 10. loops intro -->
-  <section class="slide">
-    <div class="eyebrow"><span class="tick">04</span><span class="label">the machinery</span></div>
-    <h2 class="statement">give me the loops, <em>bröther</em>.</h2>
-    <p class="body">every break has the same fix shape: a loop. something fires, an agent handles it, a gate checks it, repeat. <strong>you stop doing the task and start owning the loop that does the task.</strong></p>
-  </section>
+  {
+    type: 'list',
+    section: ['01', 'full disclosure'],
+    h: 'the case i made, a year ago.',
+    size: 'sm',
+    rows: [
+      { n: '1', t: 'net neutral at best. babysitting eats the savings.' },
+      { n: '2', t: 'the work doesn’t go away. it moves to review.' },
+      { n: '3', t: 'confidently wrong is worse than obviously wrong.' },
+      { n: '4', t: 'i have to write it to understand it.' },
+      { n: '5', t: 'why pay this much for barely an upgrade?' },
+    ],
+    body: 'i stand by every one of these, for those models.',
+    notes: 'these are close to verbatim. deliver them with full conviction; the room should be nodding along before the turn.',
+  },
 
-  <!-- 11. review loop cast -->
-  <section class="slide">
-    <div class="eyebrow"><span class="tick">04</span><span class="label">the machinery · review loop</span></div>
-    <h2 class="statement sm">many reviewers, <em>one concern</em> each.</h2>
-    <div class="casts solo">
-      <div class="term">
-        <div class="term-bar">
-          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-          <span class="path">review-loop</span>
-          <span class="badge">on: pr opened</span>
-        </div>
-        <div class="term-body"><span class="dim">[09:14:02]</span> <span class="info">PR #2841 opened</span> · feat/parser-retry
+  {
+    type: 'statement',
+    section: ['01', 'full disclosure'],
+    h: 'the studies are <em>right</em>, by the way.',
+    size: 'sm',
+    body: 'the “about 1.25x, sometimes slower” findings match what i measured on myself in 2025. hold that thought; there’s a much bigger number coming.',
+    notes: 'concede fully here. the metr-style results (experienced devs slower on familiar code) are real measurements of unstructured use on earlier models. this concession is what buys the 500 slide its hearing.',
+  },
+
+  {
+    type: 'cards',
+    section: ['02', 'what changed'],
+    h: 'then i left, and made myself use it.',
+    size: 'sm',
+    flow: true,
+    cards: [
+      {
+        tag: 'sonnet 4.5',
+        title: 'summoned in my editor',
+        line: 'on demand: “add tests like these”, “implement bar like foo”. maybe 1.2x once i learned its quirks.',
+      },
+      {
+        tag: 'opus 4.5 · the step change',
+        title: 'moved to claude code',
+        line: 'prompt, interview, design doc, then implement in small pieces, testing and reviewing as i went.',
+      },
+      {
+        tag: 'today',
+        title: 'hand off to loops',
+        line: 'prompt, sometimes a design, then delegate. agents validate end-to-end; most changes merge with little oversight from me.',
+      },
+    ],
+    body: 'no conversion moment. it accumulated.',
+    notes: 'sonnet 4.5: summoned in zed on demand (“add more tests like these covering these concerns”, “implement bar like foo but with this change”). opus 4.5: moved to claude code, rarely opened the editor; prompt, interview, design file, implement in small pieces with testing and review along the way. today: i hand things off to loops and mostly just test the app manually. i don’t read most of the code, i rarely review it, and i only open an editor to read design docs. prompt, sometimes a plan, then a /goal handoff; the agent validates itself end-to-end with tools, and external agentic review loops gate the merge.',
+  },
+
+  {
+    type: 'quote',
+    section: ['02', 'what changed'],
+    quote: 'i don’t understand how you produce the amount of code you do, and it all works. it’s not ideal code, but it clearly gets the job done. what can you do to help the rest of us level up?',
+    attribution: 'eliza · my mentor, cto @ attune · paraphrased',
+    body: 'that’s when i stopped wondering whether i was grading my own homework.',
+    notes: 'the point is not the compliment. it is external validation from someone i could not dismiss, on work she reviewed herself. this was the moment the multiplier stopped being self-reported.',
+  },
+
+  {
+    type: 'statement',
+    section: ['03', 'the thesis'],
+    h: 'the job didn’t disappear. it moved <em>up a level</em>.',
+    body: 'i stopped writing lines and started directing systems: guiding agents, unblocking them, owning that the output is correct.',
+  },
+
+  {
+    type: 'count',
+    section: ['03', 'the thesis'],
+    beats: [
+      {
+        to: 50,
+        caption: 'concurrent workstreams · today',
+        body: 'not an output multiplier. it counts <strong>concurrent workstreams</strong>: five engineers, each directing a handful of agent sessions, already have around 50 tasks in flight.',
+      },
+      {
+        to: 500,
+        caption: 'where this is heading',
+        body: 'the trajectory only points up. we build for <strong>500</strong>, and the rest of this talk is about what breaks on the way there.',
+      },
+    ],
+    notes: 'two beats: the counter stops at 50 first (today: each engineer directs roughly ten concurrent sessions), then the next press runs it to 500 (the ceiling we build for). skate to where the puck is going. if pressed on the numbers: the claim is workstream count and coordination structure, not output.',
+  },
+
+  {
+    type: 'statement',
+    section: ['03', 'the thesis'],
+    h: 'a 500-person org’s problems, on a <em>5-person</em> team.',
+    size: 'sm',
+    body: 'coordination, review throughput, drift, institutional memory. none of these were engineering problems at 5 humans. all of them are now.',
+  },
+
+  {
+    type: 'list',
+    section: ['03', 'the thesis'],
+    h: 'everything else is downstream of <em>one number</em>.',
+    size: 'sm',
+    rows: [
+      { n: 'a', t: 'review doesn’t scale', arrow: '← 500' },
+      { n: 'b', t: 'rules aren’t binding', arrow: '← 500' },
+      { n: 'c', t: 'memory evaporates', arrow: '← 500' },
+      { n: 'd', t: 'debug-by-reading dies', arrow: '← 500' },
+    ],
+    notes: 'a, b, and c are the next three slides. d comes back later, in what’s still yours (the debugging slide). say that out loud so the room doesn’t wait for a debugging slide that isn’t next.',
+  },
+
+  {
+    type: 'statement',
+    section: ['04', 'what breaks'],
+    h: 'you cannot review 500 workstreams <em>by hand</em>.',
+    size: 'sm',
+    body: 'a human in every pr was the first habit to collapse at agent throughput.',
+  },
+
+  {
+    type: 'statement',
+    section: ['04', 'what breaks'],
+    h: 'claude.md is a <em>suggestion</em>.',
+    size: 'sm',
+    body: 'a rule an agent can ignore eventually gets ignored. rules that must hold go where the agent can’t route around them: <strong>linters, types, hooks, a reviewer that blocks the merge.</strong>',
+  },
+
+  {
+    type: 'statement',
+    section: ['04', 'what breaks'],
+    h: 'institutional memory <em>evaporates</em> by default.',
+    size: 'sm',
+    body: 'there’s no long-tenured engineer who just knows why. the memory has to be manufactured: <strong>topology maps, decision records, context agents load before they touch anything.</strong>',
+  },
+
+  {
+    type: 'statement',
+    section: ['05', 'the machinery'],
+    h: 'anything you do twice should be a <em>loop</em>.',
+    body: 'every break so far has the same fix shape: something fires, an agent handles it, a gate checks it, repeat. my job became owning loops instead of doing tasks.',
+  },
+
+  {
+    type: 'terminal',
+    section: ['05', 'the machinery · review loop'],
+    h: 'many reviewers, <em>one concern</em> each.',
+    size: 'sm',
+    solo: true,
+    terms: [
+      {
+        path: 'review-loop',
+        badge: 'on: pr opened',
+        body: `<span class="dim">[09:14:02]</span> <span class="info">PR #2841 opened</span> · feat/parser-retry
 <span class="dim">[09:14:03]</span> <span class="p">→</span> dispatching reviewer fleet (4)
 <span class="dim">[09:14:21]</span>   <span class="agent">style</span>      <span class="ok">pass</span>
 <span class="dim">[09:14:24]</span>   <span class="agent">security</span>   <span class="bad">block</span> · untrusted input on L88
@@ -485,221 +693,374 @@
 <span class="dim">[09:14:31]</span> <span class="p">→</span> author-agent picking up feedback
 <span class="dim">[09:17:12]</span> <span class="info">push</span> a41c9e2 · sanitize parser input
 <span class="dim">[09:17:30]</span>   <span class="agent">security</span>   <span class="ok">pass</span>
-<span class="dim">[09:17:31]</span> <span class="p">→</span> gate: <span class="ok">APPROVED</span> · auto-merge<span class="cursor"></span></div>
-      </div>
-    </div>
-  </section>
+<span class="dim">[09:17:31]</span> <span class="p">→</span> gate: <span class="ok">APPROVED</span> · auto-merge<span class="cursor"></span>`,
+      },
+    ],
+    notes: 'walk the timeline out loud: security blocks, the author agent picks up the feedback, re-review passes, merge. total elapsed about three minutes, no human in the inner loop.',
+  },
 
-  <!-- 12. the rest of the fleet -->
-  <section class="slide">
-    <div class="eyebrow"><span class="tick">04</span><span class="label">the machinery · the rest of the fleet</span></div>
-    <h2 class="statement sm">same shape, <em>different trigger</em>.</h2>
-    <div class="casts">
-      <div class="term">
-        <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="path">dep-loop</span><span class="badge">cron: nightly</span></div>
-        <div class="term-body"><span class="p">→</span> scan deps
+  {
+    type: 'terminal',
+    section: ['05', 'the machinery · the rest of the fleet'],
+    h: 'same shape, <em>different trigger</em>.',
+    size: 'sm',
+    terms: [
+      {
+        path: 'dep-loop',
+        badge: 'cron: nightly',
+        body: `<span class="p">→</span> scan deps
 <span class="ok">12</span> updates · <span class="info">3</span> breaking
 <span class="p">→</span> branch per bump, run suite
 <span class="ok">9 green</span> · auto-merge
-<span class="bad">3 red</span> · open issue, assign<span class="cursor"></span></div>
-      </div>
-      <div class="term">
-        <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="path">issue-loop</span><span class="badge">on: issue opened</span></div>
-        <div class="term-body"><span class="info">#903</span> · bug report, unlabeled
+<span class="bad">3 red</span> · open issue, assign<span class="cursor"></span>`,
+      },
+      {
+        path: 'issue-loop',
+        badge: 'on: issue opened',
+        body: `<span class="info">#903</span> · bug report, unlabeled
 <span class="p">→</span> triage-agent labels + scopes
 <span class="p">→</span> spins draft fix on branch
 <span class="dim">waits for human</span> <span class="ok">go / no-go</span>
-<span class="p">→</span> hands to review-loop<span class="cursor"></span></div>
-      </div>
-      <div class="term">
-        <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="path">ci-babysit</span><span class="badge">on: ci red</span></div>
-        <div class="term-body"><span class="bad">main is red</span>
+<span class="p">→</span> hands to review-loop<span class="cursor"></span>`,
+      },
+      {
+        path: 'ci-babysit',
+        badge: 'on: ci red',
+        body: `<span class="bad">main is red</span>
 <span class="p">→</span> agent reads the log
 <span class="info">flaky</span>: network timeout
 <span class="p">→</span> retry · <span class="ok">green</span>
-<span class="dim">real break → page a human</span><span class="cursor"></span></div>
-      </div>
+<span class="dim">real break → page a human</span><span class="cursor"></span>`,
+      },
+    ],
+  },
+
+  {
+    type: 'statement',
+    section: ['06', 'supporting machinery'],
+    h: 'enforce with <em>tools</em>.',
+    size: 'sm',
+    body: 'every “agents should always X” gets pushed down into a lint rule, a type, a pre-commit hook, or a blocking reviewer. written rules drift; mechanical ones don’t.',
+  },
+
+  {
+    type: 'statement',
+    section: ['06', 'supporting machinery'],
+    h: 'onboard agents like <em>coworkers</em>.',
+    size: 'sm',
+    body: 'give the fleet what a new hire gets: the docs, the topology, log access, the ability to run tests and open issues on their own.',
+  },
+
+  {
+    type: 'statement',
+    section: ['06', 'supporting machinery'],
+    h: 'pick languages your <em>agents</em> are good at.',
+    size: 'sm',
+    body: 'rust, go, strict typescript. a strong compiler catches the fleet’s mistakes before a human has to.',
+  },
+
+  {
+    type: 'grid',
+    section: ['07', 'objections'],
+    items: [
+      {
+        q: '“the spend, though?”',
+        a: 'token cost on directed work is a rounding error next to salary. the spend that hurts is <b>waste from bad direction</b>.',
+      },
+      {
+        q: '“what about when claude is down?”',
+        a: 'the same thing you do when github is down. it’s a dependency; <b>treat it like one</b>.',
+      },
+      {
+        q: '“model agnostic?”',
+        a: 'nice to have. you’re probably not cloud-provider agnostic either, <b>for the same reasons</b>.',
+      },
+      {
+        q: '“which harness?”',
+        a: 'the differences have mostly collapsed. pick one for <b>team coherence</b> and move on.',
+      },
+    ],
+  },
+
+  {
+    type: 'list',
+    section: ['08', 'what’s still yours'],
+    h: 'what debugging looks like now',
+    size: 'sm',
+    rows: [
+      { n: '1', t: 'observe the bug, get a repro' },
+      { n: '2', t: 'form a hypothesis from my mental model' },
+      { n: '3', t: 'hand the agent the failure and the hypothesis' },
+      { n: '4', t: 'interrogate the answer' },
+      { n: '5', t: 'direct the fix' },
+    ],
+    body: 'the loop doesn’t end until i can explain the bug myself.',
+  },
+
+  {
+    type: 'statement',
+    section: ['08', 'what’s still yours'],
+    h: 'i don’t ship what i can’t <em>explain</em>.',
+    size: 'sm',
+    body: 'the fair question: how can you understand the work of 500 engineers before you ship it? not by reading every line. <strong>i interrogate the agent until my mental model predicts the system, and the reviewer fleet covers the rest.</strong>',
+  },
+
+  {
+    type: 'list',
+    section: ['08', 'what’s still yours'],
+    h: 'ship a bug? fix the <em>review</em>.',
+    size: 'sm',
+    rows: [
+      { n: '1', t: 'notice the escape' },
+      { n: '2', t: 'find which reviewer missed it' },
+      { n: '3', t: 'sharpen it, or add a specialist' },
+      { n: '4', t: 'ship the policy change' },
+    ],
+    body: 'the fleet can’t see what it failed to catch. noticing escapes is my job now.',
+  },
+
+  {
+    type: 'statement',
+    section: ['08', 'what’s still yours'],
+    h: 'the job that’s left is <em>judgment</em>.',
+    size: 'sm',
+    body: 'what gets built, how, and whether my mental model still matches the system. when i notice the model is gone, i stop and make the agent teach it back before shipping anything else.',
+  },
+
+  {
+    type: 'statement',
+    section: ['09', 'parting'],
+    h: 'if it still feels net <em>neutral</em>, i get it.',
+    body: 'that was me a year ago, on weaker models with no structure. the models already moved. the structure is the part you control, and i’d start with one loop.',
+    notes: 'invitation, not accusation. offer to help anyone set up their first loop; that is a concrete next step people can take this week.',
+  },
+
+  {
+    type: 'links',
+    section: ['fin', ''],
+    h: 'thanks.',
+    rows: [
+      { href: 'https://jessica.black', text: 'jessica.black', desc: 'more about me and my projects' },
+      { href: 'https://bastion.jessica.black', text: 'bastion.jessica.black', desc: 'agentic reviewers that work' },
+      { href: 'https://akari.jessica.black', text: 'akari.jessica.black', desc: 'see what your agents are doing' },
+      { href: 'https://attune.inc/blog/nudge', text: 'attune.inc/blog/nudge', desc: 'guardrails for your agents' },
+    ],
+    meta: 'jessica black <span class="sep">·</span> 2026',
+  },
+
+];
+
+/* ==========================================================================
+   renderer + deck runtime. you shouldn't need to touch anything below here.
+   ========================================================================== */
+
+const HUMAN_GLYPH = `<svg class="glyph human" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+  <circle cx="12" cy="7" r="4"/>
+  <path d="M12 13.5c-4.7 0-8.5 3-8.5 6.7V22h17v-1.8c0-3.7-3.8-6.7-8.5-6.7z"/>
+</svg>`;
+const BOT_GLYPH = `<svg class="glyph bot" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+  <rect x="11" y="2" width="2" height="4" rx="1"/>
+  <circle cx="12" cy="2" r="1.7"/>
+  <rect x="3.5" y="7" width="17" height="13" rx="3.5"/>
+  <rect x="8" y="11.5" width="2.6" height="4" rx="1" style="fill:var(--bg)"/>
+  <rect x="13.4" y="11.5" width="2.6" height="4" rx="1" style="fill:var(--bg)"/>
+</svg>`;
+
+function eyebrow(s) {
+  if (!s.section) return '';
+  const [tick, label] = s.section;
+  return `<div class="eyebrow"><span class="tick">${tick}</span>${label ? `<span class="label">${label}</span>` : ''}</div>`;
+}
+function heading(s) {
+  return s.h ? `<h2 class="statement${s.size === 'sm' ? ' sm' : ''}">${s.h}</h2>` : '';
+}
+function bodyText(s) {
+  return s.body ? `<p class="body">${s.body}</p>` : '';
+}
+function listRows(rows) {
+  return rows.map(r =>
+    `<div class="row"><span class="n">${r.n}</span><span class="t">${r.t}</span>${r.arrow ? `<span class="arrow">${r.arrow}</span>` : ''}</div>`
+  ).join('');
+}
+function termBlock(t) {
+  return `<div class="term">
+    <div class="term-bar">
+      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      <span class="path">${t.path}</span>
+      <span class="badge">${t.badge}</span>
     </div>
-  </section>
+    <div class="term-body">${t.body}</div>
+  </div>`;
+}
 
-  <!-- 13. loop pattern -->
-  <section class="slide">
-    <div class="eyebrow"><span class="tick">04</span><span class="label">the machinery</span></div>
-    <h2 class="statement sm">anything you do twice is a loop you <em>haven't built yet</em>.</h2>
-    <p class="body">the skill isn't doing the work. it's seeing the loop and closing it. review, deps, issues, CI, releases. <strong>loop loop loop.</strong></p>
-  </section>
+const RENDER = {
+  title: s => `
+    <div class="title-eyebrow"><span class="prompt">${s.prompt}</span></div>
+    <h1 class="statement">${s.statement}</h1>
+    <div class="title-meta">${s.meta}</div>`,
 
-  <!-- 14. static enforcement -->
-  <section class="slide">
-    <div class="eyebrow"><span class="tick">05</span><span class="label">supporting machinery</span></div>
-    <h2 class="statement sm">enforce with <em>tools</em>.</h2>
-    <p class="body">written rules drift. a linter doesn't. push every "agents should always X" down into something mechanical: lint rule, type, pre-commit, hook, blocking reviewer. <strong>if a human has to remember it, it's already broken.</strong></p>
-  </section>
+  statement: s => eyebrow(s) + heading(s) + bodyText(s),
 
-  <!-- 15. agents as coworkers -->
-  <section class="slide">
-    <div class="eyebrow"><span class="tick">05</span><span class="label">supporting machinery</span></div>
-    <h2 class="statement sm">treat agents like <em>coworkers</em>.</h2>
-    <p class="body">a good coworker has context and can unblock themselves. give the fleet the same: the docs, the topology, the ability to read logs, run tests, open issues. <strong>an agent that has to ask you everything is a junior you forgot to onboard.</strong></p>
-  </section>
+  list: s => eyebrow(s) + heading(s) + `<div class="preview">${listRows(s.rows)}</div>` + bodyText(s),
 
-  <!-- 16. languages -->
-  <section class="slide">
-    <div class="eyebrow"><span class="tick">05</span><span class="label">supporting machinery</span></div>
-    <h2 class="statement sm">pick languages your <em>agents</em> are good at.</h2>
-    <p class="body">rust, go, bun with strict typescript. offload correctness to the <strong>compiler</strong> instead of to human eyeballs. a strong toolchain catches the agent's mistakes before you have to.</p>
-  </section>
+  cards: s => eyebrow(s) + heading(s) + `<div class="cardrow">${s.cards.map(c =>
+    `<div class="card">${c.tag ? `<div class="tag">${c.tag}</div>` : ''}${c.title ? `<div class="title">${c.title}</div>` : ''}<div class="line">${c.line}</div></div>`
+  ).join(s.flow ? '<span class="flow">→</span>' : '')}</div>` + bodyText(s),
 
-  <!-- 17. objections -->
-  <section class="slide">
-    <div class="eyebrow"><span class="tick">06</span><span class="label">objections, in passing</span></div>
-    <div class="obj-grid">
-      <div class="obj">
-        <div class="q">"the spend, though?"</div>
-        <div class="a">token cost on directed work is a rounding error next to salary. the only spend that hurts is <b>waste from bad direction</b>.</div>
+  quote: s => eyebrow(s) + `
+    <div class="quote-mark">“</div>
+    <div class="quote">${s.quote}</div>
+    <div class="quote-attr">${s.attribution}</div>` + bodyText(s),
+
+  count: s => {
+    const [b1, b2] = s.beats;
+    return eyebrow(s) + `
+    <div class="count-grid">
+      <div class="count-nums-left">
+        <span class="count-unit">${HUMAN_GLYPH}<span class="count-from">5</span></span>
+        <span class="count-arrow">→</span>
+        <span class="count-unit">${BOT_GLYPH}<span class="count-mid" data-bignum1>${b1.to}</span></span>
+        <span class="count-arrow stage2">→</span>
       </div>
-      <div class="obj">
-        <div class="q">"what when claude is down?"</div>
-        <div class="a">what do you do when aws or github is down? you live with the dependency, <b>same as every other one</b>.</div>
+      <div class="stage2"><span class="count-to" data-bignum2>${b2.to}</span></div>
+      <div class="count-txt">
+        <div class="count-caption">${b1.caption}</div>
+        ${b1.body ? `<p class="body">${b1.body}</p>` : ''}
       </div>
-      <div class="obj">
-        <div class="q">"model agnostic?"</div>
-        <div class="a">nice to have, don't lose sleep over it. are you cloud-provider agnostic? <b>exactly</b>.</div>
+      <div class="count-txt stage2">
+        <div class="count-caption">${b2.caption}</div>
+        ${b2.body ? `<p class="body">${b2.body}</p>` : ''}
       </div>
-      <div class="obj">
-        <div class="q">"which harness?"</div>
-        <div class="a">the differences collapsed. standardize on one for <b>team coherence</b>. it's not that deep, just pick one.</div>
-      </div>
-    </div>
-  </section>
+    </div>`;
+  },
 
-  <!-- 17b. yours: debug, the method -->
-  <section class="slide">
-    <div class="eyebrow"><span class="tick">07</span><span class="label">what's still yours</span></div>
-    <h2 class="statement sm">"i don't debug" is <em>bait</em>.</h2>
-    <div class="preview">
-      <div class="row"><span class="n">1</span><span class="t">observe the bug, get a repro</span></div>
-      <div class="row"><span class="n">2</span><span class="t">infer proximal cause via mental model</span></div>
-      <div class="row"><span class="n">3</span><span class="t">hand agent failure + hypothesis</span></div>
-      <div class="row"><span class="n">4</span><span class="t">interrogate the answer</span></div>
-      <div class="row"><span class="n">5</span><span class="t">direct the fix</span></div>
-    </div>
-    <p class="body"><strong>adversarial verification.</strong> the loop doesn't terminate until i can explain it myself.</p>
-  </section>
+  terminal: s => eyebrow(s) + heading(s) +
+    `<div class="casts${s.solo ? ' solo' : ''}">${s.terms.map(termBlock).join('')}</div>`,
 
-  <!-- 17c. yours: comprehension gate -->
-  <section class="slide">
-    <div class="eyebrow"><span class="tick">07</span><span class="label">what's still yours</span></div>
-    <h2 class="statement sm">i don't ship what i can't <em>explain</em>.</h2>
-    <p class="body">same gate as debugging. a slick, Confident fix i can't reconstruct gets <strong>zero</strong> trust from me. the model's confidence is not evidence. my comprehension is the ship / no-ship bar.</p>
-  </section>
+  grid: s => eyebrow(s) + heading(s) + `<div class="obj-grid">${s.items.map(o =>
+    `<div class="obj"><div class="q">${o.q}</div><div class="a">${o.a}</div></div>`).join('')}</div>`,
 
-  <!-- 17d. yours: escape-to-improvement -->
-  <section class="slide">
-    <div class="eyebrow"><span class="tick">07</span><span class="label">what's still yours</span></div>
-    <h2 class="statement sm">when a bug ships, fix the <em>reviewer</em>.</h2>
-    <div class="preview">
-      <div class="row"><span class="n">1</span><span class="t">notice the escape</span></div>
-      <div class="row"><span class="n">2</span><span class="t">triage which reviewer missed it</span></div>
-      <div class="row"><span class="n">3</span><span class="t">sharpen it, or add a specialist</span></div>
-      <div class="row"><span class="n">4</span><span class="t">ship the policy change</span></div>
-    </div>
-    <p class="body"><strong>escapes are feedback.</strong> the fleet can't see what it failed to catch, so noticing is yours. you manage the agents that write the code and the agents that review it.</p>
-  </section>
+  links: s => eyebrow(s) + `<h2 class="statement">${s.h}</h2>
+    <div class="preview links">${s.rows.map(r =>
+      `<div class="row"><span class="t"><a href="${r.href}">${r.text}</a></span><span class="arrow">${r.desc}</span></div>`).join('')}</div>
+    <div class="title-meta">${s.meta}</div>`,
+};
 
-  <!-- 18. what stays human -->
-  <section class="slide">
-    <div class="eyebrow"><span class="tick">07</span><span class="label">what's still yours</span></div>
-    <h2 class="statement sm">judgment is still <em>king</em>.</h2>
-    <p class="body">directing what gets built, deciding how, holding the mental model of the system. that's the job now. and if you notice you've <strong>lost</strong> the mental model: stop. make the model teach you the system before you ship another thing.</p>
-  </section>
+const deck = document.getElementById('deck');
+SLIDES.forEach(s => {
+  const sec = document.createElement('section');
+  sec.className = 'slide';
+  sec.innerHTML = RENDER[s.type](s);
+  deck.appendChild(sec);
+});
 
-  <!-- 19. cta -->
-  <section class="slide">
-    <div class="eyebrow"><span class="tick">08</span><span class="label">parting thoughts</span></div>
-    <h2 class="statement">you are not pushing your models <em>hard enough</em>.</h2>
-    <p class="body">almost nobody is. and if pushing hard has only bought you mess so far, you weren't short on effort, you were short on structure. the gap between what these things can do and what teams get from them is the entire opportunity. <strong>close it.</strong></p>
-  </section>
+const slides = Array.from(document.querySelectorAll('.slide'));
+const total = slides.length;
+let i = 0;
+let stage = 0;
+let notesOn = false;
 
-  <!-- 20. end -->
-  <section class="slide">
-    <div class="eyebrow"><span class="tick">fin</span></div>
-    <h2 class="statement">thanks.</h2>
-    <div class="preview links">
-      <div class="row"><span class="t"><a href="https://jessica.black">jessica.black</a></span><span class="arrow">more about me and my projects</span></div>
-      <div class="row"><span class="t"><a href="https://bastion.jessica.black">bastion.jessica.black</a></span><span class="arrow">agentic reviewers that work</span></div>
-      <div class="row"><span class="t"><a href="https://akari.jessica.black">akari.jessica.black</a></span><span class="arrow">see what your agents are doing</span></div>
-      <div class="row"><span class="t"><a href="https://attune.inc/blog/nudge">attune.inc/blog/nudge</a></span><span class="arrow">guardrails for your agents</span></div>
-    </div>
-    <div class="title-meta">jessica black <span class="sep">·</span> 2026</div>
-  </section>
+const prog = document.getElementById('progress');
+slides.forEach(() => { const s = document.createElement('div'); s.className = 'seg'; prog.appendChild(s); });
+const segs = Array.from(prog.children);
+document.getElementById('total').textContent = String(total).padStart(2, '0');
 
-</div>
+const notesEl = document.getElementById('notes');
+const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-<div class="progress" id="progress"></div>
-<div class="navhint"><kbd>←</kbd> <kbd>→</kbd> move · <kbd>f</kbd> fullscreen · <kbd>p</kbd> then print = pdf</div>
-
-<script>
-  const slides = Array.from(document.querySelectorAll('.slide'));
-  const total = slides.length;
-  let i = 0;
-
-  // build progress segments
-  const prog = document.getElementById('progress');
-  slides.forEach(() => { const s = document.createElement('div'); s.className = 'seg'; prog.appendChild(s); });
-  const segs = Array.from(prog.children);
-  document.getElementById('total').textContent = String(total).padStart(2,'0');
-
-  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  function countUp(el) {
-    if (reduced) { el.textContent = '500'; return; }
-    const start = 5, end = 500, dur = 3600, t0 = performance.now();
-    function frame(t) {
-      const k = Math.min(1, (t - t0) / dur);
-      const eased = 1 - Math.pow(1 - k, 6.5);
-      el.textContent = Math.round(start + (end - start) * eased);
-      if (k < 1) requestAnimationFrame(frame);
-    }
-    requestAnimationFrame(frame);
+let animSeq = 0;
+function setNum(el, v) {
+  el.dataset.anim = String(++animSeq);
+  el.textContent = String(v);
+}
+function countUp(el, start, end, dur) {
+  const id = String(++animSeq);
+  el.dataset.anim = id;
+  if (reduced) { el.textContent = String(end); return; }
+  const t0 = performance.now();
+  function frame(t) {
+    if (el.dataset.anim !== id) return;
+    const k = Math.min(1, (t - t0) / dur);
+    const eased = 1 - Math.pow(1 - k, 6.5);
+    el.textContent = Math.round(start + (end - start) * eased);
+    if (k < 1) requestAnimationFrame(frame);
   }
+  requestAnimationFrame(frame);
+}
 
-  function show(n) {
-    i = Math.max(0, Math.min(total - 1, n));
-    slides.forEach((s, idx) => s.classList.toggle('active', idx === i));
-    segs.forEach((s, idx) => {
-      s.classList.toggle('done', idx < i);
-      s.classList.toggle('here', idx === i);
-    });
-    document.getElementById('cur').textContent = String(i + 1).padStart(2,'0');
-    const active = slides[i];
-    if (active.hasAttribute('data-count')) {
-      const num = active.querySelector('#bignum');
-      if (num) countUp(num);
-    }
+function applyStage(animate) {
+  const s = SLIDES[i];
+  if (s.type !== 'count') return;
+  const active = slides[i];
+  const [b1, b2] = s.beats;
+  active.classList.toggle('stage2-on', stage > 0);
+  const n1 = active.querySelector('[data-bignum1]');
+  const n2 = active.querySelector('[data-bignum2]');
+  if (stage === 0) {
+    setNum(n2, b2.to);
+    if (animate) countUp(n1, 5, b1.to, 2200);
+    else setNum(n1, b1.to);
+  } else {
+    setNum(n1, b1.to);
+    if (animate) countUp(n2, b1.to, b2.to, 2600);
+    else setNum(n2, b2.to);
   }
+}
 
-  function next() { show(i + 1); }
-  function prev() { show(i - 1); }
+function syncNotes() {
+  const n = SLIDES[i] && SLIDES[i].notes;
+  if (notesOn && n) {
+    notesEl.innerHTML = '<span class="notes-tag">notes</span>';
+    notesEl.appendChild(document.createTextNode(n));
+    notesEl.classList.add('on');
+  } else {
+    notesEl.classList.remove('on');
+  }
+}
 
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); next(); }
-    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); prev(); }
-    else if (e.key === 'Home') { show(0); }
-    else if (e.key === 'End') { show(total - 1); }
-    else if (e.key === 'f' || e.key === 'F') {
-      if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
-      else document.exitFullscreen?.();
-    }
+function show(n) {
+  i = Math.max(0, Math.min(total - 1, n));
+  stage = 0;
+  slides.forEach((s, idx) => s.classList.toggle('active', idx === i));
+  segs.forEach((s, idx) => {
+    s.classList.toggle('done', idx < i);
+    s.classList.toggle('here', idx === i);
   });
+  document.getElementById('cur').textContent = String(i + 1).padStart(2, '0');
+  applyStage(true);
+  syncNotes();
+}
 
-  // click right 60% = next, left 40% = prev (ignore link clicks)
-  document.getElementById('deck').addEventListener('click', (e) => {
-    if (e.target.closest('a')) return;
-    if (e.clientX > window.innerWidth * 0.4) next(); else prev();
-  });
+function next() {
+  const s = SLIDES[i];
+  if (s.type === 'count' && stage < s.beats.length - 1) { stage++; applyStage(true); return; }
+  show(i + 1);
+}
+function prev() {
+  const s = SLIDES[i];
+  if (s.type === 'count' && stage > 0) { stage--; applyStage(false); return; }
+  show(i - 1);
+}
 
-  show(0);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); next(); }
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); prev(); }
+  else if (e.key === 'Home') { show(0); }
+  else if (e.key === 'End') { show(total - 1); }
+  else if (e.key === 'n' || e.key === 'N') { notesOn = !notesOn; syncNotes(); }
+  else if (e.key === 'f' || e.key === 'F') {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+    else document.exitFullscreen?.();
+  }
+});
+
+// click right 60% = next, left 40% = prev (ignore link clicks)
+deck.addEventListener('click', (e) => {
+  if (e.target.closest('a')) return;
+  if (e.clientX > window.innerWidth * 0.4) next(); else prev();
+});
+
+show(0);
 </script>
 </body>
 </html>
