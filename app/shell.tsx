@@ -89,6 +89,7 @@ const HELP_ROWS: Array<[string, string]> = [
   ["resume", "the whole résumé, printed"],
   ["tree", "the filesystem, at a glance"],
   ["writing", "blog posts & interviews"],
+  ["talks", "slide decks, served right here"],
   ["open <target>", "open a link, e.g. open github, open hurry"],
   ["theme <name>", "amber · green · paper"],
   ["history", "what you have run"],
@@ -370,6 +371,32 @@ const WRITING: Writing[] = [
     url: "https://serokell.io/blog/rust-in-production-fossa",
   },
 ]
+
+// Talks are slide decks served from this site (public/talks/*.html), so
+// `open <name>` opens a local page in a new tab rather than leaving for GitHub.
+// `cat` prints the summary; the deck itself is the thing you open.
+type Talk = {
+  name: string // basename under ~/talks, without extension
+  title: string // the deck's own title slide
+  year: string
+  note: string // one-line note in listings
+  href: string // where the deck lives on this site
+  summary: string // what `cat` prints before inviting `open`
+}
+
+const TALKS: Talk[] = [
+  {
+    name: "agentic-engineering",
+    title: "agentic engineering",
+    year: "2026",
+    note: "engineers writing code is dead - the work moved up a level",
+    href: "/talks/agentic-engineering.html",
+    summary:
+      "A deck on engineering with agents: directing systems instead of writing lines, reviewing output no single human can read, manufacturing the institutional memory agents load before they touch anything, automating every loop you run twice, and owning that what ships is correct.",
+  },
+]
+
+const talkFile = (t: Talk) => `${t.name}.html`
 
 type Link = { key: string; label: string; url: string }
 
@@ -881,6 +908,7 @@ const COMMANDS = [
   "skills",
   "resume",
   "writing",
+  "talks",
   "projects",
   "tree",
   "theme",
@@ -962,7 +990,13 @@ const MANPAGES: Record<string, ManEntry> = {
     name: "projects - list the things I've built",
     synopsis: "projects",
     desc: "Lists ~/projects with a one-line note each. Open-source ones link to their code; any project with its own public home links there instead. Click one, or `open <name>`, to visit it.",
-    see: ["resume", "skills"],
+    see: ["resume", "skills", "talks"],
+  },
+  talks: {
+    name: "talks - list talks I've given",
+    synopsis: "talks",
+    desc: "Lists ~/talks - slide decks hosted on this site. cat one for a summary; `open <name>` plays the deck in a new tab (arrows advance, esc does nothing, it's a webpage).",
+    see: ["projects", "resume"],
   },
   resume: {
     name: "resume - print the full résumé",
@@ -1261,6 +1295,14 @@ function buildHomeChildren(): FsNode[] {
       render: () => <WritingFileBlock item={w} file={file} />,
     }
   })
+  const talks: FsNode[] = TALKS.map((t): FsFileNode => ({
+    kind: "file",
+    name: talkFile(t),
+    note: t.note,
+    cmd: `open ${t.name}`,
+    open: t.href,
+    render: (run) => <TalkFileBlock talk={t} run={run} />,
+  }))
   const games: FsNode[] = GAME_LIST.map(([id, note]): FsFileNode => ({
     kind: "file",
     name: id,
@@ -1319,6 +1361,16 @@ function buildHomeChildren(): FsNode[] {
       children: writing,
       listing: () => <WritingBlock />,
       treeMeta: `${WRITING.length} posts`,
+      treeLeaf: true,
+    },
+    {
+      kind: "dir",
+      name: "talks",
+      note: "talks I've given",
+      cmd: "talks",
+      children: talks,
+      listing: (run) => <TalksBlock run={run} />,
+      treeMeta: `${TALKS.length} ${TALKS.length === 1 ? "talk" : "talks"}`,
       treeLeaf: true,
     },
     {
@@ -2601,14 +2653,16 @@ function useShellController() {
             open: which one? try <Cmd run={clickRef.current}>open github</Cmd>,{" "}
             <Cmd run={clickRef.current}>open linkedin</Cmd>, or a repo like{" "}
             <Cmd run={clickRef.current}>open hurry</Cmd> -{" "}
-            <Cmd run={clickRef.current}>projects</Cmd> lists them all
+            <Cmd run={clickRef.current}>projects</Cmd> lists the repos,{" "}
+            <Cmd run={clickRef.current}>talks</Cmd> the decks
           </Errline>,
         )
         return
       }
       const link = LINKS.find((l) => l.key === t)
       const proj = PROJECTS.find((p) => p.name === t)
-      const target = link?.url ?? (proj ? projectUrl(proj) : undefined)
+      const talk = TALKS.find((k) => k.name === t || talkFile(k) === t)
+      const target = link?.url ?? (proj ? projectUrl(proj) : undefined) ?? talk?.href
       if (!target) {
         pushText(
           <Errline>
@@ -2622,7 +2676,7 @@ function useShellController() {
       pushText(
         <p className="jsh-out">
           <span className="jsh-ok">→</span> opening{" "}
-          <Ext href={target}>{link?.label ?? proj?.name}</Ext>
+          <Ext href={target}>{link?.label ?? proj?.name ?? talk?.name}</Ext>
           {!isMail ? " in a new tab…" : "…"}
         </p>,
       )
@@ -2758,6 +2812,10 @@ function useShellController() {
           case "writing":
           case "blog":
             return runLs("~/writing")
+          case "talks":
+          case "talk":
+          case "decks":
+            return runLs("~/talks")
           case "projects":
           case "repos":
           case "oss":
@@ -3816,6 +3874,27 @@ function WritingFileBlock({ item, file }: { item: Writing; file: string }) {
   )
 }
 
+// `cat ~/talks/<name>.html` - a talk's "file": deck title, year, a summary,
+// and the invitation to open the real deck (a page on this site) in a new tab.
+function TalkFileBlock({ talk, run }: { talk: Talk; run: RunCmd }) {
+  return (
+    <div className="jsh-skillfile">
+      <p className="jsh-out jsh-muted">
+        <span className="jsh-ok">$</span> cat ~/talks/{talkFile(talk)}
+      </p>
+      <p className="jsh-out">
+        <span className="jsh-em">{talk.title}</span>
+        <span className="jsh-muted"> · {talk.year}</span>
+      </p>
+      <p className="jsh-out jsh-measure">{talk.summary}</p>
+      <p className="jsh-out jsh-muted">
+        → <Cmd run={run}>{`open ${talk.name}`}</Cmd> to watch the deck in a new tab.
+        arrow keys advance the slides.
+      </p>
+    </div>
+  )
+}
+
 // `cat ~/games/<name>` - games are "binaries", not text. Don't cat them; run them.
 function BinaryBlock({ name, run }: { name: string; run: RunCmd }) {
   return (
@@ -4171,6 +4250,53 @@ function WritingBlock() {
             </span>
           )
         })}
+      </p>
+    </div>
+  )
+}
+
+// `talks` - slide decks, listed like the projects block. Clicking a deck
+// dispatches `open <name>`, which opens it in a new tab; cat one to read the
+// summary before committing to the whole deck.
+function TalksBlock({ run }: { run: (c: string) => void }) {
+  const preview = usePreview()
+  return (
+    <div className="jsh-projects">
+      <p className="jsh-out jsh-muted">
+        <span className="jsh-ok">$</span> ls ~/talks/
+      </p>
+      <p className="jsh-ls-total jsh-muted">
+        {TALKS.length} {TALKS.length === 1 ? "talk" : "talks"} - slide decks
+        served from this site
+      </p>
+      <ul className="jsh-sk-list">
+        {TALKS.map((t) => {
+          const cmd = `open ${t.name}`
+          return (
+            <li key={t.name} className="jsh-sk-row">
+              <button
+                type="button"
+                className="jsh-sk-file"
+                onClick={() => run(cmd)}
+                onMouseEnter={() => preview(cmd)}
+                onMouseLeave={() => preview(null)}
+                onFocus={() => preview(cmd)}
+                onBlur={() => preview(null)}
+                title={cmd}
+              >
+                {talkFile(t)}
+              </button>
+              <span className="jsh-sk-desc">
+                {t.note}
+                <span className="jsh-game-best"> · {t.year}</span>
+              </span>
+            </li>
+          )
+        })}
+      </ul>
+      <p className="jsh-out jsh-muted jsh-ls-hint">
+        → click to open a deck in a new tab, or{" "}
+        <Cmd run={run}>{`cat ${TALKS[0].name}`}</Cmd> for the summary first.
       </p>
     </div>
   )

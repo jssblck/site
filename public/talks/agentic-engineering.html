@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>agentic engineering · jessica black</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Archivo+Expanded:wght@700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0c0e11;
+    --surface: #15181d;
+    --surface-2: #1c2026;
+    --line: #2a2f37;
+    --bone: #ece7dc;
+    --grey: #9097a1;
+    --grey-dim: #5f6671;
+    --amber: #f0a44e;
+    --amber-dim: #b5763a;
+    --term-ok: #79b08a;
+    --term-bad: #c97a6d;
+    --term-info: #7fb0c4;
+
+    --display: "Archivo Expanded", sans-serif;
+    --body: "Archivo", sans-serif;
+    --mono: "JetBrains Mono", monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--bone);
+    font-family: var(--body);
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(120% 90% at 50% 0%, rgba(240,164,78,0.05), transparent 55%),
+                radial-gradient(140% 120% at 50% 120%, rgba(0,0,0,0.55), transparent 60%);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* ---------- deck chrome ---------- */
+  .hud {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 22px 32px;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: var(--grey-dim);
+    z-index: 5;
+  }
+  .hud .brand { color: var(--grey); }
+  .hud .brand b { color: var(--bone); font-weight: 500; }
+  .hud .count b { color: var(--amber); font-weight: 700; }
+
+  .progress {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    display: flex;
+    gap: 2px;
+    padding: 0 0;
+    z-index: 5;
+    background: transparent;
+  }
+  .progress .seg {
+    flex: 1;
+    background: var(--line);
+    transition: background 0.35s ease;
+  }
+  .progress .seg.done { background: var(--amber-dim); }
+  .progress .seg.here { background: var(--amber); }
+
+  /* ---------- slides ---------- */
+  .deck { position: relative; height: 100%; z-index: 2; }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    padding: clamp(56px, 8vw, 130px);
+    padding-top: clamp(80px, 9vw, 150px);
+    opacity: 0;
+  }
+  .slide.active {
+    display: flex;
+    animation: rise 0.42s cubic-bezier(.2,.7,.2,1) both;
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: clamp(11px, 1.1vw, 14px);
+    letter-spacing: 0.12em;
+    text-transform: lowercase;
+    color: var(--amber);
+    margin-bottom: clamp(22px, 3vw, 40px);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .eyebrow .tick { color: var(--grey-dim); }
+  .eyebrow .label { color: var(--grey); }
+
+  .statement {
+    font-family: var(--display);
+    font-weight: 800;
+    line-height: 0.98;
+    letter-spacing: -0.01em;
+    font-size: clamp(2.3rem, 6.2vw, 5.6rem);
+    max-width: 18ch;
+  }
+  .statement.sm { font-size: clamp(2rem, 4.6vw, 4rem); max-width: 22ch; }
+  .statement em { color: var(--amber); font-style: normal; }
+
+  .body {
+    font-size: clamp(1.05rem, 1.7vw, 1.5rem);
+    line-height: 1.5;
+    color: var(--grey);
+    max-width: 46ch;
+    margin-top: clamp(24px, 3vw, 40px);
+    font-weight: 400;
+  }
+  .body strong { color: var(--bone); font-weight: 600; }
+  .body .hot { color: var(--amber); font-weight: 600; }
+
+  /* ---------- title slide ---------- */
+  .title-eyebrow {
+    font-family: var(--mono);
+    font-size: clamp(12px, 1.3vw, 15px);
+    color: var(--grey);
+    letter-spacing: 0.04em;
+    margin-bottom: clamp(28px, 4vw, 48px);
+  }
+  .title-eyebrow .prompt { color: var(--amber); }
+  .title-meta {
+    font-family: var(--mono);
+    font-size: clamp(13px, 1.3vw, 15px);
+    color: var(--grey);
+    margin-top: clamp(30px, 4vw, 50px);
+    letter-spacing: 0.03em;
+  }
+  .title-meta .sep { color: var(--grey-dim); padding: 0 8px; }
+
+  /* ---------- count slide ---------- */
+  .count-wrap { display: flex; align-items: center; gap: clamp(16px, 2.5vw, 40px); flex-wrap: wrap; }
+  .count-unit { display: inline-flex; align-items: center; gap: clamp(10px, 1.5vw, 22px); }
+  .glyph { display: block; flex: none; }
+  .glyph.human { width: clamp(1.5rem, 3.4vw, 2.9rem); color: var(--grey-dim); }
+  .glyph.bot { width: clamp(2.9rem, 7.5vw, 6.4rem); color: var(--amber); }
+  .count-from {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: clamp(2rem, 5vw, 4.5rem);
+    color: var(--grey-dim);
+    line-height: 1;
+  }
+  .count-arrow { font-family: var(--mono); font-size: clamp(1.4rem, 3vw, 2.6rem); color: var(--grey-dim); }
+  .count-to {
+    font-family: var(--display);
+    font-weight: 900;
+    font-size: clamp(5rem, 18vw, 16rem);
+    color: var(--amber);
+    line-height: 0.85;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- bastion card ---------- */
+  .card {
+    margin-top: clamp(26px, 3vw, 38px);
+    border: 1px solid var(--line);
+    background: var(--surface);
+    border-left: 2px solid var(--amber);
+    padding: clamp(20px, 2.4vw, 30px) clamp(22px, 2.6vw, 34px);
+    max-width: 52ch;
+  }
+  .card .tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--amber);
+    margin-bottom: 12px;
+  }
+  .card .line { font-size: clamp(1rem, 1.5vw, 1.25rem); color: var(--bone); line-height: 1.45; }
+  .card .link {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--amber);
+    margin-top: 14px;
+    display: inline-block;
+    text-decoration: none;
+    border-bottom: 1px solid var(--amber-dim);
+  }
+
+  /* ---------- terminal cast ---------- */
+  .casts { display: flex; gap: 22px; flex-wrap: wrap; margin-top: clamp(18px, 2.4vw, 32px); }
+  .term {
+    flex: 1 1 0;
+    min-width: 300px;
+    border: 1px solid var(--line);
+    background: #0a0c0f;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 20px 50px -30px rgba(0,0,0,0.9);
+  }
+  .term-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+  }
+  .term-bar .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+  .term-bar .path { font-family: var(--mono); font-size: 11px; color: var(--grey-dim); margin-left: 6px; }
+  .term-bar .badge {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--amber);
+    border: 1px solid var(--amber-dim);
+    border-radius: 3px;
+    padding: 2px 7px;
+  }
+  .term-body {
+    font-family: var(--mono);
+    font-size: clamp(11px, 1.05vw, 13.5px);
+    line-height: 1.7;
+    padding: 18px 18px 22px;
+    color: var(--grey);
+    white-space: pre-wrap;
+  }
+  .term-body .p { color: var(--amber); }
+  .term-body .ok { color: var(--term-ok); }
+  .term-body .bad { color: var(--term-bad); }
+  .term-body .info { color: var(--term-info); }
+  .term-body .dim { color: var(--grey-dim); }
+  .term-body .agent { color: var(--bone); }
+  .cursor {
+    display: inline-block;
+    width: 8px; height: 1.05em;
+    background: var(--amber);
+    vertical-align: text-bottom;
+    animation: blink 1.05s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .casts.solo .term { max-width: 780px; }
+
+  /* ---------- objections grid ---------- */
+  .obj-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(18px, 2.2vw, 30px);
+    margin-top: clamp(22px, 3vw, 38px);
+    max-width: 60ch;
+  }
+  .obj {
+    border-top: 1px solid var(--line);
+    padding-top: 16px;
+  }
+  .obj .q {
+    font-family: var(--mono);
+    font-size: clamp(12px, 1.2vw, 14px);
+    color: var(--amber);
+    margin-bottom: 8px;
+  }
+  .obj .a {
+    font-size: clamp(0.95rem, 1.3vw, 1.12rem);
+    color: var(--grey);
+    line-height: 1.45;
+  }
+  .obj .a b { color: var(--bone); font-weight: 600; }
+
+  /* ---------- list preview ---------- */
+  .preview {
+    font-family: var(--mono);
+    margin-top: clamp(24px, 3vw, 38px);
+    max-width: 50ch;
+  }
+  .preview .row {
+    display: flex;
+    gap: 14px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: clamp(0.95rem, 1.4vw, 1.15rem);
+    color: var(--grey);
+    align-items: baseline;
+  }
+  .preview .row .n { color: var(--grey-dim); font-size: 0.8em; min-width: 2ch; }
+  .preview .row .t { color: var(--bone); }
+  .preview .row .arrow { color: var(--amber); margin-left: auto; }
+
+  .preview.links { max-width: 62ch; }
+  .preview.links .t a { color: var(--bone); text-decoration: none; border-bottom: 1px solid var(--amber-dim); }
+  .preview.links .t a:hover { color: var(--amber); border-bottom-color: var(--amber); }
+  .preview.links .arrow { color: var(--grey); }
+
+  /* ---------- nav hint ---------- */
+  .navhint {
+    position: fixed;
+    bottom: 16px;
+    right: 24px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--grey-dim);
+    z-index: 5;
+    opacity: 0.55;
+  }
+  .navhint kbd {
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 1px 5px;
+    color: var(--grey);
+  }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 720px) {
+    .obj-grid { grid-template-columns: 1fr; }
+    .casts { flex-direction: column; }
+    .navhint { display: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .slide.active { animation: none; }
+    .cursor { animation: none; }
+  }
+
+  /* ---------- print / pdf export ---------- */
+  @media print {
+    @page { size: 1280px 720px; margin: 0; }
+    html, body { overflow: visible; height: auto; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .hud, .progress, .navhint { display: none; }
+    .deck { height: auto; }
+    .slide {
+      position: relative;
+      display: flex !important;
+      opacity: 1 !important;
+      animation: none !important;
+      width: 1280px;
+      height: 720px;
+      page-break-after: always;
+      break-after: page;
+      inset: auto;
+    }
+    body::before { position: absolute; }
+    .cursor { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hud">
+  <div class="brand"><b>agentic engineering</b> · jessica black</div>
+  <div class="count">slide <b id="cur">01</b> / <span id="total">20</span></div>
+</div>
+
+<div class="deck" id="deck">
+
+  <!-- 1. cold open -->
+  <section class="slide active">
+    <div class="title-eyebrow"><span class="prompt">~/talks $</span> ./agentic-engineering</div>
+    <h1 class="statement">engineers writing code is <em>dead</em>.</h1>
+    <div class="title-meta">jessica black <span class="sep">·</span> 2026</div>
+  </section>
+
+  <!-- 2. the turn -->
+  <section class="slide">
+    <div class="eyebrow"><span class="tick">01</span><span class="label">the turn</span></div>
+    <h2 class="statement">it didn't vanish. it moved <em>up a level</em>.</h2>
+    <p class="body">you stopped writing lines and started directing systems. the work is still hard. it's just hard somewhere else now: <strong>guiding agents, unblocking them, owning that the output is correct.</strong></p>
+  </section>
+
+  <!-- 3. thesis count -->
+  <section class="slide" data-count>
+    <div class="eyebrow"><span class="tick">02</span><span class="label">the thesis</span></div>
+    <div class="count-wrap">
+      <span class="count-unit">
+        <svg class="glyph human" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <circle cx="12" cy="7" r="4"/>
+          <path d="M12 13.5c-4.7 0-8.5 3-8.5 6.7V22h17v-1.8c0-3.7-3.8-6.7-8.5-6.7z"/>
+        </svg>
+        <span class="count-from">5</span>
+      </span>
+      <span class="count-arrow">→</span>
+      <span class="count-unit">
+        <svg class="glyph bot" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <rect x="11" y="2" width="2" height="4" rx="1"/>
+          <circle cx="12" cy="2" r="1.7"/>
+          <rect x="3.5" y="7" width="17" height="13" rx="3.5"/>
+          <rect x="8" y="11.5" width="2.6" height="4" rx="1" style="fill:var(--bg)"/>
+          <rect x="13.4" y="11.5" width="2.6" height="4" rx="1" style="fill:var(--bg)"/>
+        </svg>
+        <span class="count-to" id="bignum">500</span>
+      </span>
+    </div>
+    <p class="body">a team of 5 engineers with agents is a team of <span class="hot">500</span>. everyone knows the output explodes. what nobody plans for: the <strong>structure</strong> does too. that's the whole talk.</p>
+  </section>
+
+  <!-- 4. what 500 means -->
+  <section class="slide">
+    <div class="eyebrow"><span class="tick">02</span><span class="label">the thesis</span></div>
+    <h2 class="statement sm">you inherited a <em>500-person</em> org's problems with a <em>5-person</em> team.</h2>
+    <p class="body">coordination. review throughput. drift. institutional memory. none of these were <strong>engineering</strong> problems at 5 humans. all of them are now, overnight, with nobody new to delegate them to. if it feels like things are spinning out of control, this is why: <strong>a 500-person org run on 5-person habits is chaos by construction.</strong></p>
+  </section>
+
+  <!-- 5. downstream -->
+  <section class="slide">
+    <div class="eyebrow"><span class="tick">02</span><span class="label">the thesis</span></div>
+    <h2 class="statement sm">everything else here is downstream of <em>one number</em>.</h2>
+    <div class="preview">
+      <div class="row"><span class="n">a</span><span class="t">review doesn't scale</span><span class="arrow">← 500</span></div>
+      <div class="row"><span class="n">b</span><span class="t">rules aren't binding</span><span class="arrow">← 500</span></div>
+      <div class="row"><span class="n">c</span><span class="t">memory evaporates</span><span class="arrow">← 500</span></div>
+      <div class="row"><span class="n">d</span><span class="t">debug-by-reading dies</span><span class="arrow">← 500</span></div>
+    </div>
+  </section>
+
+  <!-- 6. breaks: review -->
+  <section class="slide">
+    <div class="eyebrow"><span class="tick">03</span><span class="label">what breaks</span></div>
+    <h2 class="statement sm">you cannot review 500 engineers <em>by hand</em>.</h2>
+    <p class="body">5 humans reviewing the output of 495 agents isn't a process, it's a LARP. human-in-every-PR does not survive contact with the throughput.</p>
+  </section>
+
+  <!-- 7. breaks: claude.md -->
+  <section class="slide">
+    <div class="eyebrow"><span class="tick">03</span><span class="label">what breaks</span></div>
+    <h2 class="statement sm">claude.md is a <em>suggestion</em>.</h2>
+    <p class="body">a rule an agent can ignore is a vibe. if it must hold, it has to live somewhere the agent won't route around: <strong>linters, the type system, hooks, a reviewer that blocks the merge.</strong> "please don't" is not an architecture.</p>
+  </section>
+
+  <!-- 9. breaks: memory -->
+  <section class="slide">
+    <div class="eyebrow"><span class="tick">03</span><span class="label">what breaks</span></div>
+    <h2 class="statement sm">institutional memory <em>evaporates</em> by default.</h2>
+    <p class="body">the long-tenured engineer who "just knows why" doesn't exist on an agent fleet. so you <strong>manufacture</strong> the memory: topology maps, knowledge graphs, written context the agents actually load before they touch anything.</p>
+  </section>
+
+  <!-- 10. loops intro -->
+  <section class="slide">
+    <div class="eyebrow"><span class="tick">04</span><span class="label">the machinery</span></div>
+    <h2 class="statement">give me the loops, <em>bröther</em>.</h2>
+    <p class="body">every break has the same fix shape: a loop. something fires, an agent handles it, a gate checks it, repeat. <strong>you stop doing the task and start owning the loop that does the task.</strong></p>
+  </section>
+
+  <!-- 11. review loop cast -->
+  <section class="slide">
+    <div class="eyebrow"><span class="tick">04</span><span class="label">the machinery · review loop</span></div>
+    <h2 class="statement sm">many reviewers, <em>one concern</em> each.</h2>
+    <div class="casts solo">
+      <div class="term">
+        <div class="term-bar">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="path">review-loop</span>
+          <span class="badge">on: pr opened</span>
+        </div>
+        <div class="term-body"><span class="dim">[09:14:02]</span> <span class="info">PR #2841 opened</span> · feat/parser-retry
+<span class="dim">[09:14:03]</span> <span class="p">→</span> dispatching reviewer fleet (4)
+<span class="dim">[09:14:21]</span>   <span class="agent">style</span>      <span class="ok">pass</span>
+<span class="dim">[09:14:24]</span>   <span class="agent">security</span>   <span class="bad">block</span> · untrusted input on L88
+<span class="dim">[09:14:25]</span>   <span class="agent">tests</span>      <span class="ok">pass</span>
+<span class="dim">[09:14:29]</span>   <span class="agent">arch</span>       <span class="ok">pass</span>
+<span class="dim">[09:14:30]</span> <span class="p">→</span> gate: <span class="bad">CHANGES REQUESTED</span>
+<span class="dim">[09:14:31]</span> <span class="p">→</span> author-agent picking up feedback
+<span class="dim">[09:17:12]</span> <span class="info">push</span> a41c9e2 · sanitize parser input
+<span class="dim">[09:17:30]</span>   <span class="agent">security</span>   <span class="ok">pass</span>
+<span class="dim">[09:17:31]</span> <span class="p">→</span> gate: <span class="ok">APPROVED</span> · auto-merge<span class="cursor"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12. the rest of the fleet -->
+  <section class="slide">
+    <div class="eyebrow"><span class="tick">04</span><span class="label">the machinery · the rest of the fleet</span></div>
+    <h2 class="statement sm">same shape, <em>different trigger</em>.</h2>
+    <div class="casts">
+      <div class="term">
+        <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="path">dep-loop</span><span class="badge">cron: nightly</span></div>
+        <div class="term-body"><span class="p">→</span> scan deps
+<span class="ok">12</span> updates · <span class="info">3</span> breaking
+<span class="p">→</span> branch per bump, run suite
+<span class="ok">9 green</span> · auto-merge
+<span class="bad">3 red</span> · open issue, assign<span class="cursor"></span></div>
+      </div>
+      <div class="term">
+        <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="path">issue-loop</span><span class="badge">on: issue opened</span></div>
+        <div class="term-body"><span class="info">#903</span> · bug report, unlabeled
+<span class="p">→</span> triage-agent labels + scopes
+<span class="p">→</span> spins draft fix on branch
+<span class="dim">waits for human</span> <span class="ok">go / no-go</span>
+<span class="p">→</span> hands to review-loop<span class="cursor"></span></div>
+      </div>
+      <div class="term">
+        <div class="term-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="path">ci-babysit</span><span class="badge">on: ci red</span></div>
+        <div class="term-body"><span class="bad">main is red</span>
+<span class="p">→</span> agent reads the log
+<span class="info">flaky</span>: network timeout
+<span class="p">→</span> retry · <span class="ok">green</span>
+<span class="dim">real break → page a human</span><span class="cursor"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 13. loop pattern -->
+  <section class="slide">
+    <div class="eyebrow"><span class="tick">04</span><span class="label">the machinery</span></div>
+    <h2 class="statement sm">anything you do twice is a loop you <em>haven't built yet</em>.</h2>
+    <p class="body">the skill isn't doing the work. it's seeing the loop and closing it. review, deps, issues, CI, releases. <strong>loop loop loop.</strong></p>
+  </section>
+
+  <!-- 14. static enforcement -->
+  <section class="slide">
+    <div class="eyebrow"><span class="tick">05</span><span class="label">supporting machinery</span></div>
+    <h2 class="statement sm">enforce with <em>tools</em>.</h2>
+    <p class="body">written rules drift. a linter doesn't. push every "agents should always X" down into something mechanical: lint rule, type, pre-commit, hook, blocking reviewer. <strong>if a human has to remember it, it's already broken.</strong></p>
+  </section>
+
+  <!-- 15. agents as coworkers -->
+  <section class="slide">
+    <div class="eyebrow"><span class="tick">05</span><span class="label">supporting machinery</span></div>
+    <h2 class="statement sm">treat agents like <em>coworkers</em>.</h2>
+    <p class="body">a good coworker has context and can unblock themselves. give the fleet the same: the docs, the topology, the ability to read logs, run tests, open issues. <strong>an agent that has to ask you everything is a junior you forgot to onboard.</strong></p>
+  </section>
+
+  <!-- 16. languages -->
+  <section class="slide">
+    <div class="eyebrow"><span class="tick">05</span><span class="label">supporting machinery</span></div>
+    <h2 class="statement sm">pick languages your <em>agents</em> are good at.</h2>
+    <p class="body">rust, go, bun with strict typescript. offload correctness to the <strong>compiler</strong> instead of to human eyeballs. a strong toolchain catches the agent's mistakes before you have to.</p>
+  </section>
+
+  <!-- 17. objections -->
+  <section class="slide">
+    <div class="eyebrow"><span class="tick">06</span><span class="label">objections, in passing</span></div>
+    <div class="obj-grid">
+      <div class="obj">
+        <div class="q">"the spend, though?"</div>
+        <div class="a">token cost on directed work is a rounding error next to salary. the only spend that hurts is <b>waste from bad direction</b>.</div>
+      </div>
+      <div class="obj">
+        <div class="q">"what when claude is down?"</div>
+        <div class="a">what do you do when aws or github is down? you live with the dependency, <b>same as every other one</b>.</div>
+      </div>
+      <div class="obj">
+        <div class="q">"model agnostic?"</div>
+        <div class="a">nice to have, don't lose sleep over it. are you cloud-provider agnostic? <b>exactly</b>.</div>
+      </div>
+      <div class="obj">
+        <div class="q">"which harness?"</div>
+        <div class="a">the differences collapsed. standardize on one for <b>team coherence</b>. it's not that deep, just pick one.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 17b. yours: debug, the method -->
+  <section class="slide">
+    <div class="eyebrow"><span class="tick">07</span><span class="label">what's still yours</span></div>
+    <h2 class="statement sm">"i don't debug" is <em>bait</em>.</h2>
+    <div class="preview">
+      <div class="row"><span class="n">1</span><span class="t">observe the bug, get a repro</span></div>
+      <div class="row"><span class="n">2</span><span class="t">infer proximal cause via mental model</span></div>
+      <div class="row"><span class="n">3</span><span class="t">hand agent failure + hypothesis</span></div>
+      <div class="row"><span class="n">4</span><span class="t">interrogate the answer</span></div>
+      <div class="row"><span class="n">5</span><span class="t">direct the fix</span></div>
+    </div>
+    <p class="body"><strong>adversarial verification.</strong> the loop doesn't terminate until i can explain it myself.</p>
+  </section>
+
+  <!-- 17c. yours: comprehension gate -->
+  <section class="slide">
+    <div class="eyebrow"><span class="tick">07</span><span class="label">what's still yours</span></div>
+    <h2 class="statement sm">i don't ship what i can't <em>explain</em>.</h2>
+    <p class="body">same gate as debugging. a slick, Confident fix i can't reconstruct gets <strong>zero</strong> trust from me. the model's confidence is not evidence. my comprehension is the ship / no-ship bar.</p>
+  </section>
+
+  <!-- 17d. yours: escape-to-improvement -->
+  <section class="slide">
+    <div class="eyebrow"><span class="tick">07</span><span class="label">what's still yours</span></div>
+    <h2 class="statement sm">when a bug ships, fix the <em>reviewer</em>.</h2>
+    <div class="preview">
+      <div class="row"><span class="n">1</span><span class="t">notice the escape</span></div>
+      <div class="row"><span class="n">2</span><span class="t">triage which reviewer missed it</span></div>
+      <div class="row"><span class="n">3</span><span class="t">sharpen it, or add a specialist</span></div>
+      <div class="row"><span class="n">4</span><span class="t">ship the policy change</span></div>
+    </div>
+    <p class="body"><strong>escapes are feedback.</strong> the fleet can't see what it failed to catch, so noticing is yours. you manage the agents that write the code and the agents that review it.</p>
+  </section>
+
+  <!-- 18. what stays human -->
+  <section class="slide">
+    <div class="eyebrow"><span class="tick">07</span><span class="label">what's still yours</span></div>
+    <h2 class="statement sm">judgment is still <em>king</em>.</h2>
+    <p class="body">directing what gets built, deciding how, holding the mental model of the system. that's the job now. and if you notice you've <strong>lost</strong> the mental model: stop. make the model teach you the system before you ship another thing.</p>
+  </section>
+
+  <!-- 19. cta -->
+  <section class="slide">
+    <div class="eyebrow"><span class="tick">08</span><span class="label">parting thoughts</span></div>
+    <h2 class="statement">you are not pushing your models <em>hard enough</em>.</h2>
+    <p class="body">almost nobody is. and if pushing hard has only bought you mess so far, you weren't short on effort, you were short on structure. the gap between what these things can do and what teams get from them is the entire opportunity. <strong>close it.</strong></p>
+  </section>
+
+  <!-- 20. end -->
+  <section class="slide">
+    <div class="eyebrow"><span class="tick">fin</span></div>
+    <h2 class="statement">thanks.</h2>
+    <div class="preview links">
+      <div class="row"><span class="t"><a href="https://jessica.black">jessica.black</a></span><span class="arrow">more about me and my projects</span></div>
+      <div class="row"><span class="t"><a href="https://bastion.jessica.black">bastion.jessica.black</a></span><span class="arrow">agentic reviewers that work</span></div>
+      <div class="row"><span class="t"><a href="https://akari.jessica.black">akari.jessica.black</a></span><span class="arrow">see what your agents are doing</span></div>
+      <div class="row"><span class="t"><a href="https://attune.inc/blog/nudge">attune.inc/blog/nudge</a></span><span class="arrow">guardrails for your agents</span></div>
+    </div>
+    <div class="title-meta">jessica black <span class="sep">·</span> 2026</div>
+  </section>
+
+</div>
+
+<div class="progress" id="progress"></div>
+<div class="navhint"><kbd>←</kbd> <kbd>→</kbd> move · <kbd>f</kbd> fullscreen · <kbd>p</kbd> then print = pdf</div>
+
+<script>
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const total = slides.length;
+  let i = 0;
+
+  // build progress segments
+  const prog = document.getElementById('progress');
+  slides.forEach(() => { const s = document.createElement('div'); s.className = 'seg'; prog.appendChild(s); });
+  const segs = Array.from(prog.children);
+  document.getElementById('total').textContent = String(total).padStart(2,'0');
+
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function countUp(el) {
+    if (reduced) { el.textContent = '500'; return; }
+    const start = 5, end = 500, dur = 3600, t0 = performance.now();
+    function frame(t) {
+      const k = Math.min(1, (t - t0) / dur);
+      const eased = 1 - Math.pow(1 - k, 6.5);
+      el.textContent = Math.round(start + (end - start) * eased);
+      if (k < 1) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function show(n) {
+    i = Math.max(0, Math.min(total - 1, n));
+    slides.forEach((s, idx) => s.classList.toggle('active', idx === i));
+    segs.forEach((s, idx) => {
+      s.classList.toggle('done', idx < i);
+      s.classList.toggle('here', idx === i);
+    });
+    document.getElementById('cur').textContent = String(i + 1).padStart(2,'0');
+    const active = slides[i];
+    if (active.hasAttribute('data-count')) {
+      const num = active.querySelector('#bignum');
+      if (num) countUp(num);
+    }
+  }
+
+  function next() { show(i + 1); }
+  function prev() { show(i - 1); }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); next(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); prev(); }
+    else if (e.key === 'Home') { show(0); }
+    else if (e.key === 'End') { show(total - 1); }
+    else if (e.key === 'f' || e.key === 'F') {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+      else document.exitFullscreen?.();
+    }
+  });
+
+  // click right 60% = next, left 40% = prev (ignore link clicks)
+  document.getElementById('deck').addEventListener('click', (e) => {
+    if (e.target.closest('a')) return;
+    if (e.clientX > window.innerWidth * 0.4) next(); else prev();
+  });
+
+  show(0);
+</script>
+</body>
+</html>
