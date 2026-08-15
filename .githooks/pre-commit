@@ -1,4 +1,4 @@
 #!/bin/sh
 set -eu
 
-npm run check
+cd "$(git rev-parse --show-toplevel)/jessica.black" && npm run check

@@ -74,7 +74,8 @@ function configureGitHooks() {
 // `npm ci` keeps resume cheap: an up-to-date tree is a fast no-op instead of a
 // full reinstall.
 function installDeps() {
-  if (!existsSync(join(repoRoot, "package.json"))) {
+  const appRoot = join(repoRoot, "jessica.black");
+  if (!existsSync(join(appRoot, "package.json"))) {
     log("deps: no package.json; skipping.");
     return;
   }
@@ -83,7 +84,7 @@ function installDeps() {
   // (CVE-2024-27980 hardening, EINVAL). The command is a static literal, so
   // there's no untrusted input to escape.
   try {
-    execSync("npm install", { cwd: repoRoot, stdio: "inherit" });
+    execSync("npm install", { cwd: appRoot, stdio: "inherit" });
     log("deps: npm install complete.");
   } catch (err) {
     log(`deps: npm install failed (${err.message}); continuing.`);
