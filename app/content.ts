@@ -55,6 +55,12 @@ export const PROJECTS: Project[] = [
     note: "household intelligence on Discord, with memory, tools, and personal context",
   },
   {
+    name: "agents",
+    url: "https://github.com/jssblck/agents",
+    lang: "Markdown",
+    note: "my agent skills: code style, stacked PRs, shipping, releases, secrets, and prose",
+  },
+  {
     name: "hurry",
     url: "https://github.com/attunehq/hurry",
     lang: "Rust",
