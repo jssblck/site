@@ -5,7 +5,7 @@
   "warnings": true,
   "adoptExistingLintConfig": true,
   "ignore": {
-    "files": [".codex/**", ".next/**", "node_modules/**", "package-lock.json"],
+    "files": [".codex/**", ".next/**", "node_modules/**", "package-lock.json", "public/**"],
     "overrides": [
       {
         "files": ["app/*image.tsx"],
