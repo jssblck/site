@@ -38,8 +38,6 @@ yarn-error.log*
 !.claude/bootstrap.mjs
 !.claude/skills/
 
-# local long-running simulation search checkpoints
-.codex/threebody-search/
 .codex/server/
 
 # bastion review run history (BASTION_DATA_DIR), written locally and in CI

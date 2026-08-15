@@ -1,8 +1,10 @@
-/*
-  Global reset. No CSS framework - the page brings its own styles inline.
-  Kept deliberately small: just enough to make the document a calm dark canvas
-  before the Shell paints itself.
-*/
+:root {
+  --bg: #1c1c2b;
+  --fg: #cdd6f4;
+  --muted: #9399b2;
+  --accent: #cba6f7;
+  --rule: #313244;
+}
 
 *,
 *::before,
@@ -11,24 +13,134 @@
 }
 
 html {
-  scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
 }
 
-html,
 body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.6 var(--font-mono), ui-monospace, monospace;
+}
+
+main {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 5rem 1.25rem 6rem;
+}
+
+header,
+section {
+  margin-bottom: 4rem;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 0;
+}
+
+h1 {
+  font-size: 1.5rem;
+}
+
+h2 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+h3 {
+  font-size: 1rem;
+}
+
+h3 .muted {
+  font-weight: 400;
+}
+
+p {
+  margin: 0;
+}
+
+.lede {
+  margin: 1rem 0 1.5rem;
+  max-width: 38rem;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  text-underline-offset: 0.2em;
+}
+
+a:hover,
+a:focus-visible {
+  text-decoration: underline;
+}
+
+.job {
+  margin-bottom: 2rem;
+}
+
+.dates {
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.job ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.job li {
+  margin-bottom: 0.4rem;
+}
+
+.items {
+  list-style: none;
   margin: 0;
   padding: 0;
 }
 
-body {
-  min-height: 100dvh;
-  background-color: #0c0c0e;
-  color: #e8e6df;
+.items li {
+  margin-bottom: 0.5rem;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
+.items li > a {
+  margin-right: 1rem;
+}
+
+.projects li {
+  display: grid;
+  grid-template-columns: 8rem 1fr;
+  column-gap: 1rem;
+}
+
+.projects .note {
+  grid-column: 2;
+}
+
+@media (max-width: 480px) {
+  main {
+    padding-top: 3rem;
+  }
+
+  .projects li {
+    grid-template-columns: 1fr;
+  }
+
+  .projects .note {
+    grid-column: 1;
   }
 }

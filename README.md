@@ -1,10 +1,8 @@
 # jessica.black
 
-My personal site. It behaves like a live shell session: it boots, settles, then
-takes commands. `help` works; clicking works too.
-
-It's deliberately low-tech: one React component, no terminal-emulator library,
-no CSS framework. Amber phosphor on near-black, no glow, no gradients.
+My personal site: one page, no client JavaScript beyond analytics. Content lives
+in `app/content.ts`; layout in `app/page.tsx`; styles in `styles/globals.css`.
+Talk decks are static HTML under `public/talks/`.
 
 ## Develop
 
@@ -12,33 +10,13 @@ no CSS framework. Amber phosphor on near-black, no glow, no gradients.
 npm install
 npm run dev      # http://localhost:3000
 npm run check    # oxlint + React Doctor + TypeScript
-```
-
-## Build
-
-```bash
 npm run build
-npm start
 ```
 
-## Shareable commands
-
-Append `#cmd="<command>"` to run a shell command after the boot sequence. For
-example, `/#cmd="3bp"` opens the Three Body Problem game. Chained commands are
-allowed, so `/#cmd="cd projects && ls"` works too.
-
-Hash-launched commands cannot run `open`, `xdg-open`, or `start`, so shared URLs
-cannot immediately navigate visitors away from the site.
-
-## Commit gate
-
-This checkout uses `.githooks/pre-commit` as its Git hooks path. The pre-commit
-hook runs `npm run check` and blocks commits until oxlint, React Doctor, and
-TypeScript all pass.
+The pre-commit hook (`.githooks/pre-commit`) runs `npm run check`.
 
 ## Stack
 
 - [Next.js](https://nextjs.org) (App Router) + [TypeScript](https://www.typescriptlang.org)
-- React hooks for the REPL; component styles are inline, no framework
-- Fonts: IBM Plex Mono (body) + Martian Mono (display), via `next/font`
+- IBM Plex Mono via `next/font`
 - [Vercel Analytics](https://vercel.com/analytics)

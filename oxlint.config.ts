@@ -35,13 +35,6 @@ export default defineConfig({
         "react-doctor/only-export-components": "off",
       },
     },
-    {
-      files: ["scripts/threebody-search.mjs"],
-      rules: {
-        // This script uses Node worker_threads postMessage, not browser postMessage.
-        "unicorn/require-post-message-target-origin": "off",
-      },
-    },
   ],
   ignorePatterns: [
     ".agents/**",

@@ -23,9 +23,7 @@
 #   npm run check, npm run build) works on the image node as-is. engines pins
 #   node 24.x / npm 11, but that is advisory (no engine-strict) and the app runs
 #   fine on the image's node, so we do not fight the image PATH to swap node.
-#   The two genuine gaps are:
-#     - gh:  used for opening PRs from a session.
-#     - bun: used by the package.json `threebody:*` scripts.
+#   The one genuine gap is gh, used for opening PRs from a session.
 #
 # SCOPE
 #   Cloud only, Ubuntu only, runs as root. If invoked somewhere without apt
@@ -41,12 +39,11 @@ if ! command -v apt-get >/dev/null 2>&1; then
   exit 0
 fi
 
-# Map uname -> the arch slugs each project's release artifacts use. gh uses the
-# Debian-style amd64/arm64; bun uses x64/aarch64. Keep both.
+# Map uname -> the arch slug the gh release artifacts use (Debian-style).
 case "$(uname -m)" in
-  x86_64)  GH_ARCH=amd64; BUN_ARCH=x64 ;;
-  aarch64) GH_ARCH=arm64; BUN_ARCH=aarch64 ;;
-  *)       GH_ARCH=""; BUN_ARCH="" ;;
+  x86_64)  GH_ARCH=amd64 ;;
+  aarch64) GH_ARCH=arm64 ;;
+  *)       GH_ARCH="" ;;
 esac
 
 # --- gh (GitHub CLI, from the published release tarball) --------------------
@@ -78,37 +75,6 @@ else
     install -m 0755 "$tmp/gh_${ghver}_linux_${GH_ARCH}/bin/gh" /usr/local/bin/gh
     rm -rf "$tmp"
     log "installed $(gh --version | head -1)"
-  fi
-fi
-
-# --- bun (used by the package.json `threebody:*` scripts) -------------------
-# Installed straight from the oven-sh/bun GitHub release zip (Trusted allowlist)
-# rather than the bun.sh installer, whose host is not on the Trusted list. The
-# release ships a .zip, so we make sure `unzip` is present first.
-if command -v bun >/dev/null 2>&1; then
-  log "bun already present ($(bun --version)); skipping."
-elif [ -z "$BUN_ARCH" ]; then
-  log "unsupported arch '$(uname -m)' for the bun release zip; skipping bun."
-else
-  if ! command -v unzip >/dev/null 2>&1; then
-    log "installing unzip (needed to unpack the bun release)..."
-    apt-get update -qq
-    apt-get install -y -qq unzip
-  fi
-  log "installing bun from its GitHub release..."
-  # Same curl-then-grep SIGPIPE avoidance as above.
-  bunmeta="$(curl -fsSL https://api.github.com/repos/oven-sh/bun/releases/latest)"
-  buntag="$(printf '%s' "$bunmeta" | grep -m1 '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')"
-  if [ -z "$buntag" ]; then
-    log "could not determine the latest bun release tag; skipping bun."
-  else
-    tmp="$(mktemp -d)"
-    curl -fsSL -o "$tmp/bun.zip" \
-      "https://github.com/oven-sh/bun/releases/download/${buntag}/bun-linux-${BUN_ARCH}.zip"
-    unzip -q "$tmp/bun.zip" -d "$tmp"
-    install -m 0755 "$tmp/bun-linux-${BUN_ARCH}/bun" /usr/local/bin/bun
-    rm -rf "$tmp"
-    log "installed bun $(bun --version)"
   fi
 fi
 
