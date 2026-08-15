@@ -1,22 +1,11 @@
-# jessica.black
+# site
 
-My personal site: one page, no client JavaScript beyond analytics. Content lives
-in `app/content.ts`; layout in `app/page.tsx`; styles in `styles/globals.css`.
-Talk decks are static HTML under `public/talks/`.
+Two sites, one per directory:
 
-## Develop
+- `jessica.black/`: the main site, a Next.js app deployed on Vercel. See its
+  README for the dev loop.
+- `jssblck.now/`: a static one-page subset (intro and agentic projects) hosted
+  on here.now. Edit `index.html`, then run `./publish.sh`.
 
-```bash
-npm install
-npm run dev      # http://localhost:3000
-npm run check    # oxlint + React Doctor + TypeScript
-npm run build
-```
-
-The pre-commit hook (`.githooks/pre-commit`) runs `npm run check`.
-
-## Stack
-
-- [Next.js](https://nextjs.org) (App Router) + [TypeScript](https://www.typescriptlang.org)
-- IBM Plex Mono via `next/font`
-- [Vercel Analytics](https://vercel.com/analytics)
+Root-level config (`.github/`, `.bastion.yaml`, `.githooks/`) applies to the
+whole repo. Content changes to either site go through the prose gate.

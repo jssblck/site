@@ -25,7 +25,7 @@ reviewers:
   # (this project writes plain ASCII punctuation). A gate: a false block is
   # cheap to override, and the tells are mechanical.
   - name: prose-anti-slop
-    trigger: [app/content.ts, app/page.tsx, README.md]
+    trigger: [jessica.black/app/content.ts, jessica.black/app/page.tsx, jssblck.now/index.html, README.md]
     mode: gate
     backend: codex
     prompt: |
@@ -34,9 +34,10 @@ reviewers:
       machine-written. The tells are structural, not vocabulary, so do not just
       hunt for buzzwords.
 
-      Where the prose lives here: README.md and the site copy embedded as
-      string literals in app/content.ts (job bullets, project notes, link
-      labels) and JSX text in app/page.tsx (the intro paragraph and headings).
+      Where the prose lives here: README.md, the jessica.black copy embedded
+      as string literals in jessica.black/app/content.ts (job bullets, project
+      notes, link labels) and JSX text in jessica.black/app/page.tsx (the intro
+      paragraph and headings), and the static jssblck.now/index.html.
       Review that authored copy. Do NOT flag code: identifiers, JSX structure,
       types, imports, or any other non-prose token.
 

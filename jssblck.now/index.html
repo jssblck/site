@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jessica Black</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<meta name="description" content="Founding engineer at Attune. A short intro and a map of recent agentic projects.">
+<style>
+:root{--bg:#1c1c2b;--fg:#cdd6f4;--muted:#9399b2;--accent:#cba6f7;--rule:#313244}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100dvh;background:var(--bg);color:var(--fg);font:16px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+main{max-width:44rem;margin:0 auto;padding:5rem 1.25rem 6rem}
+header,section{margin-bottom:4rem}
+h1,h2,h3{font-weight:600;line-height:1.25;margin:0}
+h1{font-size:1.5rem}
+h2{font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);border-bottom:1px solid var(--rule);padding-bottom:.5rem;margin-bottom:1.5rem}
+p{margin:0}
+.lede{margin:1rem 0 1.5rem;max-width:38rem}
+.muted{color:var(--muted)}
+a{color:var(--accent);text-decoration:none;text-underline-offset:.2em}
+a:hover,a:focus-visible{text-decoration:underline}
+.items{list-style:none;margin:0;padding:0}
+.items li{margin-bottom:.5rem}
+.items li>a{margin-right:1rem}
+.projects li{display:grid;grid-template-columns:8rem 1fr;column-gap:1rem;margin-bottom:1rem}
+.projects .note{grid-column:2}
+footer{color:var(--muted);font-size:.85rem}
+@media (max-width:480px){main{padding-top:3rem}.projects li{grid-template-columns:1fr}.projects .note{grid-column:1}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Jessica Black</h1>
+    <p class="lede">
+      Founding engineer at <a href="https://attunehq.com">Attune</a>. I build AI agent
+      systems in Rust and TypeScript. Before that, 13 years in distributed
+      systems, program analysis, and developer tools, most recently as a tech
+      lead at FOSSA.
+    </p>
+    <ul class="items" aria-label="contact">
+      <li><a href="https://github.com/jssblck">GitHub</a><span class="muted">jssblck</span></li>
+      <li><a href="https://linkedin.com/in/jessica-black-17947bbb">LinkedIn</a></li>
+      <li><a href="mailto:me@jessica.black">me@jessica.black</a></li>
+    </ul>
+  </header>
+
+  <section aria-labelledby="projects">
+    <h2 id="projects">Recent agentic projects</h2>
+    <ul class="items projects">
+      <li>
+        <a href="https://github.com/jssblck/agents">agents</a>
+        <span class="muted">Markdown</span>
+        <span class="note">my agent skills, plugins, and helpers</span>
+      </li>
+      <li>
+        <a href="https://github.com/attunehq/akari">akari</a>
+        <span class="muted">Go</span>
+        <span class="note">self-hosted, searchable history of coding-agent sessions, with per-run token cost</span>
+      </li>
+      <li>
+        <a href="https://github.com/attunehq/bastion">bastion</a>
+        <span class="muted">Rust</span>
+        <span class="note">agentic code review as focused single-concern reviewers, local and in CI</span>
+      </li>
+      <li>
+        <a href="https://github.com/attunehq/nudge">nudge</a>
+        <span class="muted">Rust</span>
+        <span class="note">guardrails for AI coding agents via Claude Code hooks</span>
+      </li>
+      <li>
+        <a href="https://github.com/attunehq/doteph">doteph</a>
+        <span class="muted">Rust</span>
+        <span class="note">ephemeral per-workspace local services, like .env files for Postgres and Redis</span>
+      </li>
+      <li>
+        <a href="https://github.com/sandi-black/sandi">sandi</a>
+        <span class="muted">TypeScript</span>
+        <span class="note">household intelligence on Discord, with memory, tools, and personal context</span>
+      </li>
+    </ul>
+  </section>
+
+  <footer>More work, writing, and talks at <a href="https://jessica.black">jessica.black</a>.</footer>
+</main>
+</body>
+</html>
