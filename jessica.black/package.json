@@ -30,7 +30,7 @@
     "@types/react-dom": "^19.2.4",
     "oxlint": "^1.78.0",
     "oxlint-plugin-react-doctor": "^0.9.11",
-    "react-doctor": "^0.7.2",
+    "react-doctor": "^0.9.11",
     "typescript": "^7.0.2"
   }
 }
